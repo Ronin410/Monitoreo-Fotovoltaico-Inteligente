@@ -60,7 +60,7 @@ services:
     name: pv-api
     runtime: node
     plan: starter
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pv/api build
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @pv/api build
     preDeployCommand: pnpm db:migrate
     startCommand: pnpm --filter @pv/api start
     healthCheckPath: /health
@@ -76,7 +76,7 @@ services:
     name: pv-worker
     runtime: node
     plan: starter
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pv/worker build
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @pv/worker build
     startCommand: pnpm --filter @pv/worker start
     envVars:
       - key: DATABASE_URL
@@ -89,7 +89,7 @@ services:
     name: pv-web
     runtime: node
     plan: starter
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pv/web build
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @pv/web build
     startCommand: pnpm --filter @pv/web start
     healthCheckPath: /
     envVars:

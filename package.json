@@ -14,7 +14,9 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "pnpm -r typecheck",
-    "db:migrate": "pnpm --filter @pv/db migrate"
+    "db:migrate": "pnpm --filter @pv/db migrate",
+    "db:generate": "pnpm --filter @pv/db generate",
+    "db:migrate:dev": "pnpm --filter @pv/db migrate:dev"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

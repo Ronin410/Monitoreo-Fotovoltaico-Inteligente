@@ -1,0 +1,794 @@
+// Esquema de PV-IoT (ver specs/03-modelo-de-datos.md).
+//
+// Convenciones:
+// - Columnas y tablas en snake_case (@map / @@map); campos en camelCase en TypeScript.
+// - PK uuid (v4, gen_random_uuid()); timestamps timestamptz en UTC.
+// - Toda tabla de negocio (🔒 en el spec) tiene company_id NOT NULL; RLS se agrega en F1-T2.
+// - Las relaciones obligatorias hacia plantas y clientes usan FK compuesta (id, company_id),
+//   así la base de datos impide que una fila apunte a una planta o cliente de otra empresa.
+// - Índices que Prisma no expresa (únicos parciales, CHECK) viven en migraciones SQL manuales.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum CompanyStatus {
+  active
+  suspended
+
+  @@map("company_status")
+}
+
+enum UserRole {
+  superadmin
+  company_admin
+  operator
+  technician
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  invited
+  active
+  disabled
+
+  @@map("user_status")
+}
+
+enum JobRunStatus {
+  running
+  succeeded
+  failed
+
+  @@map("job_run_status")
+}
+
+enum InverterBrand {
+  simulator
+  goodwe
+  huawei
+  fronius
+  enphase
+  other
+
+  @@map("inverter_brand")
+}
+
+enum PlantStatus {
+  active
+  paused
+  decommissioned
+
+  @@map("plant_status")
+}
+
+enum BaselineSource {
+  own
+  neighbors
+  default
+
+  @@map("baseline_source")
+}
+
+enum InvalidDayReason {
+  low_irradiation
+  incomplete_data
+  offline
+  no_weather
+
+  @@map("invalid_day_reason")
+}
+
+enum PredictionConfidence {
+  low
+  medium
+  high
+
+  @@map("prediction_confidence")
+}
+
+enum PlantDailyStatus {
+  ok
+  warning
+  critical
+  offline
+  no_data
+
+  @@map("plant_daily_status")
+}
+
+enum PlantEventType {
+  cleaning
+  rain_cleaning
+  repair
+  inverter_replaced
+  commissioning
+  note
+
+  @@map("plant_event_type")
+}
+
+enum PlantEventSource {
+  ticket
+  auto
+  manual
+
+  @@map("plant_event_source")
+}
+
+enum AlertType {
+  offline
+  sudden_drop
+  soiling
+  cleaning_due_soon
+
+  @@map("alert_type")
+}
+
+enum AlertSeverity {
+  info
+  warning
+  critical
+
+  @@map("alert_severity")
+}
+
+enum AlertStatus {
+  open
+  acknowledged
+  resolved
+  dismissed
+
+  @@map("alert_status")
+}
+
+enum AlertResolution {
+  auto
+  ticket
+  manual
+
+  @@map("alert_resolution")
+}
+
+enum AiStatus {
+  pending
+  done
+  failed
+  skipped
+
+  @@map("ai_status")
+}
+
+enum TicketType {
+  cleaning
+  inspection
+  repair
+  other
+
+  @@map("ticket_type")
+}
+
+enum TicketStatus {
+  pending
+  scheduled
+  in_progress
+  resolved
+  cancelled
+
+  @@map("ticket_status")
+}
+
+enum TicketPriority {
+  low
+  normal
+  high
+
+  @@map("ticket_priority")
+}
+
+enum NotificationChannel {
+  email
+
+  @@map("notification_channel")
+}
+
+enum NotificationStatus {
+  queued
+  sent
+  failed
+
+  @@map("notification_status")
+}
+
+enum ReportStatus {
+  pending
+  generated
+  sent
+  failed
+
+  @@map("report_status")
+}
+
+enum NarrativeSource {
+  ai
+  template
+
+  @@map("narrative_source")
+}
+
+enum AiMessageRole {
+  user
+  assistant
+  tool
+
+  @@map("ai_message_role")
+}
+
+enum AiFeature {
+  chat
+  alert_explanation
+  report_narrative
+
+  @@map("ai_feature")
+}
+
+// ---------------------------------------------------------------------------
+// Plataforma
+// ---------------------------------------------------------------------------
+
+model Company {
+  id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String
+  slug                 String        @unique
+  logoUrl              String?       @map("logo_url")
+  brandColor           String        @default("#F59E0B") @map("brand_color")
+  timezone             String        @default("America/Mazatlan")
+  status               CompanyStatus @default(active)
+  plan                 String        @default("standard")
+  /// Validado con zod en la aplicación (umbrales, valores por defecto, notificaciones).
+  settings             Json          @default("{}")
+  aiMonthlyTokenBudget Int           @default(2000000) @map("ai_monthly_token_budget")
+  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  users               User[]
+  invitations         Invitation[]
+  auditLogs           AuditLog[]
+  jobRuns             JobRun[]
+  clients             Client[]
+  plants              SolarPlant[]
+  inverterCredentials InverterCredential[]
+  telemetryReadings   TelemetryReading[]
+  weatherHours        PlantWeatherHourly[]
+  dailyMetrics        PlantDailyMetric[]
+  plantEvents         PlantEvent[]
+  alerts              Alert[]
+  tickets             MaintenanceTicket[]
+  notifications       Notification[]
+  monthlyReports      MonthlyReport[]
+  aiConversations     AiConversation[]
+  aiMessages          AiMessage[]
+  aiUsageMonthly      AiUsageMonthly[]
+
+  @@map("companies")
+}
+
+model User {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// null solo para superadmin.
+  companyId    String?    @map("company_id") @db.Uuid
+  /// Siempre en minúsculas (CHECK en la migración).
+  email        String     @unique
+  passwordHash String?    @map("password_hash")
+  name         String
+  role         UserRole
+  status       UserStatus @default(invited)
+  lastLoginAt  DateTime?  @map("last_login_at") @db.Timestamptz
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company         Company?            @relation(fields: [companyId], references: [id])
+  refreshTokens   RefreshToken[]
+  invitationsSent Invitation[]
+  auditLogs       AuditLog[]
+  ticketsAssigned MaintenanceTicket[] @relation("TicketAssignee")
+  ticketsCreated  MaintenanceTicket[] @relation("TicketCreator")
+  aiConversations AiConversation[]
+
+  @@index([companyId])
+  @@map("users")
+}
+
+model Invitation {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId   String    @map("company_id") @db.Uuid
+  email       String
+  role        UserRole
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz
+  acceptedAt  DateTime? @map("accepted_at") @db.Timestamptz
+  invitedById String?   @map("invited_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invitedBy User?   @relation(fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, email])
+  @@map("invitations")
+}
+
+model RefreshToken {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  tokenHash    String    @unique @map("token_hash")
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz
+  replacedById String?   @unique @map("replaced_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy RefreshToken? @relation("RefreshTokenRotation", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces   RefreshToken? @relation("RefreshTokenRotation")
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+/// company_id nullable para acciones de plataforma.
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId  String?  @map("company_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  metadata   Json     @default("{}")
+  ip         String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company? @relation(fields: [companyId], references: [id])
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@map("audit_log")
+}
+
+model JobRun {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobName    String       @map("job_name")
+  companyId  String?      @map("company_id") @db.Uuid
+  startedAt  DateTime     @default(now()) @map("started_at") @db.Timestamptz
+  finishedAt DateTime?    @map("finished_at") @db.Timestamptz
+  status     JobRunStatus @default(running)
+  error      String?
+  stats      Json         @default("{}")
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([jobName, startedAt(sort: Desc)])
+  @@index([companyId, startedAt(sort: Desc)])
+  @@map("job_runs")
+}
+
+// ---------------------------------------------------------------------------
+// Inventario
+// ---------------------------------------------------------------------------
+
+model Client {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId         String    @map("company_id") @db.Uuid
+  name              String
+  contactName       String?   @map("contact_name")
+  phone             String?
+  email             String?
+  address           String
+  colonia           String
+  /// 5 dígitos (CHECK en la migración).
+  postalCode        String    @map("postal_code")
+  city              String    @default("Culiacán")
+  state             String    @default("Sinaloa")
+  lat               Decimal   @db.Decimal(9, 6)
+  lon               Decimal   @db.Decimal(9, 6)
+  cfeTariff         String?   @map("cfe_tariff")
+  avgMonthlyKwh     Decimal?  @map("avg_monthly_kwh") @db.Decimal(12, 2)
+  avgMonthlyBillMxn Decimal?  @map("avg_monthly_bill_mxn") @db.Decimal(12, 2)
+  /// Si es null se usa el valor por defecto de la empresa.
+  tariffMxnPerKwh   Decimal?  @map("tariff_mxn_per_kwh") @db.Decimal(10, 4)
+  reportEmail       String?   @map("report_email")
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company        Company            @relation(fields: [companyId], references: [id])
+  plants         SolarPlant[]
+  dailyMetrics   PlantDailyMetric[]
+  monthlyReports MonthlyReport[]
+
+  @@unique([id, companyId])
+  @@index([companyId, postalCode])
+  @@map("clients")
+}
+
+model SolarPlant {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId         String        @map("company_id") @db.Uuid
+  clientId          String        @map("client_id") @db.Uuid
+  name              String
+  capacityKwp       Decimal       @map("capacity_kwp") @db.Decimal(8, 2)
+  tiltDeg           Decimal       @map("tilt_deg") @db.Decimal(5, 2)
+  /// 180 = sur, 90 = este, 270 = oeste.
+  azimuthDeg        Decimal       @map("azimuth_deg") @db.Decimal(5, 2)
+  noctC             Decimal       @default(45) @map("noct_c") @db.Decimal(5, 2)
+  /// %/°C, negativo (por ejemplo −0.40).
+  gammaPctPerC      Decimal       @default(-0.40) @map("gamma_pct_per_c") @db.Decimal(6, 4)
+  panelModel        String?       @map("panel_model")
+  panelCount        Int?          @map("panel_count")
+  inverterBrand     InverterBrand @map("inverter_brand")
+  inverterModel     String?       @map("inverter_model")
+  inverterSerial    String?       @map("inverter_serial")
+  commissioningDate DateTime?     @map("commissioning_date") @db.Date
+  /// Si es null se usan las del cliente.
+  lat               Decimal?      @db.Decimal(9, 6)
+  lon               Decimal?      @db.Decimal(9, 6)
+  postalCode        String        @map("postal_code")
+  colonia           String
+  status            PlantStatus   @default(active)
+  lastReadingAt     DateTime?     @map("last_reading_at") @db.Timestamptz
+  lastPowerKw       Decimal?      @map("last_power_kw") @db.Decimal(14, 4)
+  /// Solo si inverter_brand = simulator (ver specs/04 §3).
+  simulationProfile Json?         @map("simulation_profile")
+  deletedAt         DateTime?     @map("deleted_at") @db.Timestamptz
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company           Company              @relation(fields: [companyId], references: [id])
+  client            Client               @relation(fields: [clientId, companyId], references: [id, companyId])
+  credentials       InverterCredential?
+  telemetryReadings TelemetryReading[]
+  weatherHours      PlantWeatherHourly[]
+  dailyMetrics      PlantDailyMetric[]
+  events            PlantEvent[]
+  alerts            Alert[]
+  tickets           MaintenanceTicket[]
+
+  @@unique([id, companyId])
+  @@index([companyId, postalCode])
+  @@index([companyId, status])
+  @@index([clientId])
+  @@map("solar_plants")
+}
+
+model InverterCredential {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId  String        @map("company_id") @db.Uuid
+  plantId    String        @unique @map("plant_id") @db.Uuid
+  provider   InverterBrand
+  ciphertext Bytes
+  iv         Bytes
+  authTag    Bytes         @map("auth_tag")
+  keyVersion Int           @map("key_version")
+  lastTestAt DateTime?     @map("last_test_at") @db.Timestamptz
+  lastTestOk Boolean?      @map("last_test_ok")
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company    @relation(fields: [companyId], references: [id])
+  plant   SolarPlant @relation(fields: [plantId, companyId], references: [id, companyId], onDelete: Cascade)
+
+  @@unique([plantId, companyId])
+  @@map("inverter_credentials")
+}
+
+// ---------------------------------------------------------------------------
+// Series de tiempo
+// ---------------------------------------------------------------------------
+
+model TelemetryReading {
+  companyId      String   @map("company_id") @db.Uuid
+  plantId        String   @map("plant_id") @db.Uuid
+  /// Inicio del intervalo de 15 min, UTC.
+  ts             DateTime @db.Timestamptz
+  powerKw        Decimal  @map("power_kw") @db.Decimal(14, 4)
+  /// Energía de este intervalo, calculada en la ingesta.
+  energyKwh      Decimal  @map("energy_kwh") @db.Decimal(14, 4)
+  /// Contador diario del inversor.
+  energyTodayKwh Decimal? @map("energy_today_kwh") @db.Decimal(14, 4)
+  inverterTempC  Decimal? @map("inverter_temp_c") @db.Decimal(6, 2)
+  statusCode     String?  @map("status_code")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company    @relation(fields: [companyId], references: [id])
+  plant   SolarPlant @relation(fields: [plantId, companyId], references: [id, companyId], onDelete: Cascade)
+
+  @@id([plantId, ts])
+  @@index([ts], type: Brin)
+  @@map("telemetry_readings")
+}
+
+model PlantWeatherHourly {
+  companyId       String   @map("company_id") @db.Uuid
+  plantId         String   @map("plant_id") @db.Uuid
+  /// Inicio de la hora, UTC.
+  ts              DateTime @db.Timestamptz
+  poaWm2          Decimal  @map("poa_wm2") @db.Decimal(8, 2)
+  ghiWm2          Decimal  @map("ghi_wm2") @db.Decimal(8, 2)
+  tempAmbC        Decimal  @map("temp_amb_c") @db.Decimal(6, 2)
+  cloudCoverPct   Decimal  @map("cloud_cover_pct") @db.Decimal(5, 2)
+  precipitationMm Decimal  @map("precipitation_mm") @db.Decimal(7, 2)
+  source          String
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company    @relation(fields: [companyId], references: [id])
+  plant   SolarPlant @relation(fields: [plantId, companyId], references: [id, companyId], onDelete: Cascade)
+
+  @@id([plantId, ts])
+  @@index([ts], type: Brin)
+  @@map("plant_weather_hourly")
+}
+
+/// Tabla central para alertas, chat y reportes (ver specs/05).
+model PlantDailyMetric {
+  companyId             String                @map("company_id") @db.Uuid
+  plantId               String                @map("plant_id") @db.Uuid
+  /// Día local de la planta.
+  date                  DateTime              @db.Date
+  // Desnormalizados para agrupar rápido por zona.
+  clientId              String                @map("client_id") @db.Uuid
+  postalCode            String                @map("postal_code")
+  colonia               String
+  energyKwh             Decimal               @map("energy_kwh") @db.Decimal(14, 4)
+  irradiationPoaKwhM2   Decimal               @map("irradiation_poa_kwh_m2") @db.Decimal(8, 4)
+  expectedStcKwh        Decimal               @map("expected_stc_kwh") @db.Decimal(14, 4)
+  expectedTempKwh       Decimal               @map("expected_temp_kwh") @db.Decimal(14, 4)
+  specificYieldKwhKwp   Decimal               @map("specific_yield_kwh_kwp") @db.Decimal(10, 4)
+  pr                    Decimal?              @db.Decimal(8, 5)
+  prTemp                Decimal?              @map("pr_temp") @db.Decimal(8, 5)
+  prBaseline            Decimal?              @map("pr_baseline") @db.Decimal(8, 5)
+  baselineSource        BaselineSource?       @map("baseline_source")
+  deviationPct          Decimal?              @map("deviation_pct") @db.Decimal(8, 3)
+  neighborIndex         Decimal?              @map("neighbor_index") @db.Decimal(8, 5)
+  neighborCount         Int                   @default(0) @map("neighbor_count")
+  tempAmbMaxC           Decimal?              @map("temp_amb_max_c") @db.Decimal(6, 2)
+  tCellMaxC             Decimal?              @map("t_cell_max_c") @db.Decimal(6, 2)
+  cloudCoverAvgPct      Decimal?              @map("cloud_cover_avg_pct") @db.Decimal(5, 2)
+  rainMm                Decimal               @default(0) @map("rain_mm") @db.Decimal(7, 2)
+  dataCompletenessPct   Decimal               @default(0) @map("data_completeness_pct") @db.Decimal(6, 2)
+  isValidDay            Boolean               @default(false) @map("is_valid_day")
+  invalidReason         InvalidDayReason?     @map("invalid_reason")
+  soilingSlopePctPerDay Decimal?              @map("soiling_slope_pct_per_day") @db.Decimal(8, 4)
+  daysToCleaning        Int?                  @map("days_to_cleaning")
+  predictionConfidence  PredictionConfidence? @map("prediction_confidence")
+  zoneEvent             Boolean               @default(false) @map("zone_event")
+  status                PlantDailyStatus
+  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company    @relation(fields: [companyId], references: [id])
+  plant   SolarPlant @relation(fields: [plantId, companyId], references: [id, companyId], onDelete: Cascade)
+  client  Client     @relation(fields: [clientId, companyId], references: [id, companyId])
+
+  @@id([plantId, date])
+  @@index([companyId, date])
+  @@index([companyId, date, postalCode])
+  @@map("plant_daily_metrics")
+}
+
+model PlantEvent {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId  String           @map("company_id") @db.Uuid
+  plantId    String           @map("plant_id") @db.Uuid
+  type       PlantEventType
+  occurredAt DateTime         @map("occurred_at") @db.Timestamptz
+  source     PlantEventSource
+  ticketId   String?          @map("ticket_id") @db.Uuid
+  notes      String?
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company            @relation(fields: [companyId], references: [id])
+  plant   SolarPlant         @relation(fields: [plantId, companyId], references: [id, companyId], onDelete: Cascade)
+  ticket  MaintenanceTicket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([plantId, occurredAt(sort: Desc)])
+  @@index([companyId, occurredAt])
+  @@map("plant_events")
+}
+
+// ---------------------------------------------------------------------------
+// Operación
+// ---------------------------------------------------------------------------
+
+/// Máximo una alerta abierta por (plant_id, type): índice único parcial en la migración.
+model Alert {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId     String           @map("company_id") @db.Uuid
+  plantId       String           @map("plant_id") @db.Uuid
+  type          AlertType
+  severity      AlertSeverity
+  status        AlertStatus      @default(open)
+  detectedAt    DateTime         @default(now()) @map("detected_at") @db.Timestamptz
+  resolvedAt    DateTime?        @map("resolved_at") @db.Timestamptz
+  resolution    AlertResolution?
+  /// Motivo obligatorio al descartar (ver specs/06 §4).
+  dismissReason String?          @map("dismiss_reason")
+  /// Métricas que la dispararon (ver specs/06 §3).
+  evidence      Json             @default("{}")
+  /// Ver specs/07 §3.
+  aiExplanation Json?            @map("ai_explanation")
+  aiStatus      AiStatus         @default(pending) @map("ai_status")
+  ticketId      String?          @map("ticket_id") @db.Uuid
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company             @relation(fields: [companyId], references: [id])
+  plant   SolarPlant          @relation(fields: [plantId, companyId], references: [id, companyId], onDelete: Cascade)
+  ticket  MaintenanceTicket?  @relation("AlertTicket", fields: [ticketId], references: [id], onDelete: SetNull)
+  tickets MaintenanceTicket[] @relation("TicketAlert")
+
+  @@index([companyId, status])
+  @@index([plantId, type])
+  @@map("alerts")
+}
+
+model MaintenanceTicket {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId         String         @map("company_id") @db.Uuid
+  plantId           String         @map("plant_id") @db.Uuid
+  alertId           String?        @map("alert_id") @db.Uuid
+  type              TicketType
+  status            TicketStatus   @default(pending)
+  priority          TicketPriority @default(normal)
+  title             String
+  description       String?
+  assignedToId      String?        @map("assigned_to") @db.Uuid
+  scheduledFor      DateTime?      @map("scheduled_for") @db.Date
+  resolvedAt        DateTime?      @map("resolved_at") @db.Timestamptz
+  resolutionNotes   String?        @map("resolution_notes")
+  cleaningPerformed Boolean        @default(false) @map("cleaning_performed")
+  createdById       String?        @map("created_by") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company    Company      @relation(fields: [companyId], references: [id])
+  plant      SolarPlant   @relation(fields: [plantId, companyId], references: [id, companyId], onDelete: Cascade)
+  alert      Alert?       @relation("TicketAlert", fields: [alertId], references: [id], onDelete: SetNull)
+  assignedTo User?        @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy  User?        @relation("TicketCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  alerts     Alert[]      @relation("AlertTicket")
+  events     PlantEvent[]
+
+  @@index([companyId, status])
+  @@index([assignedToId, status])
+  @@index([plantId])
+  @@map("maintenance_tickets")
+}
+
+model Notification {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId   String              @map("company_id") @db.Uuid
+  channel     NotificationChannel @default(email)
+  recipient   String
+  subject     String
+  template    String
+  payload     Json                @default("{}")
+  status      NotificationStatus  @default(queued)
+  relatedType String?             @map("related_type")
+  relatedId   String?             @map("related_id") @db.Uuid
+  sentAt      DateTime?           @map("sent_at") @db.Timestamptz
+  error       String?
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, status])
+  @@index([relatedType, relatedId])
+  @@map("notifications")
+}
+
+model MonthlyReport {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String           @map("company_id") @db.Uuid
+  clientId        String           @map("client_id") @db.Uuid
+  /// YYYY-MM (CHECK en la migración).
+  period          String
+  status          ReportStatus     @default(pending)
+  /// Cifras calculadas por nuestro código (ver specs/08 §2).
+  facts           Json?
+  narrative       String?
+  narrativeSource NarrativeSource? @map("narrative_source")
+  storageKey      String?          @map("storage_key")
+  sentTo          String?          @map("sent_to")
+  sentAt          DateTime?        @map("sent_at") @db.Timestamptz
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company @relation(fields: [companyId], references: [id])
+  client  Client  @relation(fields: [clientId, companyId], references: [id, companyId])
+
+  @@unique([clientId, period])
+  @@index([companyId, period])
+  @@map("monthly_reports")
+}
+
+// ---------------------------------------------------------------------------
+// IA
+// ---------------------------------------------------------------------------
+
+model AiConversation {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  title         String?
+  lastMessageAt DateTime @default(now()) @map("last_message_at") @db.Timestamptz
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company  Company     @relation(fields: [companyId], references: [id])
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AiMessage[]
+
+  @@unique([id, companyId])
+  @@index([companyId, userId, lastMessageAt(sort: Desc)])
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId         String        @map("company_id") @db.Uuid
+  conversationId    String        @map("conversation_id") @db.Uuid
+  role              AiMessageRole
+  /// Texto y bloques.
+  content           Json
+  toolName          String?       @map("tool_name")
+  toolInput         Json?         @map("tool_input")
+  toolOutputSummary Json?         @map("tool_output_summary")
+  model             String?
+  inputTokens       Int?          @map("input_tokens")
+  outputTokens      Int?          @map("output_tokens")
+  latencyMs         Int?          @map("latency_ms")
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company      Company        @relation(fields: [companyId], references: [id])
+  conversation AiConversation @relation(fields: [conversationId, companyId], references: [id, companyId], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("ai_messages")
+}
+
+model AiUsageMonthly {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  /// YYYY-MM
+  period       String
+  feature      AiFeature
+  inputTokens  BigInt    @default(0) @map("input_tokens")
+  outputTokens BigInt    @default(0) @map("output_tokens")
+  requests     Int       @default(0)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, period, feature])
+  @@map("ai_usage_monthly")
+}

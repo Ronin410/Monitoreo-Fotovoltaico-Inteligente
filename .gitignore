@@ -9,3 +9,4 @@ coverage/
 .DS_Store
 storage/
 next-env.d.ts
+packages/db/src/generated/

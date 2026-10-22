@@ -31,6 +31,7 @@ jobs:
     env:
       NODE_ENV: test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/pv_iot_test
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/pv_iot_test
       NEXT_TELEMETRY_DISABLED: '1'
 
     steps:

@@ -5,3 +5,4 @@ CLAUDE.md
 dist/
 coverage/
 next-env.d.ts
+packages/db/src/generated/
