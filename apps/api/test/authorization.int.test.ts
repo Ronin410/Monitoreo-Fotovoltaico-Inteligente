@@ -88,6 +88,18 @@ describe('GET /api/company/users', () => {
     expect(JSON.stringify(all.body)).not.toContain('password');
   });
 
+  it('ignora un company_id enviado en el query', async () => {
+    const a = await companyWithUsers();
+    const b = await companyWithUsers();
+    const res = await request(ctx.app)
+      .get(`/api/company/users?page_size=100&company_id=${b.company.id}&companyId=${b.company.id}`)
+      .set('Authorization', await bearer(a.admin));
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((u: { id: string }) => u.id).sort()).toEqual(
+      [a.admin.id, a.operator.id, a.technician.id].sort(),
+    );
+  });
+
   it('valida la paginación (máximo 100)', async () => {
     const { admin } = await companyWithUsers();
     const res = await request(ctx.app)

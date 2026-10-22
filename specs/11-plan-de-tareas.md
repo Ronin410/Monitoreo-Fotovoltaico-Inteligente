@@ -16,14 +16,14 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
   - Estado (2026-10-22): `render.yaml` listo y `GET /health` probado en local. **Pendiente:** crear el Blueprint en Render, capturar las variables `sync: false` y verificar el despliegue en staging.
   - CA: despliegue en staging con las tres apps respondiendo.
 
-## Fase 1 — Datos, multiempresa y autenticación 🧪
+## Fase 1 — Datos, multiempresa y autenticación 🧪 (revisión: `REVISION-FASE-1.md`)
 - [x] **F1-T1 Esquema.** _(2026-10-22)_ Prisma con todas las tablas de `03`; migración SQL adicional con índices especiales (BRIN, únicos parciales).
 - [x] **F1-T2 RLS y `withTenant`.** _(2026-10-22)_ Políticas RLS en todas las tablas 🔒, rol de aplicación sin `BYPASSRLS`, helper `withTenant(companyId, fn)` y repositorios con tenant obligatorio (ver `02`).
   - CA: una prueba de integración demuestra que, con `app.company_id` de la empresa A, una consulta directa a datos de B devuelve 0 filas.
 - [x] **F1-T3 Auth.** _(2026-10-22)_ Login, refresh con rotación, logout, recuperación de contraseña, invitaciones, rate limit de login, argon2id.
 - [x] **F1-T4 Roles.** _(2026-10-22)_ Middleware de autorización según la matriz de `02`.
 - [x] **F1-T5 Superadmin y empresas.** _(2026-10-22)_ Crear empresa con invitación del primer admin; suspender empresa (bloquea login y jobs).
-- [ ] **F1-T6 Auditoría.** `audit_log` en las acciones listadas en `02`.
+- [x] **F1-T6 Auditoría.** _(2026-10-22)_ `audit_log` en las acciones listadas en `02`.
 
 ## Fase 2 — Inventario
 - [ ] **F2-T1 Clientes.** CRUD API con borrado lógico.

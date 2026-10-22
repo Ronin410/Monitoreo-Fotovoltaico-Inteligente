@@ -1,6 +1,7 @@
 import type { EmailProvider } from '@pv/adapters';
 import type { Env } from '@pv/config';
 import type { PrismaClient, TenantDb, UserRole } from '@pv/db';
+import { recordAudit, type AuditEntry } from '../audit.js';
 import { HttpError } from '../http/errors.js';
 import { invitationEmail, passwordResetEmail } from './emails.js';
 import { hashPassword, verifyPassword } from './passwords.js';
@@ -94,16 +95,18 @@ export class AuthService {
     return hashOpaqueToken(this.deps.env.REFRESH_TOKEN_SECRET, token);
   }
 
-  private async issueSession(user: UserWithCompany): Promise<Session> {
+  /** Crea la sesión; si se indica `audit`, el registro se guarda en la misma transacción. */
+  private async issueSession(user: UserWithCompany, audit?: AuditEntry): Promise<Session> {
     const now = this.deps.now();
     const refreshToken = generateOpaqueToken();
     const refreshExpiresAt = new Date(now.getTime() + REFRESH_TOKEN_TTL_MS);
-    await this.deps.serviceDb.$transaction([
-      this.deps.serviceDb.refreshToken.create({
+    await this.deps.serviceDb.$transaction(async (tx) => {
+      await tx.refreshToken.create({
         data: { userId: user.id, tokenHash: this.hash(refreshToken), expiresAt: refreshExpiresAt },
-      }),
-      this.deps.serviceDb.user.update({ where: { id: user.id }, data: { lastLoginAt: now } }),
-    ]);
+      });
+      await tx.user.update({ where: { id: user.id }, data: { lastLoginAt: now } });
+      if (audit) await recordAudit(tx, audit);
+    });
     const ctx: AuthContext = { userId: user.id, companyId: user.companyId, role: user.role };
     return {
       accessToken: await signAccessToken(this.deps.env.JWT_SECRET, ctx, now),
@@ -119,15 +122,41 @@ export class AuthService {
     };
   }
 
-  async login(email: string, password: string): Promise<Session> {
+  async login(email: string, password: string, ip: string | null = null): Promise<Session> {
     const user = await this.deps.serviceDb.user.findUnique({
       where: { email: normalizeEmail(email) },
       include: { company: { select: { status: true } } },
     });
     // Siempre se verifica (contra un hash ficticio si no hay usuario) para igualar tiempos.
     const passwordOk = await verifyPassword(user?.passwordHash ?? null, password);
-    if (!user || !passwordOk || !canHaveSession(user)) throw invalidCredentials();
-    return this.issueSession(user);
+    if (!user || !passwordOk || !canHaveSession(user)) {
+      // También se registra el correo inexistente (sin guardar el correo): así ningún caso
+      // tarda distinto y el tiempo de respuesta no revela si la cuenta existe.
+      const reason = !user
+        ? 'unknown_email'
+        : !passwordOk
+          ? 'invalid_password'
+          : user.status !== 'active'
+            ? 'user_not_active'
+            : 'company_suspended';
+      await recordAudit(this.deps.serviceDb, {
+        action: 'auth.login_failed',
+        companyId: user?.companyId ?? null,
+        userId: user?.id ?? null,
+        ...(user ? { entityType: 'user', entityId: user.id } : {}),
+        metadata: { reason },
+        ip,
+      });
+      throw invalidCredentials();
+    }
+    return this.issueSession(user, {
+      action: 'auth.login',
+      companyId: user.companyId,
+      userId: user.id,
+      entityType: 'user',
+      entityId: user.id,
+      ip,
+    });
   }
 
   /** Rota el refresh token. Reusar uno ya rotado revoca todas las sesiones del usuario. */
@@ -205,7 +234,7 @@ export class AuthService {
   }
 
   /** Cambia la contraseña con un token de un solo uso y cierra todas las sesiones. */
-  async resetPassword(token: string, password: string): Promise<void> {
+  async resetPassword(token: string, password: string, ip: string | null = null): Promise<void> {
     const db = this.deps.serviceDb;
     const now = this.deps.now();
     const row = await db.passwordResetToken.findUnique({
@@ -226,6 +255,14 @@ export class AuthService {
       await tx.refreshToken.updateMany({
         where: { userId: row.userId, revokedAt: null },
         data: { revokedAt: now },
+      });
+      await recordAudit(tx, {
+        action: 'auth.password_reset',
+        companyId: row.user.companyId,
+        userId: row.userId,
+        entityType: 'user',
+        entityId: row.userId,
+        ip,
       });
     });
   }
@@ -292,7 +329,12 @@ export class AuthService {
   }
 
   /** Acepta la invitación: crea el usuario activo con su contraseña e inicia sesión. */
-  async acceptInvitation(token: string, name: string, password: string): Promise<Session> {
+  async acceptInvitation(
+    token: string,
+    name: string,
+    password: string,
+    ip: string | null = null,
+  ): Promise<Session> {
     const invitation = await this.findValidInvitation(token);
     const passwordHash = await hashPassword(password);
     const now = this.deps.now();
@@ -307,7 +349,7 @@ export class AuthService {
       if (existing) {
         throw new HttpError(409, 'EMAIL_IN_USE', 'Ya existe una cuenta con este correo');
       }
-      return tx.user.create({
+      const created = await tx.user.create({
         data: {
           companyId: invitation.companyId,
           email: invitation.email,
@@ -318,6 +360,16 @@ export class AuthService {
         },
         include: { company: { select: { status: true } } },
       });
+      await recordAudit(tx, {
+        action: 'user.invitation_accepted',
+        companyId: invitation.companyId,
+        userId: created.id,
+        entityType: 'user',
+        entityId: created.id,
+        metadata: { invitation_id: invitation.id, role: invitation.role },
+        ip,
+      });
+      return created;
     });
     return this.issueSession(user);
   }

@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { companyAuthOf, requirePermission } from '../auth/authorize.js';
 import { normalizeEmail, type AuthService } from '../auth/service.js';
+import { changesOf, recordAudit } from '../audit.js';
 import { HttpError } from '../http/errors.js';
 import { pageArgs, paginated, paginationQuery } from '../http/pagination.js';
 
@@ -59,12 +60,22 @@ export function companyUsersRouter(db: PrismaClient, auth: AuthService): Router 
           'Ese correo ya pertenece a un usuario de la empresa',
         );
       }
-      return auth.createInvitation(tx, {
+      const pending = await auth.createInvitation(tx, {
         companyId: session.companyId,
         email,
         role: body.role,
         invitedById: session.userId,
       });
+      await recordAudit(tx, {
+        action: 'user.invited',
+        companyId: session.companyId,
+        userId: session.userId,
+        entityType: 'invitation',
+        entityId: pending.id,
+        metadata: { email, role: body.role },
+        ip: req.ip ?? null,
+      });
+      return pending;
     });
     await invitation.send();
     res.status(201).json({
@@ -107,13 +118,23 @@ export function companyUsersRouter(db: PrismaClient, auth: AuthService): Router 
           );
         }
       }
-      return tx.user.update({
+      const after = await tx.user.update({
         where: { id },
         data: {
           ...(body.role === undefined ? {} : { role: body.role }),
           ...(body.status === undefined ? {} : { status: body.status }),
         },
       });
+      await recordAudit(tx, {
+        action: 'user.updated',
+        companyId: session.companyId,
+        userId: session.userId,
+        entityType: 'user',
+        entityId: id,
+        metadata: { changes: changesOf(target, after, ['role', 'status']) },
+        ip: req.ip ?? null,
+      });
+      return after;
     });
 
     // Un usuario desactivado pierde sus sesiones de inmediato.

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { requirePermission } from '../auth/authorize.js';
 import { authOf } from '../auth/middleware.js';
 import { normalizeEmail, type AuthService } from '../auth/service.js';
+import { changesOf, recordAudit } from '../audit.js';
 import { HttpError } from '../http/errors.js';
 import { pageArgs, paginated, paginationQuery } from '../http/pagination.js';
 
@@ -184,6 +185,25 @@ export function adminRouter(serviceDb: PrismaClient, auth: AuthService, now: () 
           invitedById: superadmin.userId,
         });
         const invitation = await tx.invitation.create({ data: pending.data });
+        const ip = req.ip ?? null;
+        await recordAudit(tx, {
+          action: 'company.created',
+          companyId: company.id,
+          userId: superadmin.userId,
+          entityType: 'company',
+          entityId: company.id,
+          metadata: { name: company.name, slug: company.slug },
+          ip,
+        });
+        await recordAudit(tx, {
+          action: 'user.invited',
+          companyId: company.id,
+          userId: superadmin.userId,
+          entityType: 'invitation',
+          entityId: invitation.id,
+          metadata: { email: adminEmail, role: 'company_admin' },
+          ip,
+        });
         return { company, invitation, send: pending.send };
       })
       .catch((err: unknown) => {
@@ -230,6 +250,17 @@ export function adminRouter(serviceDb: PrismaClient, auth: AuthService, now: () 
           data: { revokedAt: now() },
         });
       }
+      await recordAudit(tx, {
+        action: 'company.updated',
+        companyId: id,
+        userId: authOf(req).userId,
+        entityType: 'company',
+        entityId: id,
+        metadata: {
+          changes: changesOf(existing, updated, ['status', 'plan', 'aiMonthlyTokenBudget']),
+        },
+        ip: req.ip ?? null,
+      });
       return updated;
     });
     const stats = await statsFor(serviceDb, [company], now());

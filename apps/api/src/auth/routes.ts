@@ -66,7 +66,7 @@ export function authRouter(auth: AuthService, now: () => Date): Router {
   router.post('/login', async (req, res) => {
     const body = loginBody.parse(req.body);
     enforceLimits(loginLimiter, res, [`ip:${req.ip}`, `email:${normalizeEmail(body.email)}`]);
-    sendSession(res, await auth.login(body.email, body.password));
+    sendSession(res, await auth.login(body.email, body.password, req.ip ?? null));
   });
 
   router.post('/refresh', async (req, res) => {
@@ -97,7 +97,7 @@ export function authRouter(auth: AuthService, now: () => Date): Router {
 
   router.post('/reset-password', async (req, res) => {
     const body = resetBody.parse(req.body);
-    await auth.resetPassword(body.token, body.password);
+    await auth.resetPassword(body.token, body.password, req.ip ?? null);
     res.status(204).end();
   });
 
@@ -114,7 +114,7 @@ export function authRouter(auth: AuthService, now: () => Date): Router {
   router.post('/invitations/:token/accept', async (req, res) => {
     const { token } = tokenParam.parse(req.params);
     const body = acceptBody.parse(req.body);
-    sendSession(res, await auth.acceptInvitation(token, body.name, body.password));
+    sendSession(res, await auth.acceptInvitation(token, body.name, body.password, req.ip ?? null));
   });
 
   return router;
