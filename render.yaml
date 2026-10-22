@@ -1,0 +1,105 @@
+# Blueprint de Render (ver specs/01-arquitectura.md §Despliegue).
+# Crear un Blueprint por ambiente (staging y production) apuntando a este archivo.
+# Las variables con `sync: false` se capturan a mano en el panel de Render.
+
+envVarGroups:
+  - name: pv-shared
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: '1'
+      - key: APP_URL
+        sync: false
+      - key: API_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: REFRESH_TOKEN_SECRET
+        generateValue: true
+      # 32 bytes en base64 (openssl rand -base64 32). Se captura a mano y se respalda fuera
+      # de Render: si se pierde, las credenciales de inversor guardadas no se pueden descifrar.
+      - key: CREDENTIALS_ENC_KEY
+        sync: false
+      - key: CREDENTIALS_KEY_VERSION
+        value: '1'
+      - key: LLM_PROVIDER
+        value: anthropic
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LLM_MODEL_CHAT
+        value: claude-sonnet-5-5
+      - key: LLM_MODEL_FAST
+        value: claude-haiku-5-5
+      - key: WEATHER_PROVIDER
+        value: open-meteo
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: EMAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: STORAGE_PROVIDER
+        value: s3
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      # true solo en staging/demo.
+      - key: SIMULATOR_ENABLED
+        sync: false
+      - key: DEFAULT_TIMEZONE
+        value: America/Mazatlan
+
+services:
+  - type: web
+    name: pv-api
+    runtime: node
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pv/api build
+    preDeployCommand: pnpm db:migrate
+    startCommand: pnpm --filter @pv/api start
+    healthCheckPath: /health
+    envVars:
+      # F1-T2 separa el rol dueño (migraciones) del rol de aplicación sin BYPASSRLS.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pv-db
+          property: connectionString
+      - fromGroup: pv-shared
+
+  - type: worker
+    name: pv-worker
+    runtime: node
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pv/worker build
+    startCommand: pnpm --filter @pv/worker start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pv-db
+          property: connectionString
+      - fromGroup: pv-shared
+
+  - type: web
+    name: pv-web
+    runtime: node
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pv/web build
+    startCommand: pnpm --filter @pv/web start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: '1'
+
+databases:
+  - name: pv-db
+    databaseName: pv_iot
+    plan: basic-256mb
+    postgresMajorVersion: '16'

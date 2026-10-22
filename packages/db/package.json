@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "migrate": "node -e \"console.log('Sin migraciones todav\u00eda: el esquema llega en F1-T1.')\""
   }
 }

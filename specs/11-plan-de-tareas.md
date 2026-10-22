@@ -13,6 +13,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
   - CA: arrancar sin una variable obligatoria falla con un mensaje claro.
 - [ ] **F0-T3 CI.** GitHub Actions: install, lint, typecheck y tests con un servicio PostgreSQL.
 - [ ] **F0-T4 Render.** `render.yaml` con `pv-web`, `pv-api`, `pv-worker` y `pv-db`; migraciones en pre-deploy; `GET /health`.
+  - Estado (2026-10-22): `render.yaml` listo y `GET /health` probado en local. **Pendiente:** crear el Blueprint en Render, capturar las variables `sync: false` y verificar el despliegue en staging.
   - CA: despliegue en staging con las tres apps respondiendo.
 
 ## Fase 1 — Datos, multiempresa y autenticación 🧪
