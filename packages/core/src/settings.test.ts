@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { parseCompanySettings } from './settings.js';
+import {
+  applySettingsPatch,
+  companySettingsPatchSchema,
+  DEFAULT_SETTINGS,
+  parseCompanySettings,
+} from './settings.js';
 import { simulationProfileSchema } from './simulation.js';
 
 describe('parseCompanySettings', () => {
@@ -39,10 +44,55 @@ describe('parseCompanySettings', () => {
     expect(s.thresholds).toMatchObject({ offline_hours: 6, soiling_deviation_pct: 12 });
   });
 
-  it('rechaza valores fuera de rango', () => {
+  it('rechaza valores guardados fuera de rango', () => {
     expect(() => parseCompanySettings({ defaults: { gamma_pct_per_c: 0.4 } })).toThrow();
     expect(() => parseCompanySettings({ defaults: { tilt_deg: 95 } })).toThrow();
     expect(() => parseCompanySettings({ thresholds: { neighbor_min_count: 2.5 } })).toThrow();
+  });
+
+  it('no modifica la constante de valores por defecto', () => {
+    const s = parseCompanySettings({});
+    s.notifications.alert_emails.push('x@example.com');
+    expect(DEFAULT_SETTINGS.notifications.alert_emails).toEqual([]);
+  });
+});
+
+describe('applySettingsPatch', () => {
+  it('mezcla el cambio con lo guardado y guarda solo lo personalizado', () => {
+    const { stored, settings } = applySettingsPatch(
+      { thresholds: { offline_hours: 6 } },
+      { thresholds: { soiling_deviation_pct: 15 }, defaults: { tariff_mxn_per_kwh: 3.9 } },
+    );
+    expect(stored).toEqual({
+      thresholds: { offline_hours: 6, soiling_deviation_pct: 15 },
+      defaults: { tariff_mxn_per_kwh: 3.9 },
+    });
+    expect(settings.thresholds).toMatchObject({ offline_hours: 6, soiling_deviation_pct: 15 });
+  });
+
+  it('null restablece la sección a los valores por defecto', () => {
+    const { stored, settings } = applySettingsPatch(
+      { thresholds: { offline_hours: 6 }, defaults: { tilt_deg: 10 } },
+      { thresholds: null },
+    );
+    expect(stored).toEqual({ defaults: { tilt_deg: 10 } });
+    expect(settings.thresholds.offline_hours).toBe(4);
+  });
+
+  it('valida el resultado', () => {
+    expect(() => applySettingsPatch({}, { thresholds: { zone_event_pct: 0 } })).toThrow();
+  });
+
+  it('el esquema del cambio rechaza campos desconocidos', () => {
+    expect(companySettingsPatchSchema.safeParse({ thresholds: { offline_hrs: 5 } }).success).toBe(
+      false,
+    );
+    expect(companySettingsPatchSchema.safeParse({ extras: {} }).success).toBe(false);
+    expect(
+      companySettingsPatchSchema.safeParse({
+        notifications: { alert_emails: ['A@x.com', 'a@x.com'] },
+      }).success,
+    ).toBe(false);
   });
 });
 

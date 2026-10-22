@@ -1,4 +1,6 @@
+import { companySettingsPatchSchema, companySettingsSchema } from '@pv/core';
 import { z } from 'zod';
+import { brandColorSchema, timezoneSchema } from '../admin/schemas.js';
 import { paginatedSchema, paginationQuery } from '../../http/pagination.js';
 import { companyRoleSchema, emailSchema, userRoleSchema } from '../shared-schemas.js';
 
@@ -30,4 +32,35 @@ export const invitationCreatedResponse = z.object({
   email: z.string(),
   role: companyRoleSchema,
   expires_at: z.date(),
+});
+
+// Empresa (GET/PATCH /company, POST /company/logo)
+export const patchCompanyBody = z
+  .strictObject({
+    name: z.string().trim().min(1).max(120).optional(),
+    brand_color: brandColorSchema.optional(),
+    timezone: timezoneSchema.optional(),
+    settings: companySettingsPatchSchema.optional(),
+  })
+  .refine((b) => Object.values(b).some((v) => v !== undefined), {
+    error: 'Indica al menos un campo',
+  });
+
+export const companyResponse = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  slug: z.string(),
+  logo_url: z.string().nullable(),
+  brand_color: z.string(),
+  timezone: z.string(),
+  plan: z.string(),
+  ai_monthly_token_budget: z.number().int(),
+  /** Settings completos (con valores por defecto). */
+  settings: companySettingsSchema,
+});
+
+export const logoResponse = z.object({ logo_url: z.string() });
+export const logoParams = z.object({
+  companyId: z.uuid(),
+  file: z.string().regex(/^[0-9a-f-]{36}\.(png|jpg|svg)$/),
 });

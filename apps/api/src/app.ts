@@ -1,4 +1,9 @@
-import { CredentialCipher, type EmailProvider, type InverterAdapter } from '@pv/adapters';
+import {
+  CredentialCipher,
+  type EmailProvider,
+  type InverterAdapter,
+  type StorageProvider,
+} from '@pv/adapters';
 import type { Env } from '@pv/config';
 import type { InverterBrand } from '@pv/core';
 import type { PrismaClient } from '@pv/db';
@@ -13,6 +18,7 @@ import { requireAuth } from './auth/middleware.js';
 import { authRouter } from './routes/auth/routes.js';
 import { clientsRouter } from './routes/clients/routes.js';
 import { AuthService } from './auth/service.js';
+import { companyProfileRouter, publicLogosRouter } from './routes/company/profile-routes.js';
 import { companyUsersRouter } from './routes/company/routes.js';
 import { errorHandler, notFoundHandler } from './http/errors.js';
 import { meRouter } from './routes/me/routes.js';
@@ -25,6 +31,8 @@ export type AppDeps = {
   /** Conexión como pv_service (autenticación y plataforma). */
   serviceDb: PrismaClient;
   email: EmailProvider;
+  /** Logos y PDFs (specs/01: local en desarrollo, S3 en producción). */
+  storage: StorageProvider;
   logger: Logger;
   now?: () => Date;
   /** Adaptadores de inversor; por defecto el registro real. Las pruebas los sustituyen. */
@@ -60,6 +68,8 @@ export function createApp(deps: AppDeps): Express {
   const authenticated = requireAuth(deps.env.JWT_SECRET, now);
   api.use('/me', authenticated, meRouter(deps.db, deps.serviceDb));
   api.use('/company', authenticated, companyUsersRouter(deps.db, auth));
+  api.use('/company', authenticated, companyProfileRouter(deps.db, deps.storage, deps.env.API_URL));
+  api.use('/public/logos', publicLogosRouter(deps.storage));
   api.use('/admin', authenticated, adminRouter(deps.serviceDb, auth, now));
   api.use('/clients', authenticated, clientsRouter(deps.db));
   api.use(

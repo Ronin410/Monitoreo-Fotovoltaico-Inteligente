@@ -1,4 +1,4 @@
-import { createEmailProvider } from '@pv/adapters';
+import { createEmailProvider, createStorageProvider } from '@pv/adapters';
 import { loadEnvOrExit } from '@pv/config';
 import { assertAppRoleIsSafe, createPrismaClient, UnsafeDatabaseRoleError } from '@pv/db';
 import { createApp } from './app.js';
@@ -21,6 +21,13 @@ try {
 }
 
 const port = env.PORT ?? 4000;
-createApp({ env, db, serviceDb, email: createEmailProvider(env), logger }).listen(port, () => {
+createApp({
+  env,
+  db,
+  serviceDb,
+  email: createEmailProvider(env),
+  storage: createStorageProvider(env),
+  logger,
+}).listen(port, () => {
   logger.info({ port }, 'pv-api escuchando');
 });

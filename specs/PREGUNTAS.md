@@ -91,3 +91,12 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 58. **Rotación de llave.** `CredentialCipher` ya descifra con versiones anteriores, pero `01` solo define la llave actual (`CREDENTIALS_ENC_KEY` + `CREDENTIALS_KEY_VERSION`). Falta definir la variable para la llave anterior y el procedimiento de re-cifrado.
 59. **Prueba de conexión.** Responde siempre `200` con `ok` y un mensaje genérico (también si el adaptador no está implementado), limitada a 5 por minuto por planta, con un tiempo máximo de 15 s. Una planta sin credenciales responde `409`, salvo el simulador, que no las necesita.
 60. **Adelanto de F3-T5.** La prueba de conexión necesitaba adaptadores: ya existen la interfaz `InverterAdapter` de `04`, el registro y los esqueletos de GoodWe, Huawei, Fronius y Enphase que lanzan `NotImplementedError`. F3-T5 queda para agregar los TODO que exigen documentación oficial.
+
+## F2-T4 — Configuración de empresa
+
+61. **Cómo se guardan los `settings`.** En la base se guardan solo los valores personalizados; al leer se completan con los valores por defecto del código. Ventajas: un valor por defecto que cambie en el futuro aplica a quien no lo personalizó, y "Restablecer" consiste en mandar la sección en `null`. El PATCH es estricto: un campo mal escrito responde `400` en lugar de ignorarse.
+62. **`PATCH /company` rechaza campos que no son del admin** (`slug`, `plan`, `status`, presupuesto de IA, `company_id`) con `400` en lugar de ignorarlos, para que un error del frontend no pase desapercibido. Plan, estado y presupuesto los cambia solo el superadmin.
+63. **Subida del logo.** Cuerpo binario con `Content-Type` `image/png`, `image/jpeg` o `image/svg+xml` (no multipart). El tipo se verifica por el contenido; el SVG se sanea con DOMPurify (sin scripts, eventos, `<style>`, `foreignObject`, `<use>` ni recursos externos). Algunos logos exportados usan `<use>` y podrían perder partes: en ese caso conviene subirlos en PNG.
+64. **Logos públicos.** Se sirven sin autenticación en `/api/public/logos/:empresa/:archivo` (aparecen en correos, PDFs y el web), con nombre aleatorio, caché larga y una CSP que impide ejecutar nada. Reemplazar el logo borra el anterior.
+65. **`StorageProvider`.** Disco local y S3 compatible (R2 o S3) implementados; el de S3 no se ha probado contra un bucket real.
+66. **Versión de jsdom.** jsdom 30 exige Node ≥ 22.22.2; se usa jsdom 29 para no subir el requisito de Node.
