@@ -9,7 +9,7 @@ import {
   type PrismaClient,
   type TENANT_MODELS,
 } from '../src/index.js';
-import { testAppDatabaseUrl, testDatabaseUrl, testServiceDatabaseUrl } from './test-db.js';
+import { testAppDatabaseUrl, testDatabaseUrl, testServiceDatabaseUrl } from '../testing/index.js';
 
 // Tabla de cada modelo con company_id (debe coincidir con @@map del esquema).
 const MODEL_TABLE: Record<(typeof TENANT_MODELS)[number], string> = {
@@ -124,10 +124,10 @@ async function pgError(fn: () => Promise<unknown>): Promise<string | null> {
 }
 
 beforeAll(async () => {
-  owner = createPrismaClient(testDatabaseUrl());
-  app = createPrismaClient(testAppDatabaseUrl());
-  appPool = new pg.Pool({ connectionString: testAppDatabaseUrl(), max: 2 });
-  servicePool = new pg.Pool({ connectionString: testServiceDatabaseUrl(), max: 2 });
+  owner = createPrismaClient(testDatabaseUrl('db'));
+  app = createPrismaClient(testAppDatabaseUrl('db'));
+  appPool = new pg.Pool({ connectionString: testAppDatabaseUrl('db'), max: 2 });
+  servicePool = new pg.Pool({ connectionString: testServiceDatabaseUrl('db'), max: 2 });
   A = await seedCompany('a');
   B = await seedCompany('b');
 });

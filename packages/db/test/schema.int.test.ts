@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPrismaClient, type PrismaClient } from '../src/index.js';
-import { testDatabaseUrl } from './test-db.js';
+import { testDatabaseUrl } from '../testing/index.js';
 
 // Tablas de specs/03. Las marcadas 🔒 deben tener company_id NOT NULL.
 const TENANT_TABLES = [
@@ -25,7 +25,7 @@ const PLATFORM_TABLES = ['companies', 'users', 'refresh_tokens', 'audit_log', 'j
 let db: PrismaClient;
 
 beforeAll(() => {
-  db = createPrismaClient(testDatabaseUrl());
+  db = createPrismaClient(testDatabaseUrl('db'));
 });
 
 afterAll(async () => {

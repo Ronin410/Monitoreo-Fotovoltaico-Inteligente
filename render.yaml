@@ -74,6 +74,9 @@ services:
       # (ver packages/db/README.md) y se captura a mano.
       - key: DATABASE_URL
         sync: false
+      # Usuario miembro de pv_service (ver packages/db/README.md).
+      - key: SERVICE_DATABASE_URL
+        sync: false
       - fromGroup: pv-shared
 
   - type: worker
@@ -85,6 +88,9 @@ services:
     envVars:
       # Mismo usuario miembro de pv_app que pv-api.
       - key: DATABASE_URL
+        sync: false
+      # Usuario miembro de pv_service (ver packages/db/README.md).
+      - key: SERVICE_DATABASE_URL
         sync: false
       - fromGroup: pv-shared
 

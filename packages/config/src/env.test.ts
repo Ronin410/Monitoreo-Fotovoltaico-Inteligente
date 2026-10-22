@@ -5,6 +5,7 @@ const KEY_32_BYTES_B64 = Buffer.alloc(32, 7).toString('base64');
 
 const validEnv = {
   DATABASE_URL: 'postgres://pv_app:pw@localhost:5432/pv',
+  SERVICE_DATABASE_URL: 'postgres://pv_service:pw@localhost:5432/pv',
   APP_URL: 'http://localhost:3000',
   API_URL: 'http://localhost:4000',
   JWT_SECRET: 'j'.repeat(32),
@@ -50,6 +51,7 @@ describe('loadEnv', () => {
     expect(problemsOf({})).toEqual(
       expect.arrayContaining([
         'DATABASE_URL',
+        'SERVICE_DATABASE_URL',
         'APP_URL',
         'API_URL',
         'JWT_SECRET',

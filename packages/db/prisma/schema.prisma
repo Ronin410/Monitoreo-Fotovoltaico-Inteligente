@@ -298,13 +298,14 @@ model User {
   createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
-  company         Company?            @relation(fields: [companyId], references: [id])
-  refreshTokens   RefreshToken[]
-  invitationsSent Invitation[]
-  auditLogs       AuditLog[]
-  ticketsAssigned MaintenanceTicket[] @relation("TicketAssignee")
-  ticketsCreated  MaintenanceTicket[] @relation("TicketCreator")
-  aiConversations AiConversation[]
+  company             Company?             @relation(fields: [companyId], references: [id])
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  invitationsSent     Invitation[]
+  auditLogs           AuditLog[]
+  ticketsAssigned     MaintenanceTicket[]  @relation("TicketAssignee")
+  ticketsCreated      MaintenanceTicket[]  @relation("TicketCreator")
+  aiConversations     AiConversation[]
 
   @@index([companyId])
   @@map("users")
@@ -345,6 +346,23 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+/// Recuperación de contraseña: token de un solo uso que expira en 1 hora (specs/02).
+/// No está en specs/03 (ver specs/PREGUNTAS.md #8).
+model PasswordResetToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 /// company_id nullable para acciones de plataforma.

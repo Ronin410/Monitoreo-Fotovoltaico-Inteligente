@@ -1,12 +1,59 @@
+import type { EmailProvider } from '@pv/adapters';
+import type { Env } from '@pv/config';
+import type { PrismaClient } from '@pv/db';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
 import express, { type Express } from 'express';
+import helmet from 'helmet';
+import type { Logger } from 'pino';
+import { pinoHttp } from 'pino-http';
+import { requireAuth } from './auth/middleware.js';
+import { authRouter } from './auth/routes.js';
+import { AuthService } from './auth/service.js';
+import { errorHandler, notFoundHandler } from './http/errors.js';
+import { meRouter } from './me/routes.js';
 
-export function createApp(): Express {
+export type AppDeps = {
+  env: Env;
+  /** Conexión como pv_app (datos de empresa, siempre con withTenant). */
+  db: PrismaClient;
+  /** Conexión como pv_service (autenticación y plataforma). */
+  serviceDb: PrismaClient;
+  email: EmailProvider;
+  logger: Logger;
+  now?: () => Date;
+};
+
+export function createApp(deps: AppDeps): Express {
+  const now = deps.now ?? (() => new Date());
   const app = express();
   app.disable('x-powered-by');
+  // Render entrega la petición a través de un proxy; req.ip es la IP real del cliente.
+  app.set('trust proxy', 1);
+
+  app.use(helmet());
+  app.use(cors({ origin: deps.env.APP_URL, credentials: true }));
+  app.use(pinoHttp({ logger: deps.logger }));
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
 
+  const api = express.Router();
+  api.use(express.json({ limit: '100kb' }));
+  api.use(cookieParser());
+
+  const auth = new AuthService({
+    env: deps.env,
+    serviceDb: deps.serviceDb,
+    email: deps.email,
+    now,
+  });
+  api.use('/auth', authRouter(auth, now));
+  api.use('/me', requireAuth(deps.env.JWT_SECRET, now), meRouter(deps.db, deps.serviceDb));
+
+  app.use('/api', api);
+  app.use(notFoundHandler);
+  app.use(errorHandler(deps.logger));
   return app;
 }

@@ -22,6 +22,10 @@ const aesKey = requiredString.refine(
   { error: 'debe ser una llave de 32 bytes codificada en base64' },
 );
 
+const postgresUrl = requiredString.refine((v) => /^postgres(ql)?:\/\//.test(v), {
+  error: 'debe ser una URL de PostgreSQL (postgres://…)',
+});
+
 const boolean = z
   .enum(['true', 'false'], { error: 'debe ser "true" o "false"' })
   .transform((v) => v === 'true');
@@ -43,9 +47,10 @@ const envSchema = z
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().positive().optional(),
 
-    DATABASE_URL: requiredString.refine((v) => /^postgres(ql)?:\/\//.test(v), {
-      error: 'debe ser una URL de PostgreSQL (postgres://…)',
-    }),
+    // Usuario miembro de pv_app (ver packages/db/README.md).
+    DATABASE_URL: postgresUrl,
+    // Usuario miembro de pv_service: login, superadmin y jobs globales (specs/02).
+    SERVICE_DATABASE_URL: postgresUrl,
     APP_URL: url,
     API_URL: url,
 

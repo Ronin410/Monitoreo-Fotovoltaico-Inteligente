@@ -20,7 +20,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 - [x] **F1-T1 Esquema.** _(2026-10-22)_ Prisma con todas las tablas de `03`; migración SQL adicional con índices especiales (BRIN, únicos parciales).
 - [x] **F1-T2 RLS y `withTenant`.** _(2026-10-22)_ Políticas RLS en todas las tablas 🔒, rol de aplicación sin `BYPASSRLS`, helper `withTenant(companyId, fn)` y repositorios con tenant obligatorio (ver `02`).
   - CA: una prueba de integración demuestra que, con `app.company_id` de la empresa A, una consulta directa a datos de B devuelve 0 filas.
-- [ ] **F1-T3 Auth.** Login, refresh con rotación, logout, recuperación de contraseña, invitaciones, rate limit de login, argon2id.
+- [x] **F1-T3 Auth.** _(2026-10-22)_ Login, refresh con rotación, logout, recuperación de contraseña, invitaciones, rate limit de login, argon2id.
 - [ ] **F1-T4 Roles.** Middleware de autorización según la matriz de `02`.
 - [ ] **F1-T5 Superadmin y empresas.** Crear empresa con invitación del primer admin; suspender empresa (bloquea login y jobs).
 - [ ] **F1-T6 Auditoría.** `audit_log` en las acciones listadas en `02`.
