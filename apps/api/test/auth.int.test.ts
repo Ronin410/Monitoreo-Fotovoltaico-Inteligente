@@ -163,7 +163,12 @@ describe('access token y GET /api/me', () => {
     const token: string = body.access_token;
 
     expect((await request(ctx.app).get('/api/me')).status).toBe(401);
-    expect((await me(`${token.slice(0, -2)}xx`)).status).toBe(401);
+    // Cambia un carácter del medio de la firma: siempre altera bytes reales (el último carácter
+    // base64url lleva bits de relleno y cambiarlo puede no alterar la firma).
+    const [h, p, sig = ''] = token.split('.');
+    const i = Math.floor(sig.length / 2);
+    const tampered = `${h}.${p}.${sig.slice(0, i)}${sig[i] === 'A' ? 'B' : 'A'}${sig.slice(i + 1)}`;
+    expect((await me(tampered)).status).toBe(401);
 
     const [header, payload] = token.split('.');
     const forgedPayload = Buffer.from(
