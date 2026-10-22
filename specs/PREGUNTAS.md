@@ -73,3 +73,11 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 46. **El borrado de clientes no se audita**: `02` solo lista la eliminación de plantas. ¿Se agrega?
 47. **Tarifa CFE** se guarda en mayúsculas y se valida como código corto (`1F`, `DAC`, `PDBT`, `GDMTH`…), no contra una lista cerrada, porque `03` solo da ejemplos.
 48. **Búsqueda `q`** busca en nombre del cliente y nombre de contacto, sin distinguir mayúsculas; acentos sí cuentan ("ferreteria" no encuentra "Ferretería"). ¿Se necesita búsqueda insensible a acentos (extensión `unaccent`)?
+
+## F2-T2 — Plantas
+
+49. **Rangos de `settings`.** `03` da los valores por defecto pero no los rangos válidos. Se eligieron, en `packages/core/settings.ts`: por ejemplo γ entre −1 y −0.05 %/°C, NOCT entre 30 y 70 °C, umbral de suciedad entre 1 y 50 %. F2-T4 los usará para validar el PATCH de la empresa.
+50. **Ubicación copiada, no ligada.** Al crear la planta se copian lat/lon, colonia y CP del cliente si no se indican. Si después se edita la ubicación del cliente, sus plantas no cambian. ¿Se prefiere propagar el cambio?
+51. **Orden de la lista.** `09` pide ordenar por PR, desviación y días para lavado, pero esas métricas llegan en la Fase 4. Por ahora `sort` acepta `name`, `created_at` y `capacity_kwp` (con `-` para descendente).
+52. **Inversor simulado.** `09` dice "solo en staging o empresas demo"; no existe una marca de "empresa demo" en `03`, así que se controla con `SIMULATOR_ENABLED`. Al cambiar una planta simulada a una marca real se descarta su `simulation_profile`.
+53. **Técnico y detalle de planta.** Por ahora el técnico no puede leer `/plants/:id`; el acceso a "las plantas de sus tickets" se agrega con los tickets (F5-T3).

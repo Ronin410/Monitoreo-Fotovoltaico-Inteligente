@@ -8,7 +8,7 @@ import { hashPassword } from '../src/auth/passwords.js';
 import { signAccessToken } from '../src/auth/tokens.js';
 import { createLogger } from '../src/http/logger.js';
 
-export const TEST_ENV = loadEnv({
+const TEST_ENV_VARS = {
   NODE_ENV: 'test',
   DATABASE_URL: testAppDatabaseUrl('api'),
   SERVICE_DATABASE_URL: testServiceDatabaseUrl('api'),
@@ -22,7 +22,10 @@ export const TEST_ENV = loadEnv({
   EMAIL_FROM: 'PV-IoT <no-reply@example.com>',
   SMTP_HOST: 'localhost',
   SMTP_PORT: '1025',
-});
+  SIMULATOR_ENABLED: 'true',
+};
+
+export const TEST_ENV = loadEnv(TEST_ENV_VARS);
 
 /** Reloj controlable para probar expiraciones. */
 export class TestClock {
@@ -35,7 +38,8 @@ export class TestClock {
 
 export type TestContext = Awaited<ReturnType<typeof createTestContext>>;
 
-export async function createTestContext() {
+export async function createTestContext(envOverrides: Record<string, string> = {}) {
+  const env = loadEnv({ ...TEST_ENV_VARS, ...envOverrides });
   const owner = createPrismaClient(testDatabaseUrl('api'));
   const db = createPrismaClient(TEST_ENV.DATABASE_URL);
   const serviceDb = createPrismaClient(TEST_ENV.SERVICE_DATABASE_URL);
@@ -51,7 +55,7 @@ export async function createTestContext() {
       },
     }),
   );
-  const app = createApp({ env: TEST_ENV, db, serviceDb, email, logger, now: clock.now });
+  const app = createApp({ env, db, serviceDb, email, logger, now: clock.now });
   return {
     app,
     owner,

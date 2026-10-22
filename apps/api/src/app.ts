@@ -15,6 +15,7 @@ import { AuthService } from './auth/service.js';
 import { companyUsersRouter } from './routes/company/routes.js';
 import { errorHandler, notFoundHandler } from './http/errors.js';
 import { meRouter } from './routes/me/routes.js';
+import { plantsRouter } from './routes/plants/routes.js';
 
 export type AppDeps = {
   env: Env;
@@ -58,6 +59,11 @@ export function createApp(deps: AppDeps): Express {
   api.use('/company', authenticated, companyUsersRouter(deps.db, auth));
   api.use('/admin', authenticated, adminRouter(deps.serviceDb, auth, now));
   api.use('/clients', authenticated, clientsRouter(deps.db));
+  api.use(
+    '/plants',
+    authenticated,
+    plantsRouter(deps.db, { simulatorEnabled: deps.env.SIMULATOR_ENABLED }),
+  );
 
   app.use('/api', api);
   app.use(notFoundHandler);
