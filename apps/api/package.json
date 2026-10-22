@@ -10,6 +10,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@pv/config": "workspace:*",
     "express": "^5.3.0"
   },
   "devDependencies": {

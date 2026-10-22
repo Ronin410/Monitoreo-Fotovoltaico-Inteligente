@@ -1,4 +1,7 @@
+import { loadEnvOrExit } from '@pv/config';
 import { heartbeat } from './heartbeat.js';
+
+loadEnvOrExit();
 
 const HEARTBEAT_MS = 60_000;
 
