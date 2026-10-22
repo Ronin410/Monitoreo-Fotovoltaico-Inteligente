@@ -109,3 +109,11 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 70. **Idempotencia.** Un job puede declarar `singletonKey(payload)`; su cola usa la política `exclusive` de pg-boss (un solo job pendiente o activo por clave) y encolar otro igual no hace nada. Los handlers además deben ser idempotentes (upserts), porque un reintento puede repetir trabajo.
 71. **Horarios por zona de cada empresa.** pg-boss programa cada cron en una sola zona horaria. Para `metrics.daily` (22:00 local de cada empresa) y `reports.monthly` se usará un orquestador horario que revisa la hora local de cada empresa (F4-T2).
 72. **Pregunta #54 sigue abierta:** la prueba de conexión de credenciales sigue en la api hasta que se decida si pasa al worker.
+
+## F3-T2 — Clima
+
+73. **Open-Meteo no verificado contra la API real.** La red de este entorno bloquea `api.open-meteo.com`. El adaptador sigue la documentación pública (irradiancia inclinada `global_tilted_irradiance` con `tilt` y `azimuth`, azimut 0 = sur, valores de radiación y lluvia referidos a la hora anterior) y sus pruebas validan nuestra conversión con respuestas simuladas, pero hay que probarlo contra el servicio real antes de producción. ⚠️ También falta revisar sus términos de uso comercial (`01`).
+74. **Proveedor sintético.** Determinista por lugar (lat/lon a 2 decimales) y día: plantas cercanas comparten nubes y lluvia. Usa hora solar local para la temperatura (mínima al amanecer, máxima a las 15:00) y transpone la irradiancia al plano con 80 % directa y 20 % difusa. Sirve para demo y pruebas, no para estimar producción real.
+75. **Ingesta horaria.** `ingest.weather` (cron a los 5 minutos de cada hora UTC) encola `ingest.weather_company` por empresa activa; cada una pide las 3 últimas horas cerradas, o el día local completo a las 21:00 de su zona. Solo plantas activas, sin borrar y con ubicación.
+76. **Backfill.** Se encola `weather.backfill` (90 días) al crear una planta y cuando cambian su ubicación, orientación o vuelve a estar activa. El endpoint de pronóstico de Open-Meteo cubre ~3 meses atrás; para más historia habría que usar su endpoint histórico.
+77. **`suncalc` 2.x** cambió de unidades respecto a la 1.x (ahora grados y azimut desde el norte); se usan sus propios tipos.

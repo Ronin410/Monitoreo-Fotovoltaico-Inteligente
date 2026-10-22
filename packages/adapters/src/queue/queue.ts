@@ -1,6 +1,7 @@
 import { PgBoss, type Job } from 'pg-boss';
 import type { z } from 'zod';
 import type { JobDefinition } from './definition.js';
+import type { JobEnqueuer } from './enqueuer.js';
 
 export const QUEUE_SCHEMA = 'pgboss';
 
@@ -23,7 +24,7 @@ export type QueueOptions = {
  * Colas sobre PostgreSQL con pg-boss (specs/01: sustituye a Redis en v1). Se conecta con el rol
  * de plataforma (SERVICE_DATABASE_URL), dueño de las tablas del esquema pgboss.
  */
-export class JobQueue {
+export class JobQueue implements JobEnqueuer {
   private constructor(
     readonly boss: PgBoss,
     private readonly options: QueueOptions,

@@ -2,6 +2,7 @@ import {
   CredentialCipher,
   type EmailProvider,
   type InverterAdapter,
+  type JobEnqueuer,
   type StorageProvider,
 } from '@pv/adapters';
 import type { Env } from '@pv/config';
@@ -33,6 +34,8 @@ export type AppDeps = {
   email: EmailProvider;
   /** Logos y PDFs (specs/01: local en desarrollo, S3 en producción). */
   storage: StorageProvider;
+  /** Para encolar jobs del worker (backfill de clima, etc.). */
+  jobs: JobEnqueuer;
   logger: Logger;
   now?: () => Date;
   /** Adaptadores de inversor; por defecto el registro real. Las pruebas los sustituyen. */
@@ -79,6 +82,7 @@ export function createApp(deps: AppDeps): Express {
       simulatorEnabled: deps.env.SIMULATOR_ENABLED,
       cipher: CredentialCipher.fromEnv(deps.env),
       adapters: deps.inverterAdapters,
+      jobs: deps.jobs,
       now,
     }),
   );

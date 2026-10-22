@@ -34,7 +34,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 
 ## Fase 3 — Ingesta y simulador
 - [x] **F3-T1 Infraestructura de jobs.** _(2026-10-22)_ pg-boss en `apps/worker`, `job_runs`, reintentos, idempotencia.
-- [ ] **F3-T2 Clima.** Interfaz `WeatherProvider`, proveedores `synthetic` y `open-meteo`, job `ingest.weather` y backfill (ver `04`).
+- [x] **F3-T2 Clima.** _(2026-10-22)_ Interfaz `WeatherProvider`, proveedores `synthetic` y `open-meteo`, job `ingest.weather` y backfill (ver `04`).
   - CA: para una planta en Culiacán con inclinación de 20° al sur se guardan 24 horas con POA > 0 solo en horas de sol.
 - [ ] **F3-T3 Simulador.** Adaptador `simulator` con todos los escenarios de `04` §3.
   - CA: pruebas unitarias por escenario (suciedad crece y se reinicia con lluvia o limpieza; falla de string es un escalón; offline no devuelve datos).

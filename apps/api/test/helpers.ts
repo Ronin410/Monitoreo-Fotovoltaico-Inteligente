@@ -1,5 +1,5 @@
 import { Writable } from 'node:stream';
-import { MemoryEmailProvider, MemoryStorageProvider } from '@pv/adapters';
+import { MemoryEmailProvider, MemoryJobEnqueuer, MemoryStorageProvider } from '@pv/adapters';
 import { loadEnv } from '@pv/config';
 import { createPrismaClient, type PrismaClient, type UserRole } from '@pv/db';
 import { testAppDatabaseUrl, testDatabaseUrl, testServiceDatabaseUrl } from '@pv/db/testing';
@@ -48,6 +48,7 @@ export async function createTestContext(
   const serviceDb = createPrismaClient(TEST_ENV.SERVICE_DATABASE_URL);
   const email = new MemoryEmailProvider();
   const storage = new MemoryStorageProvider();
+  const jobs = new MemoryJobEnqueuer();
   const clock = new TestClock();
   const logLines: string[] = [];
   const logger = createLogger(
@@ -65,6 +66,7 @@ export async function createTestContext(
     serviceDb,
     email,
     storage,
+    jobs,
     logger,
     now: clock.now,
     ...depsOverrides,
@@ -76,6 +78,7 @@ export async function createTestContext(
     serviceDb,
     email,
     storage,
+    jobs,
     clock,
     logLines,
     close: () => Promise.all([owner.$disconnect(), db.$disconnect(), serviceDb.$disconnect()]),

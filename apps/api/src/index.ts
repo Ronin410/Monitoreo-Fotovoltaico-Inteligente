@@ -1,4 +1,9 @@
-import { createEmailProvider, createStorageProvider } from '@pv/adapters';
+import {
+  createEmailProvider,
+  createStorageProvider,
+  JobQueue,
+  weatherBackfill,
+} from '@pv/adapters';
 import { loadEnvOrExit } from '@pv/config';
 import { assertAppRoleIsSafe, createPrismaClient, UnsafeDatabaseRoleError } from '@pv/db';
 import { createApp } from './app.js';
@@ -20,6 +25,11 @@ try {
   process.exit(1);
 }
 
+// La api solo encola: sin cron ni mantenimiento (eso lo hace el worker). Asegura las colas que usa
+// por si arranca antes que el worker.
+const jobs = await JobQueue.start(env.SERVICE_DATABASE_URL, { supervise: false });
+await jobs.ensureQueue(weatherBackfill);
+
 const port = env.PORT ?? 4000;
 createApp({
   env,
@@ -27,6 +37,7 @@ createApp({
   serviceDb,
   email: createEmailProvider(env),
   storage: createStorageProvider(env),
+  jobs,
   logger,
 }).listen(port, () => {
   logger.info({ port }, 'pv-api escuchando');

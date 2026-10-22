@@ -1,4 +1,4 @@
-import type { JobDefinition, JobQueue } from '@pv/adapters';
+import type { JobDefinition, JobQueue, WeatherProvider } from '@pv/adapters';
 import type { Prisma, PrismaClient } from '@pv/db';
 import type { Logger } from 'pino';
 import { z } from 'zod';
@@ -14,6 +14,8 @@ export type JobContext = {
   /** Conexión pv_service: solo operaciones de plataforma (listar empresas, encolar). */
   serviceDb: PrismaClient;
   queue: JobQueue;
+  /** Proveedor de clima (WEATHER_PROVIDER). */
+  weather: WeatherProvider;
   log: Logger;
   now: () => Date;
   /** 0 en el primer intento. */

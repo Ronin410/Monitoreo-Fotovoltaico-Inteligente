@@ -1,4 +1,4 @@
-import { JobQueue } from '@pv/adapters';
+import { createWeatherProvider, JobQueue } from '@pv/adapters';
 import { loadEnvOrExit } from '@pv/config';
 import { assertAppRoleIsSafe, createPrismaClient, UnsafeDatabaseRoleError } from '@pv/db';
 import { pino } from 'pino';
@@ -22,7 +22,14 @@ try {
 
 const queue = await JobQueue.start(env.SERVICE_DATABASE_URL);
 queue.boss.on('error', (err: Error) => logger.error({ error_type: err.name }, 'error de pg-boss'));
-await startJobs(JOBS, { db, serviceDb, queue, logger, now: () => new Date() });
+await startJobs(JOBS, {
+  db,
+  serviceDb,
+  queue,
+  weather: createWeatherProvider(env),
+  logger,
+  now: () => new Date(),
+});
 logger.info({ jobs: JOBS.map((j) => j.definition.name) }, 'pv-worker atendiendo jobs');
 
 async function shutdown(signal: string): Promise<void> {

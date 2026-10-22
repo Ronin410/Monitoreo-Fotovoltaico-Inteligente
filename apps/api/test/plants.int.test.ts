@@ -345,3 +345,32 @@ describe('aislamiento entre empresas', () => {
     expect(stored).toMatchObject({ name: 'Casa Familia Ruiz', deletedAt: null });
   });
 });
+
+describe('backfill de clima', () => {
+  const backfills = (plantId: string) =>
+    ctx.jobs.jobs.filter(
+      (j) =>
+        j.name === 'weather.backfill' && (j.payload as { plant_id: string }).plant_id === plantId,
+    );
+
+  it('se encola al crear la planta y al cambiar su ubicación, orientación o reactivarla', async () => {
+    const { company, client, auth } = await session();
+    const created = await api(auth).create(minimal(client.id));
+    const id: string = created.body.id;
+    expect(backfills(id)).toEqual([
+      { name: 'weather.backfill', payload: { company_id: company.id, plant_id: id, days: 90 } },
+    ]);
+
+    await api(auth).patch(id, { name: 'Otro nombre', capacity_kwp: 7 });
+    expect(backfills(id)).toHaveLength(1);
+
+    await api(auth).patch(id, { tilt_deg: 15 });
+    expect(backfills(id)).toHaveLength(2);
+    await api(auth).patch(id, { lat: 24.81, lon: -107.4 });
+    expect(backfills(id)).toHaveLength(3);
+    await api(auth).patch(id, { status: 'paused' });
+    expect(backfills(id)).toHaveLength(3);
+    await api(auth).patch(id, { status: 'active' });
+    expect(backfills(id)).toHaveLength(4);
+  });
+});

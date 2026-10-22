@@ -1,4 +1,4 @@
-import { companyPayload, defineJob, JobQueue } from '@pv/adapters';
+import { companyPayload, defineJob, JobQueue, SyntheticWeatherProvider } from '@pv/adapters';
 import { createPrismaClient, withTenant, type PrismaClient } from '@pv/db';
 import { testAppDatabaseUrl, testDatabaseUrl, testServiceDatabaseUrl } from '@pv/db/testing';
 import { pino } from 'pino';
@@ -20,7 +20,14 @@ beforeAll(async () => {
     pollingIntervalSeconds: 0.5,
     supervise: false,
   });
-  deps = { db, serviceDb, queue, logger: pino({ level: 'silent' }), now: () => new Date() };
+  deps = {
+    db,
+    serviceDb,
+    queue,
+    weather: new SyntheticWeatherProvider(),
+    logger: pino({ level: 'silent' }),
+    now: () => new Date(),
+  };
 });
 
 afterAll(async () => {

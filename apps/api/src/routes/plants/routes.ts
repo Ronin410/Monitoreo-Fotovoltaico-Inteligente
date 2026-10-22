@@ -1,4 +1,10 @@
-import { adapterRegistry, type CredentialCipher, type InverterAdapter } from '@pv/adapters';
+import {
+  adapterRegistry,
+  weatherBackfill,
+  type CredentialCipher,
+  type InverterAdapter,
+  type JobEnqueuer,
+} from '@pv/adapters';
 import { parseCompanySettings, type InverterBrand } from '@pv/core';
 import { Prisma, withTenant, type PrismaClient, type SolarPlant, type TenantDb } from '@pv/db';
 import { Router } from 'express';
@@ -32,6 +38,7 @@ export type PlantsRouterOptions = {
   cipher: CredentialCipher;
   /** Adaptadores por marca; las pruebas pueden sustituirlos. */
   adapters?: Record<InverterBrand, InverterAdapter>;
+  jobs: JobEnqueuer;
   now: () => Date;
 };
 
@@ -188,6 +195,29 @@ function checkSimulator(
 
 export function plantsRouter(db: PrismaClient, options: PlantsRouterOptions): Router {
   const router = Router();
+
+  /**
+   * Encola el backfill de clima de 90 días (specs/04 §2). Si falla, la planta queda guardada y la
+   * ingesta horaria sigue; se registra el error para reintentarlo.
+   */
+  const requestWeatherBackfill = async (
+    log: { error: (obj: object, msg: string) => void },
+    companyId: string,
+    plantId: string,
+  ) => {
+    try {
+      await options.jobs.enqueue(weatherBackfill, {
+        company_id: companyId,
+        plant_id: plantId,
+        days: 90,
+      });
+    } catch (err) {
+      log.error(
+        { plant_id: plantId, error_type: (err as Error).name },
+        'no se pudo encolar el backfill de clima',
+      );
+    }
+  };
   router.use(requirePermission('inventory:manage'));
 
   router.get('/', async (req, res) => {
@@ -253,6 +283,7 @@ export function plantsRouter(db: PrismaClient, options: PlantsRouterOptions): Ro
         include: withClient,
       });
     });
+    await requestWeatherBackfill(req.log, companyId, plant.id);
     respond(res, plantResponse, plantDto(plant), 201);
   });
 
@@ -295,9 +326,19 @@ export function plantsRouter(db: PrismaClient, options: PlantsRouterOptions): Ro
       }
       // Las credenciales eran de otro proveedor: se borran al cambiar de marca.
       if (brandChanged) await tx.inverterCredential.deleteMany({ where: { plantId: id } });
-      return tx.solarPlant.update({ where: { id }, data, include: withClient });
+      const updated = await tx.solarPlant.update({ where: { id }, data, include: withClient });
+      // El clima depende de la ubicación y la orientación: si cambian, se vuelve a pedir.
+      const weatherChanged =
+        ['lat', 'lon', 'tiltDeg', 'azimuthDeg'].some(
+          (k) =>
+            String(current[k as keyof typeof current]) !==
+            String(updated[k as keyof typeof updated]),
+        ) ||
+        (current.status !== 'active' && updated.status === 'active');
+      return { updated, weatherChanged };
     });
-    respond(res, plantResponse, plantDto(plant));
+    if (plant.weatherChanged) await requestWeatherBackfill(req.log, companyId, id);
+    respond(res, plantResponse, plantDto(plant.updated));
   });
 
   const adapters = options.adapters ?? adapterRegistry;

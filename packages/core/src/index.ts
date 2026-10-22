@@ -1,4 +1,7 @@
 export * from './permissions.js';
+export * from './random.js';
 export * from './settings.js';
 export * from './simulation.js';
+export * from './solar.js';
+export * from './time.js';
 export * from './types.js';

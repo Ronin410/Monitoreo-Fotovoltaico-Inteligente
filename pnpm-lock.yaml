@@ -197,6 +197,9 @@ importers:
 
   packages/core:
     dependencies:
+      suncalc:
+        specifier: ^2.1.1
+        version: 2.1.1
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -3120,6 +3123,9 @@ packages:
     resolution: {integrity: sha512-DhuTmvZWux4H1UOnWMB3sk0sbaCVOoQZjv8u1rDoTV0HTdGem9hkAZtl4JZy8P2z4Bg0nT+YMeOFyVr4zcG5Tw==}
     engines: {node: '>=16 || 14 >=14.17'}
     hasBin: true
+
+  suncalc@2.1.1:
+    resolution: {integrity: sha512-ufMOPzYRk5aomEs3g+qeJGdCPZWC3TL94E0HQagoSusFnNXCvfuewWBroY3lxRHqA7IA8UGvgg7dcrSSDJsuEg==}
 
   superagent@10.4.1:
     resolution: {integrity: sha512-PVMkMrhKrSTtFhUU8jiWuGh/gyRMKiyCTCmm0+qVzRNxlfntmRKJkDhlEXN62x3HIb33sQ4kmL8lcSdccWAchQ==}
@@ -6205,6 +6211,8 @@ snapshots:
       pirates: 4.0.7
       tinyglobby: 0.2.17
       ts-interface-checker: 0.1.13
+
+  suncalc@2.1.1: {}
 
   superagent@10.4.1:
     dependencies:
