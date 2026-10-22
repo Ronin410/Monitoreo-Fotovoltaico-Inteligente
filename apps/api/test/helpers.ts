@@ -3,7 +3,7 @@ import { MemoryEmailProvider } from '@pv/adapters';
 import { loadEnv } from '@pv/config';
 import { createPrismaClient, type PrismaClient, type UserRole } from '@pv/db';
 import { testAppDatabaseUrl, testDatabaseUrl, testServiceDatabaseUrl } from '@pv/db/testing';
-import { createApp } from '../src/app.js';
+import { createApp, type AppDeps } from '../src/app.js';
 import { hashPassword } from '../src/auth/passwords.js';
 import { signAccessToken } from '../src/auth/tokens.js';
 import { createLogger } from '../src/http/logger.js';
@@ -38,7 +38,10 @@ export class TestClock {
 
 export type TestContext = Awaited<ReturnType<typeof createTestContext>>;
 
-export async function createTestContext(envOverrides: Record<string, string> = {}) {
+export async function createTestContext(
+  envOverrides: Record<string, string> = {},
+  depsOverrides: Pick<Partial<AppDeps>, 'inverterAdapters'> = {},
+) {
   const env = loadEnv({ ...TEST_ENV_VARS, ...envOverrides });
   const owner = createPrismaClient(testDatabaseUrl('api'));
   const db = createPrismaClient(TEST_ENV.DATABASE_URL);
@@ -55,7 +58,7 @@ export async function createTestContext(envOverrides: Record<string, string> = {
       },
     }),
   );
-  const app = createApp({ env, db, serviceDb, email, logger, now: clock.now });
+  const app = createApp({ env, db, serviceDb, email, logger, now: clock.now, ...depsOverrides });
   return {
     app,
     owner,

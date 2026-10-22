@@ -78,7 +78,37 @@ export const plantsQuery = paginationQuery.extend({
   sort: z.enum(PLANT_SORTS).default('name'),
 });
 
+/**
+ * Credenciales de inversor: solo de escritura (specs/02). Los nombres de campo dependen del
+ * proveedor; se aceptan valores simples y se cifran completos.
+ */
+export const putCredentialsBody = z.object({
+  credentials: z
+    .record(
+      z.string().trim().min(1).max(100),
+      z.union([z.string().max(2000), z.number(), z.boolean()]),
+    )
+    .refine((c) => Object.keys(c).length > 0 && Object.keys(c).length <= 20, {
+      error: 'Indica entre 1 y 20 campos',
+    }),
+});
+
 // Salida
+/** Estado de las credenciales: nunca su contenido. */
+export const credentialsStatus = z.object({
+  has_credentials: z.boolean(),
+  provider: inverterBrandSchema.nullable(),
+  updated_at: z.date().nullable(),
+  last_test_at: z.date().nullable(),
+  last_test_ok: z.boolean().nullable(),
+});
+
+export const credentialsTestResponse = z.object({
+  ok: z.boolean(),
+  message: z.string(),
+  tested_at: z.date(),
+});
+
 export const plantResponse = z.object({
   id: z.uuid(),
   client: z.object({ id: z.uuid(), name: z.string() }),
@@ -102,6 +132,7 @@ export const plantResponse = z.object({
   last_reading_at: z.date().nullable(),
   last_power_kw: z.number().nullable(),
   simulation_profile: simulationProfileSchema.nullable(),
+  credentials: credentialsStatus,
   created_at: z.date(),
   updated_at: z.date(),
 });

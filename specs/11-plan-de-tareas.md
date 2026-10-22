@@ -28,7 +28,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 ## Fase 2 — Inventario
 - [x] **F2-T1 Clientes.** _(2026-10-22)_ CRUD API con borrado lógico.
 - [x] **F2-T2 Plantas.** _(2026-10-22)_ CRUD API con valores por defecto de la empresa; copia de lat/lon, colonia y CP desde el cliente.
-- [ ] **F2-T3 Credenciales.** Cifrado AES-256-GCM, endpoint de solo escritura, "probar conexión".
+- [x] **F2-T3 Credenciales.** _(2026-10-22)_ Cifrado AES-256-GCM, endpoint de solo escritura, "probar conexión".
   - CA: ninguna respuesta de la API ni ningún log contiene las credenciales (prueba automática que busca el valor en las respuestas y logs).
 - [ ] **F2-T4 Configuración de empresa.** `GET/PATCH /company`, subir logo, `settings` validado con valores por defecto.
 

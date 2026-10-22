@@ -81,3 +81,13 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 51. **Orden de la lista.** `09` pide ordenar por PR, desviación y días para lavado, pero esas métricas llegan en la Fase 4. Por ahora `sort` acepta `name`, `created_at` y `capacity_kwp` (con `-` para descendente).
 52. **Inversor simulado.** `09` dice "solo en staging o empresas demo"; no existe una marca de "empresa demo" en `03`, así que se controla con `SIMULATOR_ENABLED`. Al cambiar una planta simulada a una marca real se descarta su `simulation_profile`.
 53. **Técnico y detalle de planta.** Por ahora el técnico no puede leer `/plants/:id`; el acceso a "las plantas de sus tickets" se agrega con los tickets (F5-T3).
+
+## F2-T3 — Credenciales de inversor
+
+54. **Contradicción en `02`: "solo el worker las descifra" contra "Probar conexión llama al adaptador".** Probar las credenciales ya guardadas exige descifrarlas, y el worker con colas no existe hasta F3-T1. Decisión provisional: el descifrado vive en un solo lugar (`CredentialCipher.decrypt`, `packages/adapters`) y en la api solo lo usa `POST /plants/:id/credentials/test`, en memoria. ¿Se mueve la prueba al worker en F3-T1 (la api encola y espera el resultado)?
+55. **Credenciales ligadas a su planta.** El texto cifrado usa como dato autenticado (AAD de GCM) la empresa y la planta: copiar la fila a otra planta o empresa hace fallar el descifrado.
+56. **Forma de las credenciales.** Sin documentación oficial de cada marca no hay esquema por proveedor: se acepta un objeto de hasta 20 campos simples (texto, número o booleano). Cada adaptador real validará su `credsSchema` cuando se implemente.
+57. **Cambio de marca.** Al cambiar `inverter_brand` se borran las credenciales de la planta (eran de otro proveedor).
+58. **Rotación de llave.** `CredentialCipher` ya descifra con versiones anteriores, pero `01` solo define la llave actual (`CREDENTIALS_ENC_KEY` + `CREDENTIALS_KEY_VERSION`). Falta definir la variable para la llave anterior y el procedimiento de re-cifrado.
+59. **Prueba de conexión.** Responde siempre `200` con `ok` y un mensaje genérico (también si el adaptador no está implementado), limitada a 5 por minuto por planta, con un tiempo máximo de 15 s. Una planta sin credenciales responde `409`, salvo el simulador, que no las necesita.
+60. **Adelanto de F3-T5.** La prueba de conexión necesitaba adaptadores: ya existen la interfaz `InverterAdapter` de `04`, el registro y los esqueletos de GoodWe, Huawei, Fronius y Enphase que lanzan `NotImplementedError`. F3-T5 queda para agregar los TODO que exigen documentación oficial.

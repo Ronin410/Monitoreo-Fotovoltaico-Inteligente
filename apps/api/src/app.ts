@@ -1,5 +1,6 @@
-import type { EmailProvider } from '@pv/adapters';
+import { CredentialCipher, type EmailProvider, type InverterAdapter } from '@pv/adapters';
 import type { Env } from '@pv/config';
+import type { InverterBrand } from '@pv/core';
 import type { PrismaClient } from '@pv/db';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -26,6 +27,8 @@ export type AppDeps = {
   email: EmailProvider;
   logger: Logger;
   now?: () => Date;
+  /** Adaptadores de inversor; por defecto el registro real. Las pruebas los sustituyen. */
+  inverterAdapters?: Record<InverterBrand, InverterAdapter>;
 };
 
 export function createApp(deps: AppDeps): Express {
@@ -62,7 +65,12 @@ export function createApp(deps: AppDeps): Express {
   api.use(
     '/plants',
     authenticated,
-    plantsRouter(deps.db, { simulatorEnabled: deps.env.SIMULATOR_ENABLED }),
+    plantsRouter(deps.db, {
+      simulatorEnabled: deps.env.SIMULATOR_ENABLED,
+      cipher: CredentialCipher.fromEnv(deps.env),
+      adapters: deps.inverterAdapters,
+      now,
+    }),
   );
 
   app.use('/api', api);

@@ -143,6 +143,9 @@ importers:
       '@pv/config':
         specifier: workspace:*
         version: link:../config
+      '@pv/core':
+        specifier: workspace:*
+        version: link:../core
       nodemailer:
         specifier: ^10.2.1
         version: 10.2.1

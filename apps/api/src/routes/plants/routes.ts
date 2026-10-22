@@ -1,9 +1,11 @@
-import { parseCompanySettings } from '@pv/core';
+import { adapterRegistry, type CredentialCipher, type InverterAdapter } from '@pv/adapters';
+import { parseCompanySettings, type InverterBrand } from '@pv/core';
 import { Prisma, withTenant, type PrismaClient, type SolarPlant, type TenantDb } from '@pv/db';
 import { Router } from 'express';
 import type { z } from 'zod';
 import { recordAudit } from '../../audit.js';
 import { companyAuthOf, requirePermission } from '../../auth/authorize.js';
+import { FixedWindowRateLimiter } from '../../auth/rate-limit.js';
 import { dec } from '../../http/decimal.js';
 import { HttpError } from '../../http/errors.js';
 import { pageArgs, paginated } from '../../http/pagination.js';
@@ -11,10 +13,13 @@ import { respond } from '../../http/respond.js';
 import { idParam } from '../shared-schemas.js';
 import {
   createPlantBody,
+  credentialsStatus,
+  credentialsTestResponse,
   patchPlantBody,
   plantResponse,
   plantsQuery,
   plantsResponse,
+  putCredentialsBody,
 } from './schemas.js';
 
 // CRUD de plantas (F2-T2). Roles: company_admin y operator. Los valores técnicos sin indicar
@@ -23,15 +28,53 @@ import {
 export type PlantsRouterOptions = {
   /** SIMULATOR_ENABLED: solo staging o demo pueden usar el inversor `simulator`. */
   simulatorEnabled: boolean;
+  /** Cifrado de credenciales de inversor (CREDENTIALS_ENC_KEY). */
+  cipher: CredentialCipher;
+  /** Adaptadores por marca; las pruebas pueden sustituirlos. */
+  adapters?: Record<InverterBrand, InverterAdapter>;
+  now: () => Date;
 };
+
+const CONNECTION_TEST_TIMEOUT_MS = 15_000;
+/** Mensajes genéricos (specs/02): nunca se reenvía lo que responda el proveedor. */
+const TEST_OK = 'Conexión exitosa';
+const TEST_FAILED =
+  'No se pudo conectar con el proveedor. Revisa las credenciales e inténtalo de nuevo.';
 
 const plantNotFound = () => new HttpError(404, 'NOT_FOUND', 'Planta no encontrada');
 const invalidClient = () =>
   new HttpError(400, 'INVALID_CLIENT', 'El cliente no existe o fue eliminado');
 const badRequest = (code: string, message: string) => new HttpError(400, code, message);
 
-const withClient = { client: { select: { id: true, name: true } } } as const;
-type PlantWithClient = SolarPlant & { client: { id: string; name: string } };
+/** Solo metadatos de las credenciales: el contenido cifrado nunca se lee para responder. */
+const credentialsMeta = {
+  select: { provider: true, updatedAt: true, lastTestAt: true, lastTestOk: true },
+} as const;
+const withClient = {
+  client: { select: { id: true, name: true } },
+  credentials: credentialsMeta,
+} as const;
+
+type CredentialsMeta = {
+  provider: InverterBrand;
+  updatedAt: Date;
+  lastTestAt: Date | null;
+  lastTestOk: boolean | null;
+} | null;
+type PlantWithClient = SolarPlant & {
+  client: { id: string; name: string };
+  credentials: CredentialsMeta;
+};
+
+function credentialsDto(c: CredentialsMeta): z.input<typeof credentialsStatus> {
+  return {
+    has_credentials: c !== null,
+    provider: c?.provider ?? null,
+    updated_at: c?.updatedAt ?? null,
+    last_test_at: c?.lastTestAt ?? null,
+    last_test_ok: c?.lastTestOk ?? null,
+  };
+}
 
 const SORTS: Record<
   z.output<typeof plantsQuery>['sort'],
@@ -80,6 +123,7 @@ function plantDto(p: PlantWithClient): z.input<typeof plantResponse> {
     last_reading_at: p.lastReadingAt,
     last_power_kw: dec(p.lastPowerKw),
     simulation_profile: p.simulationProfile as z.input<typeof plantResponse>['simulation_profile'],
+    credentials: credentialsDto(p.credentials),
     created_at: p.createdAt,
     updated_at: p.updatedAt,
   };
@@ -249,9 +293,119 @@ export function plantsRouter(db: PrismaClient, options: PlantsRouterOptions): Ro
       if (brand !== 'simulator' && current.simulationProfile !== null) {
         data.simulationProfile = Prisma.DbNull;
       }
+      // Las credenciales eran de otro proveedor: se borran al cambiar de marca.
+      if (brandChanged) await tx.inverterCredential.deleteMany({ where: { plantId: id } });
       return tx.solarPlant.update({ where: { id }, data, include: withClient });
     });
     respond(res, plantResponse, plantDto(plant));
+  });
+
+  const adapters = options.adapters ?? adapterRegistry;
+  const canWriteCredentials = requirePermission('credentials:write');
+  const testLimiter = new FixedWindowRateLimiter(5, 60_000, () => options.now().getTime());
+
+  /** Captura o reemplaza las credenciales. Solo de escritura: responde su estado, nunca el valor. */
+  router.put('/:id/credentials', canWriteCredentials, async (req, res) => {
+    const session = companyAuthOf(req);
+    const { id } = idParam.parse(req.params);
+    const { credentials } = putCredentialsBody.parse(req.body);
+
+    const saved = await withTenant(db, session.companyId, async (tx) => {
+      const plant = await tx.solarPlant.findFirst({
+        where: { id, deletedAt: null },
+        include: { credentials: credentialsMeta },
+      });
+      if (!plant) throw plantNotFound();
+      const encrypted = options.cipher.encrypt(credentials, {
+        companyId: session.companyId,
+        plantId: id,
+      });
+      const fields = {
+        provider: plant.inverterBrand,
+        ciphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+        authTag: encrypted.authTag,
+        keyVersion: encrypted.keyVersion,
+        // Credenciales nuevas: la prueba anterior ya no aplica.
+        lastTestAt: null,
+        lastTestOk: null,
+      };
+      const row = await tx.inverterCredential.upsert({
+        where: { plantId: id },
+        create: { ...fields, companyId: session.companyId, plantId: id },
+        update: fields,
+        ...credentialsMeta,
+      });
+      await recordAudit(tx, {
+        action: 'plant.credentials_updated',
+        companyId: session.companyId,
+        userId: session.userId,
+        entityType: 'plant',
+        entityId: id,
+        metadata: { provider: plant.inverterBrand, replaced: plant.credentials !== null },
+        ip: req.ip ?? null,
+      });
+      return row;
+    });
+    respond(res, credentialsStatus, credentialsDto(saved));
+  });
+
+  /**
+   * "Probar conexión": llama al adaptador con las credenciales descifradas en memoria y responde
+   * solo éxito o un error genérico (specs/02).
+   */
+  router.post('/:id/credentials/test', canWriteCredentials, async (req, res) => {
+    const { companyId } = companyAuthOf(req);
+    const { id } = idParam.parse(req.params);
+    const retryAfter = testLimiter.hit(`plant:${id}`);
+    if (retryAfter > 0) {
+      res.setHeader('Retry-After', String(retryAfter));
+      throw new HttpError(429, 'RATE_LIMITED', 'Demasiadas pruebas seguidas. Espera un momento.');
+    }
+
+    const target = await withTenant(db, companyId, (tx) =>
+      tx.solarPlant.findFirst({ where: { id, deletedAt: null }, include: { credentials: true } }),
+    );
+    if (!target) throw plantNotFound();
+    if (!target.credentials && target.inverterBrand !== 'simulator') {
+      throw new HttpError(409, 'NO_CREDENTIALS', 'La planta no tiene credenciales guardadas');
+    }
+
+    let ok = false;
+    try {
+      const creds = target.credentials
+        ? options.cipher.decrypt(target.credentials, { companyId, plantId: id })
+        : {};
+      const adapter = adapters[target.inverterBrand];
+      const result = await Promise.race([
+        adapter.testConnection(creds),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), CONNECTION_TEST_TIMEOUT_MS).unref(),
+        ),
+      ]);
+      ok = result.ok;
+    } catch (err) {
+      // Solo el tipo de error: el mensaje del proveedor podría repetir las credenciales.
+      req.log.warn(
+        { plant_id: id, provider: target.inverterBrand, error_type: (err as Error).name },
+        'falló la prueba de conexión',
+      );
+    }
+
+    const testedAt = options.now();
+    if (target.credentials) {
+      await withTenant(db, companyId, (tx) =>
+        tx.inverterCredential.update({
+          where: { plantId: id },
+          data: { lastTestAt: testedAt, lastTestOk: ok },
+        }),
+      );
+    }
+    respond(res, credentialsTestResponse, {
+      ok,
+      message: ok ? TEST_OK : TEST_FAILED,
+      tested_at: testedAt,
+    });
   });
 
   /** Borrado lógico, auditado (specs/02). */

@@ -19,6 +19,8 @@ export function createLogger(level = 'info', destination?: DestinationStream): L
           '*.access_token',
           '*.refresh_token',
           '*.passwordHash',
+          '*.credentials',
+          '*.ciphertext',
         ],
         censor: '[REDACTED]',
       },
