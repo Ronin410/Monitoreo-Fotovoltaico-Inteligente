@@ -7,7 +7,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 ---
 
 ## Fase 0 — Cimientos
-- [ ] **F0-T1 Monorepo.** pnpm workspaces con la estructura de `01`; TypeScript estricto; ESLint y Prettier; Vitest; scripts `dev`, `build`, `test`, `lint`, `typecheck`.
+- [x] **F0-T1 Monorepo.** _(2026-10-22)_ pnpm workspaces con la estructura de `01`; TypeScript estricto; ESLint y Prettier; Vitest; scripts `dev`, `build`, `test`, `lint`, `typecheck`.
   - CA: `pnpm install && pnpm build && pnpm test` funciona en limpio.
 - [ ] **F0-T2 Configuración.** `packages/config` con carga de variables de entorno validada con zod (lista de `01`); `.env.example` completo.
   - CA: arrancar sin una variable obligatoria falla con un mensaje claro.

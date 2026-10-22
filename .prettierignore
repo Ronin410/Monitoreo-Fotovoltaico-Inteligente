@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+specs/
+CLAUDE.md
+.next/
+dist/
+coverage/
+next-env.d.ts
