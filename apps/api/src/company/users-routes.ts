@@ -66,6 +66,7 @@ export function companyUsersRouter(db: PrismaClient, auth: AuthService): Router 
         invitedById: session.userId,
       });
     });
+    await invitation.send();
     res.status(201).json({
       id: invitation.id,
       email,

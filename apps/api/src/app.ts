@@ -7,6 +7,7 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
+import { adminRouter } from './admin/routes.js';
 import { requireAuth } from './auth/middleware.js';
 import { authRouter } from './auth/routes.js';
 import { AuthService } from './auth/service.js';
@@ -54,6 +55,7 @@ export function createApp(deps: AppDeps): Express {
   const authenticated = requireAuth(deps.env.JWT_SECRET, now);
   api.use('/me', authenticated, meRouter(deps.db, deps.serviceDb));
   api.use('/company', authenticated, companyUsersRouter(deps.db, auth));
+  api.use('/admin', authenticated, adminRouter(deps.serviceDb, auth, now));
 
   app.use('/api', api);
   app.use(notFoundHandler);

@@ -42,6 +42,23 @@ export type Session = {
   user: SessionUser;
 };
 
+export type InvitationRole = Exclude<UserRole, 'superadmin'>;
+
+export type NewInvitationInput = {
+  companyId: string;
+  email: string;
+  role: InvitationRole;
+  invitedById: string | null;
+};
+
+export type PendingInvitation = {
+  id: string;
+  email: string;
+  expiresAt: Date;
+  /** Envía el correo de invitación; llamar después de confirmar la transacción. */
+  send: () => Promise<void>;
+};
+
 /** Mensaje único para no revelar si el correo existe, la cuenta está desactivada, etc. */
 const invalidCredentials = () =>
   new HttpError(401, 'INVALID_CREDENTIALS', 'Correo o contraseña incorrectos');
@@ -214,36 +231,43 @@ export class AuthService {
   }
 
   /**
-   * Crea una invitación dentro de la empresa de la sesión y envía el correo.
-   * Lo usan /company/invitations (company_admin) y el alta de empresas (superadmin).
+   * Datos de una invitación nueva. El token en claro solo vive en memoria para el correo; en la
+   * base se guarda su HMAC.
    */
-  async createInvitation(
-    tx: TenantDb,
-    input: {
-      companyId: string;
-      email: string;
-      role: Exclude<UserRole, 'superadmin'>;
-      invitedById: string | null;
-    },
-  ): Promise<{ id: string; expiresAt: Date }> {
+  newInvitation(input: NewInvitationInput): {
+    data: NewInvitationInput & { tokenHash: string; expiresAt: Date };
+    send: (companyName: string) => Promise<void>;
+  } {
     const token = generateOpaqueToken();
-    const expiresAt = new Date(this.deps.now().getTime() + INVITATION_TTL_MS);
-    const company = await tx.company.findUniqueOrThrow({ where: { id: input.companyId } });
-    const invitation = await tx.invitation.create({
-      data: {
-        companyId: input.companyId,
-        email: normalizeEmail(input.email),
-        role: input.role,
-        tokenHash: this.hash(token),
-        expiresAt,
-        invitedById: input.invitedById,
-      },
-    });
+    const email = normalizeEmail(input.email);
     const link = `${this.deps.env.APP_URL}/invitacion/${token}`;
-    await this.deps.email.send(
-      invitationEmail({ to: invitation.email, companyName: company.name, role: input.role, link }),
-    );
-    return { id: invitation.id, expiresAt };
+    return {
+      data: {
+        ...input,
+        email,
+        tokenHash: this.hash(token),
+        expiresAt: new Date(this.deps.now().getTime() + INVITATION_TTL_MS),
+      },
+      send: (companyName) =>
+        this.deps.email.send(invitationEmail({ to: email, companyName, role: input.role, link })),
+    };
+  }
+
+  /**
+   * Crea una invitación dentro de la empresa de la sesión (company_admin). Devuelve `send`,
+   * que el llamador ejecuta después de confirmar la transacción para no enviar enlaces a
+   * invitaciones que no se guardaron.
+   */
+  async createInvitation(tx: TenantDb, input: NewInvitationInput): Promise<PendingInvitation> {
+    const company = await tx.company.findUniqueOrThrow({ where: { id: input.companyId } });
+    const { data, send } = this.newInvitation(input);
+    const invitation = await tx.invitation.create({ data });
+    return {
+      id: invitation.id,
+      email: invitation.email,
+      expiresAt: invitation.expiresAt,
+      send: () => send(company.name),
+    };
   }
 
   private async findValidInvitation(token: string) {

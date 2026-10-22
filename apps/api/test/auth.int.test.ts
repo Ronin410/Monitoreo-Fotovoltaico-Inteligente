@@ -330,9 +330,10 @@ describe('invitaciones', () => {
       email: ctx.email,
       now: ctx.clock.now,
     });
-    await withTenant(ctx.db, company.id, (tx) =>
+    const pending = await withTenant(ctx.db, company.id, (tx) =>
       auth.createInvitation(tx, { companyId: company.id, email, role, invitedById: admin.id }),
     );
+    await pending.send();
     const token = tokenFromEmail(ctx.email.lastTo(email)?.text ?? '');
     return { company, email, token };
   }

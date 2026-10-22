@@ -1,4 +1,5 @@
 export { createPrismaClient } from './client.js';
+export { listActiveCompanies } from './platform.js';
 export { assertAppRoleIsSafe, UnsafeDatabaseRoleError } from './roles.js';
 export {
   TENANT_MODELS,

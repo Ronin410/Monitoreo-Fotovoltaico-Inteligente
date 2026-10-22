@@ -22,7 +22,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
   - CA: una prueba de integración demuestra que, con `app.company_id` de la empresa A, una consulta directa a datos de B devuelve 0 filas.
 - [x] **F1-T3 Auth.** _(2026-10-22)_ Login, refresh con rotación, logout, recuperación de contraseña, invitaciones, rate limit de login, argon2id.
 - [x] **F1-T4 Roles.** _(2026-10-22)_ Middleware de autorización según la matriz de `02`.
-- [ ] **F1-T5 Superadmin y empresas.** Crear empresa con invitación del primer admin; suspender empresa (bloquea login y jobs).
+- [x] **F1-T5 Superadmin y empresas.** _(2026-10-22)_ Crear empresa con invitación del primer admin; suspender empresa (bloquea login y jobs).
 - [ ] **F1-T6 Auditoría.** `audit_log` en las acciones listadas en `02`.
 
 ## Fase 2 — Inventario

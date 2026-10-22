@@ -37,3 +37,11 @@ pnpm db:migrate:dev    # crea una migración nueva en desarrollo
 ```
 
 Las pruebas de integración usan `TEST_DATABASE_URL` (rol dueño; el nombre de la base debe contener `test`) y crean los usuarios `pv_app_test` y `pv_service_test`.
+
+## Primer superadmin
+
+El superadmin no pertenece a ninguna empresa y no se puede invitar. Se crea una vez por ambiente con las variables de entorno cargadas (usa `SERVICE_DATABASE_URL`); la contraseña se pide por la entrada estándar:
+
+```sh
+pnpm admin:create-superadmin admin@ejemplo.com "Nombre"
+```
