@@ -10,6 +10,7 @@ import { pinoHttp } from 'pino-http';
 import { requireAuth } from './auth/middleware.js';
 import { authRouter } from './auth/routes.js';
 import { AuthService } from './auth/service.js';
+import { companyUsersRouter } from './company/users-routes.js';
 import { errorHandler, notFoundHandler } from './http/errors.js';
 import { meRouter } from './me/routes.js';
 
@@ -50,7 +51,9 @@ export function createApp(deps: AppDeps): Express {
     now,
   });
   api.use('/auth', authRouter(auth, now));
-  api.use('/me', requireAuth(deps.env.JWT_SECRET, now), meRouter(deps.db, deps.serviceDb));
+  const authenticated = requireAuth(deps.env.JWT_SECRET, now);
+  api.use('/me', authenticated, meRouter(deps.db, deps.serviceDb));
+  api.use('/company', authenticated, companyUsersRouter(deps.db, auth));
 
   app.use('/api', api);
   app.use(notFoundHandler);

@@ -5,6 +5,7 @@ import { createPrismaClient, type PrismaClient, type UserRole } from '@pv/db';
 import { testAppDatabaseUrl, testDatabaseUrl, testServiceDatabaseUrl } from '@pv/db/testing';
 import { createApp } from '../src/app.js';
 import { hashPassword } from '../src/auth/passwords.js';
+import { signAccessToken } from '../src/auth/tokens.js';
 import { createLogger } from '../src/http/logger.js';
 
 export const TEST_ENV = loadEnv({
@@ -108,4 +109,16 @@ export function refreshCookie(setCookie: string[] | string | undefined): string 
   const raw = list.find((c) => c.startsWith('pv_refresh='));
   const value = raw?.split(';')[0]?.slice('pv_refresh='.length);
   return value ? decodeURIComponent(value) : undefined;
+}
+
+/** Access token válido para el usuario, sin pasar por el login (y su límite de intentos). */
+export function tokenFor(
+  user: { id: string; companyId: string | null; role: UserRole },
+  now: Date = new Date(),
+): Promise<string> {
+  return signAccessToken(
+    TEST_ENV.JWT_SECRET,
+    { userId: user.id, companyId: user.companyId, role: user.role },
+    now,
+  );
 }
