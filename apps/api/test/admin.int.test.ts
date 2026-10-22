@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { slugify } from '../src/admin/routes.js';
+import { slugify } from '../src/routes/admin/routes.js';
 import {
   createCompany,
   createTestContext,

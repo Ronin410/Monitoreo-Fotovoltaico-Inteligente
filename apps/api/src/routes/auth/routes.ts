@@ -1,10 +1,19 @@
 import { Router, type CookieOptions, type Request, type Response } from 'express';
-import { z } from 'zod';
-import { HttpError } from '../http/errors.js';
-import { passwordSchema } from './passwords.js';
-import { FixedWindowRateLimiter } from './rate-limit.js';
-import { normalizeEmail, type AuthService, type Session } from './service.js';
-import { ACCESS_TOKEN_TTL_SECONDS } from './tokens.js';
+import { FixedWindowRateLimiter } from '../../auth/rate-limit.js';
+import { normalizeEmail, type AuthService, type Session } from '../../auth/service.js';
+import { ACCESS_TOKEN_TTL_SECONDS } from '../../auth/tokens.js';
+import { HttpError } from '../../http/errors.js';
+import { respond } from '../../http/respond.js';
+import {
+  acceptBody,
+  forgotBody,
+  forgotResponse,
+  invitationResponse,
+  loginBody,
+  resetBody,
+  sessionResponse,
+  tokenParam,
+} from './schemas.js';
 
 export const REFRESH_COOKIE = 'pv_refresh';
 // La cookie solo viaja a las rutas de auth.
@@ -17,19 +26,12 @@ const cookieOptions: CookieOptions = {
   path: REFRESH_COOKIE_PATH,
 };
 
-const emailSchema = z.email({ error: 'Correo inválido' }).max(254);
-const loginBody = z.object({ email: emailSchema, password: z.string().min(1).max(128) });
-const forgotBody = z.object({ email: emailSchema });
-const resetBody = z.object({ token: z.string().min(1).max(200), password: passwordSchema });
-const acceptBody = z.object({ name: z.string().trim().min(1).max(120), password: passwordSchema });
-const tokenParam = z.object({ token: z.string().min(1).max(200) });
-
 function sendSession(res: Response, session: Session): void {
   res.cookie(REFRESH_COOKIE, session.refreshToken, {
     ...cookieOptions,
     expires: session.refreshExpiresAt,
   });
-  res.json({
+  respond(res, sessionResponse, {
     access_token: session.accessToken,
     token_type: 'Bearer',
     expires_in: ACCESS_TOKEN_TTL_SECONDS,
@@ -92,7 +94,7 @@ export function authRouter(auth: AuthService, now: () => Date): Router {
     const body = forgotBody.parse(req.body);
     enforceLimits(forgotLimiter, res, [`ip:${req.ip}`, `email:${normalizeEmail(body.email)}`]);
     await auth.forgotPassword(body.email);
-    res.json({ ok: true });
+    respond(res, forgotResponse, { ok: true });
   });
 
   router.post('/reset-password', async (req, res) => {
@@ -104,7 +106,7 @@ export function authRouter(auth: AuthService, now: () => Date): Router {
   router.get('/invitations/:token', async (req, res) => {
     const { token } = tokenParam.parse(req.params);
     const invitation = await auth.getInvitation(token);
-    res.json({
+    respond(res, invitationResponse, {
       email: invitation.email,
       role: invitation.role,
       company_name: invitation.companyName,

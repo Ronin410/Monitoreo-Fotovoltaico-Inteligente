@@ -26,7 +26,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 - [x] **F1-T6 Auditoría.** _(2026-10-22)_ `audit_log` en las acciones listadas en `02`.
 
 ## Fase 2 — Inventario
-- [ ] **F2-T1 Clientes.** CRUD API con borrado lógico.
+- [x] **F2-T1 Clientes.** _(2026-10-22)_ CRUD API con borrado lógico.
 - [ ] **F2-T2 Plantas.** CRUD API con valores por defecto de la empresa; copia de lat/lon, colonia y CP desde el cliente.
 - [ ] **F2-T3 Credenciales.** Cifrado AES-256-GCM, endpoint de solo escritura, "probar conexión".
   - CA: ninguna respuesta de la API ni ningún log contiene las credenciales (prueba automática que busca el valor en las respuestas y logs).

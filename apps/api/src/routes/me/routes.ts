@@ -1,7 +1,9 @@
 import { withTenant, type PrismaClient } from '@pv/db';
 import { Router } from 'express';
-import { authOf } from '../auth/middleware.js';
-import { HttpError } from '../http/errors.js';
+import { authOf } from '../../auth/middleware.js';
+import { HttpError } from '../../http/errors.js';
+import { respond } from '../../http/respond.js';
+import { meResponse } from './schemas.js';
 
 const sessionGone = () => new HttpError(401, 'UNAUTHENTICATED', 'Inicia sesión para continuar');
 
@@ -16,7 +18,7 @@ export function meRouter(db: PrismaClient, serviceDb: PrismaClient): Router {
       // superadmin: no pertenece a ninguna empresa.
       const user = await serviceDb.user.findUnique({ where: { id: auth.userId } });
       if (!user || user.status !== 'active' || user.role !== 'superadmin') throw sessionGone();
-      res.json({
+      respond(res, meResponse, {
         user: { id: user.id, email: user.email, name: user.name, role: user.role },
         company: null,
       });
@@ -32,7 +34,7 @@ export function meRouter(db: PrismaClient, serviceDb: PrismaClient): Router {
     if (!user || user.status !== 'active' || !company || company.status !== 'active') {
       throw sessionGone();
     }
-    res.json({
+    respond(res, meResponse, {
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
       company: {
         id: company.id,

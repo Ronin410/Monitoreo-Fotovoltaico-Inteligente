@@ -1,64 +1,30 @@
 import { Prisma, type Company, type PrismaClient } from '@pv/db';
 import { Router } from 'express';
-import { z } from 'zod';
-import { requirePermission } from '../auth/authorize.js';
-import { authOf } from '../auth/middleware.js';
-import { normalizeEmail, type AuthService } from '../auth/service.js';
-import { changesOf, recordAudit } from '../audit.js';
-import { HttpError } from '../http/errors.js';
-import { pageArgs, paginated, paginationQuery } from '../http/pagination.js';
+import { changesOf, recordAudit } from '../../audit.js';
+import { requirePermission } from '../../auth/authorize.js';
+import { authOf } from '../../auth/middleware.js';
+import { normalizeEmail, type AuthService } from '../../auth/service.js';
+import { HttpError } from '../../http/errors.js';
+import { pageArgs, paginated } from '../../http/pagination.js';
+import { respond } from '../../http/respond.js';
+import { idParam } from '../shared-schemas.js';
+import {
+  adminCompaniesResponse,
+  adminCompany,
+  companiesQuery,
+  companyCreatedResponse,
+  createCompanyBody,
+  patchCompanyBody,
+} from './schemas.js';
 
 // Panel de superadmin (specs/10 §Superadmin, specs/02). Usa la conexión de plataforma
 // (pv_service), que no puede leer datos operativos: solo empresas, conteo de plantas y uso de IA.
-
-const slugSchema = z
-  .string()
-  .max(60)
-  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Solo minúsculas, números y guiones');
-
-const timezoneSchema = z.string().refine(
-  (tz) => {
-    try {
-      new Intl.DateTimeFormat('en-US', { timeZone: tz });
-      return true;
-    } catch {
-      return false;
-    }
-  },
-  { error: 'Zona horaria IANA inválida' },
-);
-
-const createBody = z.object({
-  name: z.string().trim().min(1).max(120),
-  slug: slugSchema.optional(),
-  timezone: timezoneSchema.optional(),
-  brand_color: z
-    .string()
-    .regex(/^#[0-9A-Fa-f]{6}$/, 'Color hexadecimal, por ejemplo #F59E0B')
-    .optional(),
-  plan: z.string().trim().min(1).max(40).optional(),
-  ai_monthly_token_budget: z.number().int().min(0).optional(),
-  admin_email: z.email().max(254),
-});
-
-const patchBody = z
-  .object({
-    status: z.enum(['active', 'suspended']).optional(),
-    plan: z.string().trim().min(1).max(40).optional(),
-    ai_monthly_token_budget: z.number().int().min(0).optional(),
-  })
-  .refine((b) => Object.values(b).some((v) => v !== undefined), {
-    error: 'Indica al menos un campo',
-  });
-
-const listQuery = paginationQuery.extend({ status: z.enum(['active', 'suspended']).optional() });
-const idParam = z.object({ id: z.uuid() });
 
 /** "Solar Culiacán, S.A." → "solar-culiacan-s-a" */
 export function slugify(name: string): string {
   return name
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
@@ -134,7 +100,7 @@ export function adminRouter(serviceDb: PrismaClient, auth: AuthService, now: () 
   router.use(requirePermission('companies:manage'));
 
   router.get('/companies', async (req, res) => {
-    const query = listQuery.parse(req.query);
+    const query = companiesQuery.parse(req.query);
     const where = query.status ? { status: query.status } : {};
     const [companies, total] = await Promise.all([
       serviceDb.company.findMany({
@@ -145,7 +111,9 @@ export function adminRouter(serviceDb: PrismaClient, auth: AuthService, now: () 
       serviceDb.company.count({ where }),
     ]);
     const stats = await statsFor(serviceDb, companies, now());
-    res.json(
+    respond(
+      res,
+      adminCompaniesResponse,
       paginated(
         companies.map((c) => companyDto(c, stats(c.id))),
         query,
@@ -157,7 +125,7 @@ export function adminRouter(serviceDb: PrismaClient, auth: AuthService, now: () 
   /** Crea la empresa y la invitación de su primer company_admin en una sola transacción. */
   router.post('/companies', async (req, res) => {
     const superadmin = authOf(req);
-    const body = createBody.parse(req.body);
+    const body = createCompanyBody.parse(req.body);
     const slug = body.slug ?? slugify(body.name);
     if (!slug) throw new HttpError(400, 'VALIDATION_ERROR', 'No se pudo generar el slug; indícalo');
     const adminEmail = normalizeEmail(body.admin_email);
@@ -215,20 +183,25 @@ export function adminRouter(serviceDb: PrismaClient, auth: AuthService, now: () 
     // El correo sale solo después de confirmar la transacción.
     await created.send(created.company.name);
 
-    res.status(201).json({
-      company: companyDto(created.company, { plantCount: 0, aiTokensThisMonth: 0 }),
-      invitation: {
-        id: created.invitation.id,
-        email: adminEmail,
-        role: 'company_admin',
-        expires_at: created.invitation.expiresAt,
+    respond(
+      res,
+      companyCreatedResponse,
+      {
+        company: companyDto(created.company, { plantCount: 0, aiTokensThisMonth: 0 }),
+        invitation: {
+          id: created.invitation.id,
+          email: adminEmail,
+          role: 'company_admin',
+          expires_at: created.invitation.expiresAt,
+        },
       },
-    });
+      201,
+    );
   });
 
   router.patch('/companies/:id', async (req, res) => {
     const { id } = idParam.parse(req.params);
-    const body = patchBody.parse(req.body);
+    const body = patchCompanyBody.parse(req.body);
     const existing = await serviceDb.company.findUnique({ where: { id } });
     if (!existing) throw companyNotFound();
 
@@ -264,7 +237,7 @@ export function adminRouter(serviceDb: PrismaClient, auth: AuthService, now: () 
       return updated;
     });
     const stats = await statsFor(serviceDb, [company], now());
-    res.json(companyDto(company, stats(company.id)));
+    respond(res, adminCompany, companyDto(company, stats(company.id)));
   });
 
   return router;

@@ -7,13 +7,14 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
-import { adminRouter } from './admin/routes.js';
+import { adminRouter } from './routes/admin/routes.js';
 import { requireAuth } from './auth/middleware.js';
-import { authRouter } from './auth/routes.js';
+import { authRouter } from './routes/auth/routes.js';
+import { clientsRouter } from './routes/clients/routes.js';
 import { AuthService } from './auth/service.js';
-import { companyUsersRouter } from './company/users-routes.js';
+import { companyUsersRouter } from './routes/company/routes.js';
 import { errorHandler, notFoundHandler } from './http/errors.js';
-import { meRouter } from './me/routes.js';
+import { meRouter } from './routes/me/routes.js';
 
 export type AppDeps = {
   env: Env;
@@ -56,6 +57,7 @@ export function createApp(deps: AppDeps): Express {
   api.use('/me', authenticated, meRouter(deps.db, deps.serviceDb));
   api.use('/company', authenticated, companyUsersRouter(deps.db, auth));
   api.use('/admin', authenticated, adminRouter(deps.serviceDb, auth, now));
+  api.use('/clients', authenticated, clientsRouter(deps.db));
 
   app.use('/api', api);
   app.use(notFoundHandler);

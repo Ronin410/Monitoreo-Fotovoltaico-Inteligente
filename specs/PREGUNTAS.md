@@ -64,3 +64,12 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 40. **Qué se registra del login.** El exitoso y también los fallidos (con el motivo: `invalid_password`, `user_not_active`, `company_suspended`, `unknown_email`). Los intentos con correo inexistente se guardan sin el correo y sin empresa: así ningún caso tarda distinto y no se guarda información personal de terceros. No se registran el logout ni cada refresh.
 41. **Sin endpoint de consulta.** `10` no define una ruta para leer `audit_log`. ¿Se necesita una pantalla de auditoría para el `company_admin`? Las filas ya quedan limitadas por RLS a su empresa.
 42. **Acciones del superadmin sobre una empresa** (alta, suspensión, cambio de plan) se guardan con el `company_id` de esa empresa, así que serán visibles para su admin si se agrega la consulta de #41.
+
+## F2-T1 — Clientes
+
+43. **Estructura de rutas de `10`.** Se movieron todas las rutas a `apps/api/src/routes/<módulo>/` con sus esquemas zod de entrada **y salida** en `schemas.ts`. Cada respuesta pasa por su esquema de salida, que descarta campos no declarados (barrera contra fugas, por ejemplo de credenciales en F2-T3).
+44. **Documento OpenAPI (`/api/docs` en staging).** `10` lo pide pero ninguna tarea de `11` lo incluye. Los esquemas de salida ya existen; generar el documento con `zod-to-openapi` queda pendiente de asignar.
+45. **Borrar un cliente con plantas vigentes** responde `409 CLIENT_HAS_PLANTS` en lugar de borrar en cascada. ¿Se prefiere que el borrado del cliente también borre (lógicamente) sus plantas?
+46. **El borrado de clientes no se audita**: `02` solo lista la eliminación de plantas. ¿Se agrega?
+47. **Tarifa CFE** se guarda en mayúsculas y se valida como código corto (`1F`, `DAC`, `PDBT`, `GDMTH`…), no contra una lista cerrada, porque `03` solo da ejemplos.
+48. **Búsqueda `q`** busca en nombre del cliente y nombre de contacto, sin distinguir mayúsculas; acentos sí cuentan ("ferreteria" no encuentra "Ferretería"). ¿Se necesita búsqueda insensible a acentos (extensión `unaccent`)?

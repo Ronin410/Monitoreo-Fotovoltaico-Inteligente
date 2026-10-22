@@ -1,22 +1,22 @@
 import { withTenant, type PrismaClient, type User } from '@pv/db';
 import { Router } from 'express';
-import { z } from 'zod';
-import { companyAuthOf, requirePermission } from '../auth/authorize.js';
-import { normalizeEmail, type AuthService } from '../auth/service.js';
-import { changesOf, recordAudit } from '../audit.js';
-import { HttpError } from '../http/errors.js';
-import { pageArgs, paginated, paginationQuery } from '../http/pagination.js';
+import { changesOf, recordAudit } from '../../audit.js';
+import { companyAuthOf, requirePermission } from '../../auth/authorize.js';
+import { normalizeEmail, type AuthService } from '../../auth/service.js';
+import { HttpError } from '../../http/errors.js';
+import { pageArgs, paginated } from '../../http/pagination.js';
+import { respond } from '../../http/respond.js';
+import { idParam } from '../shared-schemas.js';
+import {
+  companyUser,
+  companyUsersResponse,
+  invitationBody,
+  invitationCreatedResponse,
+  userPatchBody,
+  usersQuery,
+} from './schemas.js';
 
 // Gestión de usuarios de la empresa (specs/02: solo company_admin; specs/10 §Empresa y usuarios).
-
-const companyRole = z.enum(['company_admin', 'operator', 'technician']);
-const invitationBody = z.object({ email: z.email().max(254), role: companyRole });
-const userPatchBody = z
-  .object({ role: companyRole.optional(), status: z.enum(['active', 'disabled']).optional() })
-  .refine((b) => b.role !== undefined || b.status !== undefined, {
-    error: 'Indica role o status',
-  });
-const idParam = z.object({ id: z.uuid() });
 
 const userNotFound = () => new HttpError(404, 'NOT_FOUND', 'Usuario no encontrado');
 
@@ -38,14 +38,14 @@ export function companyUsersRouter(db: PrismaClient, auth: AuthService): Router 
 
   router.get('/users', canManage, async (req, res) => {
     const { companyId } = companyAuthOf(req);
-    const page = paginationQuery.parse(req.query);
+    const page = usersQuery.parse(req.query);
     const [users, total] = await withTenant(db, companyId, (tx) =>
       Promise.all([
         tx.user.findMany({ orderBy: [{ name: 'asc' }, { id: 'asc' }], ...pageArgs(page) }),
         tx.user.count(),
       ]),
     );
-    res.json(paginated(users.map(userDto), page, total));
+    respond(res, companyUsersResponse, paginated(users.map(userDto), page, total));
   });
 
   router.post('/invitations', canManage, async (req, res) => {
@@ -78,12 +78,12 @@ export function companyUsersRouter(db: PrismaClient, auth: AuthService): Router 
       return pending;
     });
     await invitation.send();
-    res.status(201).json({
-      id: invitation.id,
-      email,
-      role: body.role,
-      expires_at: invitation.expiresAt,
-    });
+    respond(
+      res,
+      invitationCreatedResponse,
+      { id: invitation.id, email, role: body.role, expires_at: invitation.expiresAt },
+      201,
+    );
   });
 
   router.patch('/users/:id', canManage, async (req, res) => {
@@ -139,7 +139,7 @@ export function companyUsersRouter(db: PrismaClient, auth: AuthService): Router 
 
     // Un usuario desactivado pierde sus sesiones de inmediato.
     if (updated.status === 'disabled') await auth.revokeAllSessions(updated.id);
-    res.json(userDto(updated));
+    respond(res, companyUser, userDto(updated));
   });
 
   return router;
