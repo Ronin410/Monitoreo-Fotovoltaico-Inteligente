@@ -18,7 +18,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 
 ## Fase 1 — Datos, multiempresa y autenticación 🧪
 - [x] **F1-T1 Esquema.** _(2026-10-22)_ Prisma con todas las tablas de `03`; migración SQL adicional con índices especiales (BRIN, únicos parciales).
-- [ ] **F1-T2 RLS y `withTenant`.** Políticas RLS en todas las tablas 🔒, rol de aplicación sin `BYPASSRLS`, helper `withTenant(companyId, fn)` y repositorios con tenant obligatorio (ver `02`).
+- [x] **F1-T2 RLS y `withTenant`.** _(2026-10-22)_ Políticas RLS en todas las tablas 🔒, rol de aplicación sin `BYPASSRLS`, helper `withTenant(companyId, fn)` y repositorios con tenant obligatorio (ver `02`).
   - CA: una prueba de integración demuestra que, con `app.company_id` de la empresa A, una consulta directa a datos de B devuelve 0 filas.
 - [ ] **F1-T3 Auth.** Login, refresh con rotación, logout, recuperación de contraseña, invitaciones, rate limit de login, argon2id.
 - [ ] **F1-T4 Roles.** Middleware de autorización según la matriz de `02`.

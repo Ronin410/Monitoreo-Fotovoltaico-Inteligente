@@ -65,11 +65,15 @@ services:
     startCommand: pnpm --filter @pv/api start
     healthCheckPath: /health
     envVars:
-      # F1-T2 separa el rol dueño (migraciones) del rol de aplicación sin BYPASSRLS.
-      - key: DATABASE_URL
+      # Rol dueño: solo para las migraciones del preDeploy.
+      - key: MIGRATION_DATABASE_URL
         fromDatabase:
           name: pv-db
           property: connectionString
+      # Usuario miembro de pv_app (sin BYPASSRLS); se crea tras la primera migración
+      # (ver packages/db/README.md) y se captura a mano.
+      - key: DATABASE_URL
+        sync: false
       - fromGroup: pv-shared
 
   - type: worker
@@ -79,10 +83,9 @@ services:
     buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @pv/worker build
     startCommand: pnpm --filter @pv/worker start
     envVars:
+      # Mismo usuario miembro de pv_app que pv-api.
       - key: DATABASE_URL
-        fromDatabase:
-          name: pv-db
-          property: connectionString
+        sync: false
       - fromGroup: pv-shared
 
   - type: web
