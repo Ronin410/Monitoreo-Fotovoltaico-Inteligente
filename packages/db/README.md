@@ -45,3 +45,7 @@ El superadmin no pertenece a ninguna empresa y no se puede invitar. Se crea una 
 ```sh
 pnpm admin:create-superadmin admin@ejemplo.com "Nombre"
 ```
+
+## Colas (pg-boss)
+
+Las colas viven en el esquema `pgboss`, que crea la migración `jobs`. pg-boss se conecta con `SERVICE_DATABASE_URL` como rol `pv_service` (`-c role=pv_service`) e instala ahí sus tablas, a nombre del rol de grupo: se puede rotar el usuario de conexión sin perder las colas. Las colas solo guardan ids y `company_id`.

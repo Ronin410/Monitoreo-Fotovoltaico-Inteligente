@@ -14,6 +14,7 @@
     "@pv/config": "workspace:*",
     "@pv/core": "workspace:*",
     "nodemailer": "^10.2.1",
+    "pg-boss": "^12.38.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

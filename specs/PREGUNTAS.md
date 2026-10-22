@@ -100,3 +100,12 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 64. **Logos públicos.** Se sirven sin autenticación en `/api/public/logos/:empresa/:archivo` (aparecen en correos, PDFs y el web), con nombre aleatorio, caché larga y una CSP que impide ejecutar nada. Reemplazar el logo borra el anterior.
 65. **`StorageProvider`.** Disco local y S3 compatible (R2 o S3) implementados; el de S3 no se ha probado contra un bucket real.
 66. **Versión de jsdom.** jsdom 30 exige Node ≥ 22.22.2; se usa jsdom 29 para no subir el requisito de Node.
+
+## F3-T1 — Infraestructura de jobs
+
+67. **Rol de pg-boss.** Las colas usan `SERVICE_DATABASE_URL` (rol `pv_service`) y el esquema `pgboss`; ni la api ni el worker necesitan el rol dueño. Los jobs por empresa acceden a datos con `pv_app` + `withTenant`.
+68. **`job_runs` registra cada intento** (no solo el último), con `stats.attempt`. Se agregó el estado `skipped` para jobs de empresas suspendidas o inexistentes; un payload inválido queda `failed` con `invalid_payload` y no se reintenta. El texto de error se guarda recortado a 500 caracteres: los jobs no deben poner secretos en sus errores (la ingesta convertirá los errores del proveedor en mensajes genéricos).
+69. **Latido del worker.** `worker.heartbeat` corre cada 5 minutos por cron → cola → `job_runs`, para que el panel de salud vea el circuito completo. Son ~288 filas al día: ¿se agrega la limpieza de `job_runs` antiguos (por ejemplo, más de 30 días) a F10-T2?
+70. **Idempotencia.** Un job puede declarar `singletonKey(payload)`; su cola usa la política `exclusive` de pg-boss (un solo job pendiente o activo por clave) y encolar otro igual no hace nada. Los handlers además deben ser idempotentes (upserts), porque un reintento puede repetir trabajo.
+71. **Horarios por zona de cada empresa.** pg-boss programa cada cron en una sola zona horaria. Para `metrics.daily` (22:00 local de cada empresa) y `reports.monthly` se usará un orquestador horario que revisa la hora local de cada empresa (F4-T2).
+72. **Pregunta #54 sigue abierta:** la prueba de conexión de credenciales sigue en la api hasta que se decida si pasa al worker.

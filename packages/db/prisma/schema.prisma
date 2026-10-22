@@ -50,6 +50,8 @@ enum JobRunStatus {
   running
   succeeded
   failed
+  /// La empresa está suspendida: el job no se ejecutó (specs/03 §companies).
+  skipped
 
   @@map("job_run_status")
 }

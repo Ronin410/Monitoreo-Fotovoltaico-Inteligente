@@ -72,3 +72,27 @@ export const companyCreatedResponse = z.object({
     expires_at: z.date(),
   }),
 });
+
+const jobRunStatus = z.enum(['running', 'succeeded', 'failed', 'skipped']);
+
+export const healthResponse = z.object({
+  generated_at: z.date(),
+  jobs: z.array(
+    z.object({
+      job_name: z.string(),
+      last_status: jobRunStatus,
+      last_started_at: z.date(),
+      last_finished_at: z.date().nullable(),
+      last_success_at: z.date().nullable(),
+      failures_24h: z.number().int(),
+    }),
+  ),
+  recent_failures: z.array(
+    z.object({
+      job_name: z.string(),
+      company: z.object({ id: z.uuid(), name: z.string() }).nullable(),
+      started_at: z.date(),
+      error: z.string().nullable(),
+    }),
+  ),
+});

@@ -75,6 +75,7 @@ export async function prepareTestDatabase(suffix: string): Promise<void> {
   });
 
   await withClient(url, async (client) => {
+    await client.query('DROP SCHEMA IF EXISTS pgboss CASCADE');
     await client.query('DROP SCHEMA IF EXISTS public CASCADE');
     await client.query('CREATE SCHEMA public');
   });

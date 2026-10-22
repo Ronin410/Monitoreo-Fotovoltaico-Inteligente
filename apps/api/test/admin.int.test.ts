@@ -299,3 +299,62 @@ describe('PATCH /api/admin/companies/:id', () => {
     );
   });
 });
+
+describe('GET /api/admin/health', () => {
+  it('resume la última ejecución de cada job y los fallos recientes', async () => {
+    const company = await createCompany(ctx.owner, { name: 'Empresa con fallas' });
+    const t = (min: number) => new Date(ctx.clock.current.getTime() - min * 60_000);
+    const job = `test.health_${Date.now()}`;
+    await ctx.owner.jobRun.createMany({
+      data: [
+        {
+          jobName: job,
+          companyId: company.id,
+          status: 'succeeded',
+          startedAt: t(30),
+          finishedAt: t(29),
+        },
+        {
+          jobName: job,
+          companyId: company.id,
+          status: 'failed',
+          startedAt: t(10),
+          finishedAt: t(9),
+          error: 'Error: proveedor caído',
+        },
+        {
+          jobName: job,
+          companyId: null,
+          status: 'failed',
+          startedAt: t(60 * 30),
+          finishedAt: t(60 * 30),
+          error: 'viejo',
+        },
+      ],
+    });
+
+    const res = await request(ctx.app).get('/api/admin/health').set('Authorization', superAuth);
+    expect(res.status).toBe(200);
+    const row = res.body.jobs.find((j: { job_name: string }) => j.job_name === job);
+    expect(row).toMatchObject({
+      last_status: 'failed',
+      last_started_at: t(10).toISOString(),
+      last_success_at: t(29).toISOString(),
+      failures_24h: 1,
+    });
+    expect(res.body.recent_failures[0]).toMatchObject({
+      job_name: job,
+      company: { id: company.id, name: 'Empresa con fallas' },
+      error: 'Error: proveedor caído',
+    });
+  });
+
+  it('solo el superadmin la consulta', async () => {
+    const company = await createCompany(ctx.owner);
+    const admin = await createUser(ctx.owner, { companyId: company.id, role: 'company_admin' });
+    const res = await request(ctx.app)
+      .get('/api/admin/health')
+      .set('Authorization', `Bearer ${await tokenFor(admin, ctx.clock.current)}`);
+    expect(res.status).toBe(403);
+  });
+});

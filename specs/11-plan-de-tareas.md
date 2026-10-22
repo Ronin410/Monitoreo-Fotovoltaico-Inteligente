@@ -33,7 +33,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 - [x] **F2-T4 Configuración de empresa.** _(2026-10-22)_ `GET/PATCH /company`, subir logo, `settings` validado con valores por defecto.
 
 ## Fase 3 — Ingesta y simulador
-- [ ] **F3-T1 Infraestructura de jobs.** pg-boss en `apps/worker`, `job_runs`, reintentos, idempotencia.
+- [x] **F3-T1 Infraestructura de jobs.** _(2026-10-22)_ pg-boss en `apps/worker`, `job_runs`, reintentos, idempotencia.
 - [ ] **F3-T2 Clima.** Interfaz `WeatherProvider`, proveedores `synthetic` y `open-meteo`, job `ingest.weather` y backfill (ver `04`).
   - CA: para una planta en Culiacán con inclinación de 20° al sur se guardan 24 horas con POA > 0 solo en horas de sol.
 - [ ] **F3-T3 Simulador.** Adaptador `simulator` con todos los escenarios de `04` §3.

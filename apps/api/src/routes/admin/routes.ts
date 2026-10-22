@@ -14,6 +14,7 @@ import {
   companiesQuery,
   companyCreatedResponse,
   createCompanyBody,
+  healthResponse,
   patchCompanyBody,
 } from './schemas.js';
 
@@ -197,6 +198,52 @@ export function adminRouter(serviceDb: PrismaClient, auth: AuthService, now: () 
       },
       201,
     );
+  });
+
+  /** Salud del sistema (specs/09 §Superadmin): última ejecución de cada job y errores recientes. */
+  router.get('/health', async (_req, res) => {
+    const generatedAt = now();
+    const since = new Date(generatedAt.getTime() - 24 * 60 * 60 * 1000);
+    const [jobs, failures] = await Promise.all([
+      serviceDb.$queryRaw<
+        {
+          job_name: string;
+          last_status: 'running' | 'succeeded' | 'failed' | 'skipped';
+          last_started_at: Date;
+          last_finished_at: Date | null;
+          last_success_at: Date | null;
+          failures_24h: number;
+        }[]
+      >`
+        SELECT DISTINCT ON (r.job_name)
+          r.job_name,
+          r.status::text AS last_status,
+          r.started_at AS last_started_at,
+          r.finished_at AS last_finished_at,
+          (SELECT max(s.finished_at) FROM job_runs s
+            WHERE s.job_name = r.job_name AND s.status = 'succeeded') AS last_success_at,
+          (SELECT count(*)::int FROM job_runs f
+            WHERE f.job_name = r.job_name AND f.status = 'failed' AND f.started_at >= ${since})
+            AS failures_24h
+        FROM job_runs r
+        ORDER BY r.job_name, r.started_at DESC`,
+      serviceDb.jobRun.findMany({
+        where: { status: 'failed' },
+        orderBy: { startedAt: 'desc' },
+        take: 20,
+        include: { company: { select: { id: true, name: true } } },
+      }),
+    ]);
+    respond(res, healthResponse, {
+      generated_at: generatedAt,
+      jobs,
+      recent_failures: failures.map((f) => ({
+        job_name: f.jobName,
+        company: f.company,
+        started_at: f.startedAt,
+        error: f.error,
+      })),
+    });
   });
 
   router.patch('/companies/:id', async (req, res) => {
