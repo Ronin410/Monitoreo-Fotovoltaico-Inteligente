@@ -11,7 +11,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
   - CA: `pnpm install && pnpm build && pnpm test` funciona en limpio.
 - [x] **F0-T2 Configuración.** _(2026-10-22)_ `packages/config` con carga de variables de entorno validada con zod (lista de `01`); `.env.example` completo.
   - CA: arrancar sin una variable obligatoria falla con un mensaje claro.
-- [ ] **F0-T3 CI.** GitHub Actions: install, lint, typecheck y tests con un servicio PostgreSQL.
+- [x] **F0-T3 CI.** _(2026-10-22)_ GitHub Actions: install, lint, typecheck y tests con un servicio PostgreSQL.
 - [ ] **F0-T4 Render.** `render.yaml` con `pv-web`, `pv-api`, `pv-worker` y `pv-db`; migraciones en pre-deploy; `GET /health`.
   - Estado (2026-10-22): `render.yaml` listo y `GET /health` probado en local. **Pendiente:** crear el Blueprint en Render, capturar las variables `sync: false` y verificar el despliegue en staging.
   - CA: despliegue en staging con las tres apps respondiendo.
