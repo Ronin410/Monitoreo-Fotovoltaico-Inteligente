@@ -26,7 +26,10 @@ export class LocalStorageProvider implements StorageProvider {
   async get(key: string): Promise<StoredObject | null> {
     const file = this.path(key);
     try {
-      const [body, meta] = await Promise.all([readFile(file), readFile(`${file}.meta.json`, 'utf8')]);
+      const [body, meta] = await Promise.all([
+        readFile(file),
+        readFile(`${file}.meta.json`, 'utf8'),
+      ]);
       return { body, contentType: (JSON.parse(meta) as { contentType: string }).contentType };
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;

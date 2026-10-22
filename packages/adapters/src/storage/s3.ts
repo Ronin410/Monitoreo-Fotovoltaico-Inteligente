@@ -26,7 +26,12 @@ export class S3StorageProvider implements StorageProvider {
   async put(key: string, body: Buffer, contentType: string): Promise<void> {
     assertSafeKey(key);
     await this.client.send(
-      new PutObjectCommand({ Bucket: this.config.bucket, Key: key, Body: body, ContentType: contentType }),
+      new PutObjectCommand({
+        Bucket: this.config.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
     );
   }
 
