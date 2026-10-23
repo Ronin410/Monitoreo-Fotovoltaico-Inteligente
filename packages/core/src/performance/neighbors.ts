@@ -39,29 +39,43 @@ const ratio = (c: Pick<NeighborCandidate, 'prTemp' | 'prBaseline'>) =>
 const usable = (c: NeighborCandidate) =>
   c.isValidDay && c.prTemp !== null && c.prBaseline !== null && c.prBaseline > 0;
 
+export type Located = {
+  plantId: string;
+  lat: number | null;
+  lon: number | null;
+  postalCode: string;
+};
+
+/**
+ * Vecinas de `target` entre `candidates` (specs/05 §6): a ≤ radio; si son menos de `minCount`,
+ * las del mismo código postal; si tampoco alcanzan, ninguna. Excluye a la propia planta.
+ */
+export function selectNeighbors<T extends Located>(
+  target: Located,
+  candidates: T[],
+  opts: { radiusKm: number; minCount: number },
+): { neighbors: T[]; method: 'radius' | 'postal_code' | null } {
+  const others = candidates.filter((c) => c.plantId !== target.plantId);
+  if (target.lat !== null && target.lon !== null) {
+    const { lat, lon } = target;
+    const near = others.filter(
+      (c) =>
+        c.lat !== null && c.lon !== null && haversineKm(lat, lon, c.lat, c.lon) <= opts.radiusKm,
+    );
+    if (near.length >= opts.minCount) return { neighbors: near, method: 'radius' };
+  }
+  const samePostal = others.filter((c) => c.postalCode === target.postalCode);
+  if (samePostal.length >= opts.minCount) return { neighbors: samePostal, method: 'postal_code' };
+  return { neighbors: [], method: null };
+}
+
 export function neighborIndex(
   target: NeighborCandidate,
   candidates: NeighborCandidate[],
   opts: { radiusKm: number; minCount: number },
 ): NeighborResult {
-  const none: NeighborResult = { index: null, count: 0, method: null };
-  if (!usable(target)) return none;
-  const others = candidates.filter((c) => c.plantId !== target.plantId && usable(c));
-
-  let neighbors: NeighborCandidate[] = [];
-  let method: NeighborResult['method'] = null;
-  if (target.lat !== null && target.lon !== null) {
-    const { lat, lon } = target;
-    neighbors = others.filter(
-      (c) =>
-        c.lat !== null && c.lon !== null && haversineKm(lat, lon, c.lat, c.lon) <= opts.radiusKm,
-    );
-    method = 'radius';
-  }
-  if (neighbors.length < opts.minCount) {
-    neighbors = others.filter((c) => c.postalCode === target.postalCode);
-    method = 'postal_code';
-  }
-  if (neighbors.length < opts.minCount) return none;
+  if (!usable(target)) return { index: null, count: 0, method: null };
+  const { neighbors, method } = selectNeighbors(target, candidates.filter(usable), opts);
+  if (method === null) return { index: null, count: 0, method: null };
   return { index: ratio(target) / median(neighbors.map(ratio)), count: neighbors.length, method };
 }

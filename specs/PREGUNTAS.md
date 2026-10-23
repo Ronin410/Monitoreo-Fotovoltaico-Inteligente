@@ -143,3 +143,13 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 88. **PR sin horas cubiertas.** Si no hay horas cubiertas con sol, `pr` y `pr_temp` son `null` (no 0).
 89. **Confianza de la predicción.** Se calcula siempre que hay ≥ 7 puntos (describe el ajuste), aunque `days_to_cleaning` sea `null` por no haber tendencia. La regla `cleaning_due_soon` (F5) exige además días entre 1 y 7.
 90. **Vecinas sin ubicación.** Si la planta evaluada no tiene lat/lon, se pasa directo al criterio de código postal.
+
+## F4-T2 — Job `metrics.daily`
+
+91. **Hora de cálculo.** `metrics.daily` corre cada hora (minuto 10) y encola `metrics.daily_company` para las empresas activas cuya hora local es 22:00, con la fecha local de ese día. Una tarea por empresa y fecha (`singletonKey`); `metrics.recompute` recalcula un rango (máx. 400 días) en orden, porque cada día usa la historia de los anteriores.
+92. **Puntos de la tendencia de suciedad.** Se usan los días válidos **posteriores** a la fecha local del último reinicio (el día del reinicio queda fuera, porque mezcla horas sucias y limpias). Sin reinicio se toman los últimos 120 días.
+93. **Desviación.** `deviation_pct` solo se calcula en días válidos. En un día no válido queda `null` y no influye en el estado.
+94. **Línea base provisional.** Sin 10 días válidos propios se usa la mediana de las líneas base **propias** de las vecinas de la misma empresa (mismos criterios de radio y código postal de `05` §6). Si no hay suficientes, se usa 0.85 (`default`).
+95. **Puesta en marcha.** No se calculan métricas de una planta para fechas anteriores a su `commissioning_date`, ni de plantas pausadas o eliminadas.
+96. **Lluvia.** El evento `rain_cleaning` automático se crea en la hora en que la lluvia acumulada del día local alcanza `rain_reset_mm` (igual que en el simulador). Es idempotente por instante exacto.
+97. **Encadenado con alertas.** Encolar `alerts.evaluate` al terminar se implementará en F5-T2, cuando exista ese job.

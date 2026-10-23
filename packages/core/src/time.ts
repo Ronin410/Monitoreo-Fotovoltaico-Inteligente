@@ -55,3 +55,14 @@ export function startOfLocalDay(day: string, timeZone: string): Date {
 export function floorToHour(date: Date): Date {
   return new Date(Math.floor(date.getTime() / HOUR_MS) * HOUR_MS);
 }
+
+/** Suma días a una fecha YYYY-MM-DD (calendario, sin zona horaria). */
+export function addDays(day: string, days: number): string {
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/** Días de calendario de `from` a `to` (puede ser negativo). */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}

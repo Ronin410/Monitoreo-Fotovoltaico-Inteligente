@@ -1,5 +1,6 @@
 import type { RegisteredJob } from '../runtime.js';
 import { heartbeatJob } from './heartbeat.js';
+import { metricsDailyCompanyJob, metricsDailyJob, metricsRecomputeJob } from './metrics.js';
 import { ingestTelemetryJob, ingestTelemetryPlantJob } from './telemetry.js';
 import { ingestWeatherCompanyJob, ingestWeatherJob, weatherBackfillJob } from './weather.js';
 
@@ -11,4 +12,7 @@ export const JOBS: RegisteredJob[] = [
   weatherBackfillJob,
   ingestTelemetryJob,
   ingestTelemetryPlantJob,
+  metricsDailyJob,
+  metricsDailyCompanyJob,
+  metricsRecomputeJob,
 ];

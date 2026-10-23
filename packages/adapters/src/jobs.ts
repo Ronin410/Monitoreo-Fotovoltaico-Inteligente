@@ -58,3 +58,41 @@ export const ingestTelemetryPlant = defineJob({
   expireInSeconds: 5 * 60,
   singletonKey: (p) => `ingest.telemetry_plant:${p.plant_id}`,
 });
+
+const localDateSchema = z.iso.date();
+
+/**
+ * Orquestador horario de métricas: a las 22:00 locales de cada empresa encola el cálculo del día
+ * (specs/05 §9). pg-boss programa en una sola zona, por eso se revisa cada hora.
+ */
+export const metricsDaily = defineJob({
+  name: 'metrics.daily',
+  payload: z.object({}),
+  scope: 'platform',
+  retryLimit: 1,
+  schedule: { cron: '10 * * * *' },
+});
+
+/** Métricas diarias de todas las plantas activas de una empresa para una fecha local. */
+export const metricsDailyCompany = defineJob({
+  name: 'metrics.daily_company',
+  payload: companyPayload.extend({ date: localDateSchema }),
+  scope: 'company',
+  expireInSeconds: 30 * 60,
+  singletonKey: (p) => `metrics.daily_company:${p.company_id}:${p.date}`,
+});
+
+/** Recálculo a mano de un rango de fechas, en orden (cada día usa los anteriores). */
+export const metricsRecompute = defineJob({
+  name: 'metrics.recompute',
+  payload: companyPayload
+    .extend({ from: localDateSchema, to: localDateSchema })
+    .refine((p) => p.from <= p.to, { error: 'from debe ser anterior o igual a to' })
+    .refine((p) => (Date.parse(p.to) - Date.parse(p.from)) / 86_400_000 <= 400, {
+      error: 'El rango máximo es de 400 días',
+    }),
+  scope: 'company',
+  retryLimit: 1,
+  expireInSeconds: 60 * 60,
+  singletonKey: (p) => `metrics.recompute:${p.company_id}`,
+});

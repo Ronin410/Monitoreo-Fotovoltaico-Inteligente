@@ -44,7 +44,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 ## Fase 4 — Motor de rendimiento 🧪
 - [x] **F4-T1 Fórmulas puras.** _(2026-10-23)_ `packages/core/performance` con §1–8 de `05`.
   - CA: los casos A, B y C de `05` §10 y los "otros casos" pasan.
-- [ ] **F4-T2 Job `metrics.daily`.** Orquestación por empresa, recálculo por rango de fechas, eventos `rain_cleaning` automáticos.
+- [x] **F4-T2 Job `metrics.daily`.** Orquestación por empresa, recálculo por rango de fechas, eventos `rain_cleaning` automáticos. _(2026-10-23)_
 - [ ] **F4-T3 Semilla demo.** `pnpm db:seed:demo` según `04` §4, ejecutando el pipeline real sobre 90 días.
   - CA: la semilla termina en menos de 10 minutos y cada escenario es visible en `plant_daily_metrics` (por ejemplo, la planta con suciedad muestra tendencia descendente y la de falla de string un salto).
 
