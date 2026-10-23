@@ -62,17 +62,34 @@ function stopReason(r: Anthropic.StopReason | null): LLMStopReason {
       : 'other';
 }
 
-function toResponse(msg: Anthropic.Message): LLMResponse {
+/** Lo que se usa de un mensaje de la API (normal o beta). */
+type ApiMessage = {
+  content: { type: string }[];
+  stop_reason: string | null;
+  model: string;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+    cache_read_input_tokens?: number | null;
+    cache_creation_input_tokens?: number | null;
+  };
+};
+
+const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
+
+function toResponse(msg: ApiMessage): LLMResponse {
   const content: LLMResponse['content'] = [];
   for (const b of msg.content) {
-    if (b.type === 'text') content.push({ type: 'text', text: b.text });
-    else if (b.type === 'tool_use')
-      content.push({ type: 'tool_use', id: b.id, name: b.name, input: b.input });
-    // Los bloques de razonamiento no se usan ni se guardan.
+    if (b.type === 'text') content.push({ type: 'text', text: (b as Anthropic.TextBlock).text });
+    else if (b.type === 'tool_use') {
+      const t = b as Anthropic.ToolUseBlock;
+      content.push({ type: 'tool_use', id: t.id, name: t.name, input: t.input });
+    }
+    // Los bloques de razonamiento y los de cambio de modelo (fallback) no se usan ni se guardan.
   }
   return {
     content,
-    stopReason: stopReason(msg.stop_reason),
+    stopReason: stopReason(msg.stop_reason as Anthropic.StopReason | null),
     model: msg.model,
     usage: {
       inputTokens: msg.usage.input_tokens,
@@ -121,6 +138,15 @@ export class AnthropicProvider implements LLMProvider {
 
   async generate(req: LLMRequest): Promise<LLMResponse> {
     try {
+      if (req.refusalFallback) {
+        return toResponse(
+          await this.client.beta.messages.create({
+            ...(toParams(req) as unknown as Anthropic.Beta.MessageCreateParamsNonStreaming),
+            betas: [FALLBACK_BETA],
+            fallbacks: 'default',
+          }),
+        );
+      }
       return toResponse(await this.client.messages.create(toParams(req)));
     } catch (err) {
       throw toLLMError(err);
@@ -129,7 +155,13 @@ export class AnthropicProvider implements LLMProvider {
 
   async *stream(req: LLMRequest): AsyncIterable<LLMStreamEvent> {
     try {
-      const stream = this.client.messages.stream(toParams(req));
+      const stream = req.refusalFallback
+        ? this.client.beta.messages.stream({
+            ...(toParams(req) as unknown as Anthropic.Beta.MessageCreateParamsStreaming),
+            betas: [FALLBACK_BETA],
+            fallbacks: 'default',
+          })
+        : this.client.messages.stream(toParams(req));
       for await (const event of stream) {
         if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
           yield { type: 'text_delta', text: event.delta.text };

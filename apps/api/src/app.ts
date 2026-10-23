@@ -5,6 +5,7 @@ import {
   type JobEnqueuer,
   type StorageProvider,
 } from '@pv/adapters';
+import { createAiConfig, type AiConfig } from '@pv/ai';
 import type { Env } from '@pv/config';
 import type { InverterBrand } from '@pv/core';
 import type { PrismaClient } from '@pv/db';
@@ -15,6 +16,7 @@ import helmet from 'helmet';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
 import { adminRouter } from './routes/admin/routes.js';
+import { aiRouter } from './routes/ai/routes.js';
 import { alertsRouter } from './routes/alerts/routes.js';
 import { requireAuth } from './auth/middleware.js';
 import { authRouter } from './routes/auth/routes.js';
@@ -42,6 +44,8 @@ export type AppDeps = {
   jobs: JobEnqueuer;
   logger: Logger;
   now?: () => Date;
+  /** Proveedor y modelos de IA; por omisión según LLM_PROVIDER. Las pruebas usan el simulado. */
+  ai?: AiConfig;
   /** Adaptadores de inversor; por defecto el registro real. Las pruebas los sustituyen. */
   inverterAdapters?: Record<InverterBrand, InverterAdapter>;
 };
@@ -100,6 +104,11 @@ export function createApp(deps: AppDeps): Express {
   api.use('/dashboard', authenticated, dashboardRouter(deps.db, now));
   api.use('/alerts', authenticated, alertsRouter(deps.db, deps.jobs, now));
   api.use('/tickets', authenticated, ticketsRouter(deps.db, now, deps.jobs));
+  api.use(
+    '/ai',
+    authenticated,
+    aiRouter(deps.db, deps.ai ?? createAiConfig(deps.env), deps.jobs, now, deps.logger),
+  );
 
   app.use('/api', api);
   app.use(notFoundHandler);

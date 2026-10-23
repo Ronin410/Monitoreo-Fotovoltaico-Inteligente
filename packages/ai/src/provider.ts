@@ -34,6 +34,11 @@ export type LLMRequest = {
   effort?: 'low' | 'medium' | 'high';
   /** Salida estructurada: la respuesta es un JSON que cumple este JSON Schema. */
   jsonSchema?: Record<string, unknown>;
+  /**
+   * Si el modelo declina por sus salvaguardas, la API reintenta en otro modelo dentro de la
+   * misma llamada (respaldo del lado del servidor).
+   */
+  refusalFallback?: boolean;
 };
 
 export type LLMUsage = {

@@ -1,4 +1,4 @@
-import { localDate } from '@pv/core';
+import { localDate, renderEmail } from '@pv/core';
 import type { TenantDb } from '@pv/db';
 import { totalInputTokens, type LLMUsage } from './provider.js';
 
@@ -84,4 +84,65 @@ export async function recordUsage(
     ...status(period, after, company.aiMonthlyTokenBudget),
     crossedWarning: before < threshold && after >= threshold,
   };
+}
+
+/**
+ * Notificación del aviso del 80 % a los company_admin activos, una vez por mes. Devuelve los ids
+ * para encolar notifications.send al confirmar la transacción.
+ */
+export async function queueBudgetWarning(
+  tx: TenantDb,
+  company: {
+    id: string;
+    name: string;
+    brandColor: string;
+    logoUrl: string | null;
+    timezone: string;
+  },
+  status: { period: string; used: number; budget: number },
+): Promise<string[]> {
+  const key = `ai_budget_warning:${status.period}`;
+  const admins = await tx.user.findMany({
+    where: { status: 'active', role: 'company_admin' },
+    select: { email: true },
+  });
+  const already = new Set(
+    (
+      await tx.notification.findMany({
+        where: { template: 'ai_budget_warning', payload: { path: ['key'], equals: key } },
+        select: { recipient: true },
+      })
+    ).map((n) => n.recipient),
+  );
+  const recipients = admins.map((a) => a.email.toLowerCase()).filter((e) => !already.has(e));
+  if (recipients.length === 0) return [];
+  const payload = {
+    period: status.period,
+    used_tokens: status.used,
+    budget_tokens: status.budget,
+  };
+  const { subject } = renderEmail(
+    'ai_budget_warning',
+    payload,
+    {
+      companyName: company.name,
+      brandColor: company.brandColor,
+      logoUrl: company.logoUrl,
+      timezone: company.timezone,
+    },
+    '',
+  );
+  const rows = await tx.notification.createManyAndReturn({
+    data: recipients.map((recipient) => ({
+      companyId: company.id,
+      recipient,
+      subject,
+      template: 'ai_budget_warning',
+      payload: { ...payload, key },
+      relatedType: 'ai_budget',
+      relatedId: null,
+    })),
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
 }

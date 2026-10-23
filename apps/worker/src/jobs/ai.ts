@@ -3,11 +3,12 @@ import {
   budgetStatus,
   buildExplainInput,
   explainAlert,
+  queueBudgetWarning,
   recordUsage,
   templateExplanation,
   type ExplainResult,
 } from '@pv/ai';
-import { withTenant, type Company, type Prisma, type TenantDb } from '@pv/db';
+import { withTenant, type Prisma } from '@pv/db';
 import { registerJob, type JobContext } from '../runtime.js';
 import { enqueueEmails, queueEmails, recipientsFor } from './notifications.js';
 
@@ -16,26 +17,6 @@ import { enqueueEmails, queueEmails, recipientsFor } from './notifications.js';
 // tokens al uso del mes y, si se pidió, manda el correo de alerta nueva con el resumen.
 
 const OPEN_STATUSES = ['open', 'acknowledged'];
-
-/** Aviso al company_admin al cruzar el 80 % del presupuesto, una vez por mes. */
-async function budgetWarning(
-  tx: TenantDb,
-  company: Company,
-  status: { period: string; used: number; budget: number },
-): Promise<string[]> {
-  const admins = await tx.user.findMany({
-    where: { status: 'active', role: 'company_admin' },
-    select: { email: true },
-  });
-  return queueEmails(
-    tx,
-    company,
-    admins.map((a) => a.email),
-    'ai_budget_warning',
-    { period: status.period, used_tokens: status.used, budget_tokens: status.budget },
-    { type: 'ai_budget', id: null, key: `ai_budget_warning:${status.period}` },
-  );
-}
 
 export async function explainAlertFor(
   ctx: JobContext,
@@ -96,7 +77,7 @@ export async function explainAlertFor(
     const ids: string[] = [];
     for (const usage of result.usage) {
       const after = await recordUsage(tx, company, 'alert_explanation', usage, now);
-      if (after.crossedWarning) ids.push(...(await budgetWarning(tx, company, after)));
+      if (after.crossedWarning) ids.push(...(await queueBudgetWarning(tx, company, after)));
     }
     if (notify && !ctx.suppressNotifications) {
       const recipients = await recipientsFor(tx, company, ['company_admin']);

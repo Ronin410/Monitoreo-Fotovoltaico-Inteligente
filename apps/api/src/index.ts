@@ -3,6 +3,8 @@ import {
   createStorageProvider,
   JobQueue,
   weatherBackfill,
+  notificationsSend,
+  aiExplainAlert,
 } from '@pv/adapters';
 import { loadEnvOrExit } from '@pv/config';
 import { assertAppRoleIsSafe, createPrismaClient, UnsafeDatabaseRoleError } from '@pv/db';
@@ -29,6 +31,8 @@ try {
 // por si arranca antes que el worker.
 const jobs = await JobQueue.start(env.SERVICE_DATABASE_URL, { supervise: false });
 await jobs.ensureQueue(weatherBackfill);
+await jobs.ensureQueue(notificationsSend);
+await jobs.ensureQueue(aiExplainAlert);
 
 const port = env.PORT ?? 4000;
 createApp({

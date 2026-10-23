@@ -30,6 +30,11 @@ export type AuthContextValue = {
   startSession: (session: SessionResponse) => Promise<void>;
   /** Vuelve a leer /me (por ejemplo tras cambiar la marca). */
   reload: () => Promise<void>;
+  /**
+   * fetch a /api con el token de la sesión (y una renovación ante 401), para respuestas que no
+   * son JSON, como el streaming del asistente.
+   */
+  authFetch: (path: string, init: RequestInit) => Promise<Response>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -75,6 +80,28 @@ export function AuthProvider({
   const api = useMemo(
     () => createApiClient({ getToken: () => token.current, refresh, fetch: fetchImpl }),
     [refresh, fetchImpl],
+  );
+
+  const authFetch = useCallback(
+    async (path: string, init: RequestInit) => {
+      const doFetch = fetchImpl ?? fetch.bind(globalThis);
+      const send = (t: string | null) =>
+        doFetch(`/api${path}`, {
+          ...init,
+          credentials: 'same-origin',
+          headers: {
+            ...(init.headers as Record<string, string>),
+            ...(t && { Authorization: `Bearer ${t}` }),
+          },
+        });
+      let res = await send(token.current);
+      if (res.status === 401) {
+        const t = await refresh();
+        if (t) res = await send(t);
+      }
+      return res;
+    },
+    [fetchImpl, refresh],
   );
 
   const loadMe = useCallback(async () => {
@@ -133,8 +160,8 @@ export function AuthProvider({
   }, [refresh, loadMe]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ state, api, login, logout, startSession, reload: loadMe }),
-    [state, api, login, logout, startSession, loadMe],
+    () => ({ state, api, login, logout, startSession, reload: loadMe, authFetch }),
+    [state, api, login, logout, startSession, loadMe, authFetch],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

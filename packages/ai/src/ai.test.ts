@@ -229,6 +229,33 @@ describe('proveedor de Anthropic', () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   }, 20_000);
 
+  it('con refusalFallback usa el respaldo del servidor (beta) e ignora los bloques de cambio', async () => {
+    const fetchFn = vi.fn<typeof fetch>(async () =>
+      json(200, {
+        ...ok,
+        content: [
+          { type: 'fallback', from: { model: 'a' }, to: { model: 'b' } },
+          { type: 'text', text: 'hola' },
+        ],
+        stop_reason: 'end_turn',
+      }),
+    );
+    const p = new AnthropicProvider({ apiKey: 'k', fetch: fetchFn });
+    const res = await p.generate({
+      model: 'claude-sonnet-5-5',
+      system: 's',
+      messages: [{ role: 'user', content: 'x' }],
+      maxTokens: 10,
+      refusalFallback: true,
+    });
+    const init = fetchFn.mock.calls[0]?.[1];
+    expect(JSON.parse(String(init?.body))).toMatchObject({ fallbacks: 'default' });
+    expect(new Headers(init?.headers).get('anthropic-beta')).toContain(
+      'server-side-fallback-2026-07-01',
+    );
+    expect(res.content).toEqual([{ type: 'text', text: 'hola' }]);
+  });
+
   it('400 no se reintenta', async () => {
     const fetchFn = vi.fn<typeof fetch>(async () =>
       json(400, { type: 'error', error: { type: 'invalid_request_error', message: 'x' } }),

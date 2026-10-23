@@ -40,7 +40,7 @@ export type TestContext = Awaited<ReturnType<typeof createTestContext>>;
 
 export async function createTestContext(
   envOverrides: Record<string, string> = {},
-  depsOverrides: Pick<Partial<AppDeps>, 'inverterAdapters'> = {},
+  depsOverrides: Pick<Partial<AppDeps>, 'inverterAdapters' | 'ai'> = {},
 ) {
   const env = loadEnv({ ...TEST_ENV_VARS, ...envOverrides });
   const owner = createPrismaClient(testDatabaseUrl('api'));

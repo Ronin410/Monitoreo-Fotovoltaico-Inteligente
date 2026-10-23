@@ -10,3 +10,5 @@ export { ALERT_EXPLANATION_SYSTEM } from './prompts/alert-explanation.js';
 export { buildExplainInput, estimateAlertLoss, type EstimatedLoss } from './explanation/input.js';
 export { createAiConfig, type AiConfig } from './config.js';
 export * from './tools/index.js';
+export * from './chat/agent.js';
+export { chatSystemPrompt, TOOL_STATUS } from './prompts/chat.js';
