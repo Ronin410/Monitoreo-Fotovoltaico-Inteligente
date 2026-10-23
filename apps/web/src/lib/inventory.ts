@@ -144,3 +144,41 @@ export const EVENT_LABELS: Record<z.infer<typeof eventSchema>['type'], string> =
   commissioning: 'Puesta en marcha',
   note: 'Nota',
 };
+
+export const todayResponse = z.object({
+  date: z.string(),
+  timezone: z.string(),
+  baseline_pr: z.number(),
+  intervals: z.array(
+    z.object({
+      ts: z.string(),
+      power_kw: z.number().nullable(),
+      expected_kw: z.number().nullable(),
+    }),
+  ),
+});
+
+export const dailyMetricsResponse = z.object({
+  from: z.string(),
+  to: z.string(),
+  soiling_deviation_pct: z.number(),
+  days: z.array(
+    z.object({
+      date: z.string(),
+      energy_kwh: z.number(),
+      pr_temp: z.number().nullable(),
+      pr_baseline: z.number().nullable(),
+      deviation_pct: z.number().nullable(),
+      neighbor_index: z.number().nullable(),
+      neighbor_count: z.number(),
+      rain_mm: z.number(),
+      is_valid_day: z.boolean(),
+      invalid_reason: z.string().nullable(),
+      days_to_cleaning: z.number().nullable(),
+      soiling_slope_pct_per_day: z.number().nullable(),
+      status: z.string(),
+    }),
+  ),
+  events: z.array(z.object({ type: z.string(), date: z.string(), source: z.string() })),
+});
+export type DailyMetrics = z.infer<typeof dailyMetricsResponse>;

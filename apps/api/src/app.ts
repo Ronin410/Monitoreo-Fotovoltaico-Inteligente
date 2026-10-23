@@ -25,6 +25,7 @@ import { companyProfileRouter, publicLogosRouter } from './routes/company/profil
 import { companyUsersRouter } from './routes/company/routes.js';
 import { errorHandler, notFoundHandler } from './http/errors.js';
 import { meRouter } from './routes/me/routes.js';
+import { plantChartsRouter } from './routes/plants/charts.js';
 import { plantsRouter } from './routes/plants/routes.js';
 import { ticketsRouter } from './routes/tickets/routes.js';
 
@@ -82,6 +83,8 @@ export function createApp(deps: AppDeps): Express {
   api.use('/public/logos', publicLogosRouter(deps.storage));
   api.use('/admin', authenticated, adminRouter(deps.serviceDb, auth, now));
   api.use('/clients', authenticated, clientsRouter(deps.db));
+  // Antes que plantsRouter: /plants/:id/today también lo usa el técnico con ticket.
+  api.use('/plants', authenticated, plantChartsRouter(deps.db, now));
   api.use(
     '/plants',
     authenticated,

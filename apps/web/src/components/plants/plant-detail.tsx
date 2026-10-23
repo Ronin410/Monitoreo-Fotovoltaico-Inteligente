@@ -1,6 +1,6 @@
 'use client';
 
-import { LineChart, Pause, Pencil, Play } from 'lucide-react';
+import { Pause, Pencil, Play } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
@@ -14,8 +14,11 @@ import { errorMessage } from '@/lib/errors';
 import { formatDate, formatDateTime, formatEnergy, formatNumber, formatPct } from '@/lib/format';
 import { BRAND_LABELS, LIFECYCLE_LABELS, plantSchema } from '@/lib/inventory';
 import { useApiQuery } from '@/lib/use-api';
+import { PerformanceCharts } from './charts/performance-charts';
+import { TodayChart } from './charts/today-chart';
 import { CredentialsPanel } from './credentials-panel';
 import { EventsPanel } from './events-panel';
+import { PlantActivity } from './plant-activity';
 
 const CONFIDENCE = { low: 'baja', medium: 'media', high: 'alta' } as const;
 
@@ -103,7 +106,9 @@ export function PlantDetail({ id }: { id: string }) {
             <span>· {formatNumber(p.capacity_kwp, 1)} kWp</span>
             <span>
               · {BRAND_LABELS[p.inverter_brand]}
-              {p.inverter_model ? ` ${p.inverter_model}` : ''}
+              {p.inverter_model && !BRAND_LABELS[p.inverter_brand].startsWith(p.inverter_model)
+                ? ` ${p.inverter_model}`
+                : ''}
             </span>
             {p.status !== 'active' && (
               <span className="font-semibold">· {LIFECYCLE_LABELS[p.status]}</span>
@@ -196,12 +201,9 @@ export function PlantDetail({ id }: { id: string }) {
         </section>
       )}
 
-      <Notice tone="info">
-        <span className="flex items-center gap-2">
-          <LineChart aria-hidden="true" className="size-4 shrink-0" />
-          Las gráficas de producción, rendimiento y vecinas llegan en la siguiente tarea (F6-T4).
-        </span>
-      </Notice>
+      <TodayChart plantId={id} />
+      <PerformanceCharts plantId={id} timezone={timezone} />
+      <PlantActivity plantId={id} timezone={timezone} />
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-900">
         <h2 className="mb-3 text-base font-semibold">Datos técnicos</h2>

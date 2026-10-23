@@ -302,3 +302,17 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Eliminar planta o cliente pide confirmación en dos pasos dentro de la página.
     - Un cliente con plantas no se puede eliminar: la API responde 409 y se muestra el mensaje.
     - Pausar o reactivar una planta es un botón del detalle.
+
+## F6-T4 — Detalle de planta
+
+147. **Potencia esperada de "Hoy".** `05` §1 da la energía esperada por hora corregida por temperatura (sin otras pérdidas). En la gráfica se multiplica por el PR de la línea base de la planta (o 0.85 sin línea base). Así, una planta sana empalma con su curva real y la diferencia que se ve es pérdida real. El valor de referencia se muestra en la gráfica. ¿El PO prefiere la teórica sin pérdidas?
+148. **Endpoints.**
+    - `GET /plants/:id/today?date=` devuelve los 96 intervalos de 15 min del día local con potencia real y esperada; la web muestra solo las horas con sol o con lecturas. Lo puede usar el técnico con un ticket abierto de esa planta (si no, 404); el resto de `/plants` sigue cerrado para él.
+    - `GET /plants/:id/daily-metrics?from&to`: por omisión los 30 días hasta ayer, máximo 366 días. Trae los eventos que reinician la tendencia (limpieza, lluvia, reparación) para marcarlos en la gráfica.
+149. **Gráficas.**
+    - Son de Recharts, con un solo eje cada una.
+    - Colores validados con el validador de paleta: azul para la serie, gris punteado para la referencia y ámbar punteado para el umbral (un paso más oscuro en modo oscuro).
+    - Leyenda en texto, tooltip y una tabla con los mismos datos.
+    - Los días no válidos no se dibujan. Lluvias y limpiezas se marcan con líneas verticales.
+    - La predicción de lavado y las vecinas usan siempre los últimos 30 días; el rendimiento, 30, 90 días o un año.
+150. **"Crear ticket" desde la planta** llega en F6-T5, junto con las pantallas de tickets. Hoy el detalle lista las alertas y tickets de la planta con enlace a su detalle.

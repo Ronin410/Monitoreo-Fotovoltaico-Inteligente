@@ -70,3 +70,10 @@ export function zonedLocalToIso(value: string, timeZone: string): string {
   utc = naive - zoneOffsetMs(utc, timeZone);
   return new Date(utc).toISOString();
 }
+
+/** Suma días a una fecha YYYY-MM-DD. */
+export function addDaysIso(day: string, days: number): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
