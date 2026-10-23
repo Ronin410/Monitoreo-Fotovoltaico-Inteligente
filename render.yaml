@@ -9,6 +9,14 @@ envVarGroups:
         value: production
       - key: NEXT_TELEMETRY_DISABLED
         value: '1'
+      # El web reenvía /api a pv-api por la red privada de Render (specs/PREGUNTAS.md #24): el
+      # navegador ve un solo origen y la cookie de refresh es del mismo sitio. En pv-shared,
+      # API_URL debe ser igual a APP_URL (los logos se sirven por ese mismo /api).
+      - key: API_INTERNAL_URL
+        fromService:
+          type: web
+          name: pv-api
+          property: hostport
       - key: APP_URL
         sync: false
       - key: API_URL
@@ -106,6 +114,14 @@ services:
         value: production
       - key: NEXT_TELEMETRY_DISABLED
         value: '1'
+      # El web reenvía /api a pv-api por la red privada de Render (specs/PREGUNTAS.md #24): el
+      # navegador ve un solo origen y la cookie de refresh es del mismo sitio. En pv-shared,
+      # API_URL debe ser igual a APP_URL (los logos se sirven por ese mismo /api).
+      - key: API_INTERNAL_URL
+        fromService:
+          type: web
+          name: pv-api
+          property: hostport
 
 databases:
   - name: pv-db

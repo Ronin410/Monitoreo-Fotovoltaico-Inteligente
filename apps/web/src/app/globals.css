@@ -1,1 +1,23 @@
 @import 'tailwindcss';
+
+/* Modo oscuro por clase (ThemeProvider pone .dark en <html>). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Acento de la empresa (marca blanca): AppShell define --brand y --on-brand. */
+@theme {
+  --color-brand: var(--brand, #0e7490);
+  --color-on-brand: var(--on-brand, #ffffff);
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}

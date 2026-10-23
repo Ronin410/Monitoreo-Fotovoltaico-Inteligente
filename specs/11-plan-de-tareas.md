@@ -57,7 +57,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
   - CA: con la semilla demo, la detección cumple las métricas de `00` (≥ 90 % de fallas inyectadas detectadas, < 10 % de falsas en días nublados), medidas con el script `pnpm eval:alerts`.
 
 ## Fase 6 — Frontend base
-- [ ] **F6-T1 Shell.** Layout, navegación por rol, marca blanca, modo oscuro, auth en el cliente.
+- [x] **F6-T1 Shell.** _(2026-10-23)_ Layout, navegación por rol, marca blanca, modo oscuro, auth en el cliente.
 - [ ] **F6-T2 Tablero** con mapa, tarjetas, próximos lavados y mejores/peores.
 - [ ] **F6-T3 Plantas y clientes** (lista, detalle, formularios, credenciales).
 - [ ] **F6-T4 Detalle de planta** con gráficas de `09`.

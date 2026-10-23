@@ -36,7 +36,7 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 21. **Mensajes de error de login.** Contraseña incorrecta, correo inexistente, usuario desactivado y empresa suspendida responden igual (`401 INVALID_CREDENTIALS`) para no revelar si el correo existe. El costo: un usuario de una empresa suspendida no sabe por qué no entra. ¿Se prefiere un mensaje específico de "empresa suspendida" (solo con la contraseña correcta)?
 22. **Límite de intentos en memoria.** 5 por minuto por IP y por correo, contando todos los intentos (no solo los fallidos). Funciona con una sola instancia de `pv-api`; con varias se necesita un almacén compartido. Se aplicó el mismo límite a `forgot-password` para evitar el envío masivo de correos.
 23. **Revocación del access token.** Un JWT sigue siendo válido hasta 15 minutos después de desactivar al usuario o suspender la empresa; el refresh ya se niega de inmediato y `/me` revisa el estado en la base. ¿Basta, o cada petición debe revisar el estado del usuario (una consulta extra por petición)?
-24. **Cookie `SameSite=Lax` entre dominios de Render.** `onrender.com` está en la Public Suffix List, así que `pv-web.onrender.com` y `pv-api.onrender.com` son sitios distintos y el navegador **no enviará** la cookie de refresh desde el web. Opciones para F6: dominios propios del mismo sitio (`app.ejemplo.com` y `api.ejemplo.com`) o que Next.js reenvíe `/api` a `pv-api` (mismo origen). Hay que decidirlo antes de desplegar el frontend.
+24. **Cookie `SameSite=Lax` entre dominios de Render.** `onrender.com` está en la Public Suffix List, así que `pv-web.onrender.com` y `pv-api.onrender.com` son sitios distintos y el navegador **no enviará** la cookie de refresh desde el web. Opciones para F6: dominios propios del mismo sitio (`app.ejemplo.com` y `api.ejemplo.com`) o que Next.js reenvíe `/api` a `pv-api` (mismo origen). Hay que decidirlo antes de desplegar el frontend. **Decisión provisional (F6-T1), reversible:** Next.js reenvía `/api/*` a `pv-api` por la red privada de Render (`API_INTERNAL_URL`), así el navegador habla con un solo origen. Funciona con o sin dominios propios. Ver #132.
 25. **Reuso de refresh token.** Si se presenta un refresh token ya rotado (posible robo), se revocan todas las sesiones del usuario.
 26. **Aceptar invitación inicia sesión.** `POST /auth/invitations/:token/accept` devuelve la sesión (como el login). Si el correo ya tiene cuenta en cualquier empresa, responde `409` (un usuario pertenece a una sola empresa).
 27. **Endpoint para crear invitaciones.** `AuthService.createInvitation` ya existe; `POST /company/invitations` se expone en F1-T4 junto con la autorización por rol.
@@ -244,3 +244,27 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - **Offline:** ver O4 de `REVISION-FASE-5.md`.
     - **Falsas:** cualquier alerta `warning` o `critical` en una planta sin escenario (incluidas las de Mazatlán y las nuevas). La planta con sombra no cuenta ni como inyectada ni como normal.
     - **Metas:** las de `12` §4. Si no se cumplen, el script termina con código 1.
+
+## F6-T1 — Shell
+
+132. **Proxy `/api`.**
+    - Es un manejador de ruta de Next (`app/api/[...path]`) que lee `API_INTERNAL_URL` al ejecutarse.
+    - Solo reenvía una lista de cabeceras permitidas. `X-Forwarded-For` pasa sin cambios: la API confía en un salto, el borde de Render agrega la IP real y así el límite de intentos de login sigue siendo por cliente.
+    - Copia cada `Set-Cookie`, pasa el cuerpo como flujo (servirá para el SSE del asistente) y rechaza segmentos `.` y `..`. Si la API no responde, devuelve 502 `API_UNAVAILABLE`.
+    - `API_URL` de la API debe ser igual a `APP_URL`.
+    - Hay que verificarlo en staging (F0-T4).
+133. **Sesión en el navegador.**
+    - El access token vive solo en memoria. Al cargar la página se renueva con la cookie de refresh, que es httpOnly con `path=/api/auth`.
+    - Ante un 401, el cliente renueva una sola vez (compartida entre peticiones simultáneas) y reintenta. Si la renovación falla, la sesión pasa a anónima y la app lleva al login con `?next=`, que solo acepta rutas internas.
+    - Todas las respuestas se validan con zod también en el frontend.
+134. **Rutas.**
+    - Las secciones usan rutas en inglés (`/plants`, `/alerts/:id`, `/tickets/:id`…), como los enlaces de los correos (#130). Las de autenticación usan las rutas en español ya enviadas por correo (#29): `/login`, `/recuperar-contrasena`, `/restablecer-contrasena/:token` e `/invitacion/:token`.
+    - Inicio por rol: el técnico va a `/tickets` y el superadmin a `/admin/companies`.
+    - Una sección sin permiso muestra "No tienes acceso" (la API vuelve a verificar).
+    - Las secciones de tareas siguientes muestran "En construcción" con la tarea del plan.
+135. **Marca, tema y accesibilidad.**
+    - El color de la empresa (solo `#RRGGBB`) es el acento. El texto sobre él es blanco o casi negro según su contraste (≥ 4.5:1).
+    - Modo claro, oscuro o del sistema, guardado en el navegador y aplicado antes de pintar.
+    - Objetivos táctiles de 44 px, enlace "Saltar al contenido" y menú de celular con `aria-expanded`.
+    - Sin scroll horizontal a 360 px (verificado en el navegador).
+136. **Turbopack.** `@pv/core` importa archivos `.ts` con extensión `.js` (ESM de Node) y Turbopack de Next 16 no lo resuelve. `dev` y `build` usan webpack (`--webpack`) con `extensionAlias`. Se puede volver a Turbopack cuando lo soporte.
