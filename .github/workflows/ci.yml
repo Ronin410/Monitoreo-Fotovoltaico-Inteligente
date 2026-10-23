@@ -56,5 +56,9 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # specs/12: cobertura mínima de 90 % de líneas en packages/core.
+      - name: Coverage (packages/core)
+        run: pnpm coverage:core
+
       - name: Build
         run: pnpm build

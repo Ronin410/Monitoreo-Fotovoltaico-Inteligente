@@ -135,3 +135,11 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 83. **Concurrencia.** `ingest.telemetry_plant` corre hasta 5 plantas en paralelo por worker, para todas las marcas juntas (no por proveedor). Bastará mientras solo exista el simulador; con marcas reales conviene una cola por proveedor.
 84. **Sin credenciales.** Una planta de marca real sin credenciales se omite (`skipped: no_credentials`), no se marca como falla.
 85. **Ventana de sol.** El orquestador corre cada 15 min y solo encola plantas cuando la hora actual está entre amanecer − 30 min y atardecer + 30 min del día local; las plantas sin lat/lon se omiten.
+
+## F4-T1 — Fórmulas del motor de rendimiento
+
+86. **Prioridad de `invalid_reason`.** `05` §3 no la define cuando falla más de una condición. Se usa: `no_weather` → `offline` → `low_irradiation` → `incomplete_data` (sin clima no se puede evaluar nada; sin telemetría la planta está desconectada).
+87. **Percentil 80.** Interpolación lineal entre rangos (método R-7, el de Excel y NumPy).
+88. **PR sin horas cubiertas.** Si no hay horas cubiertas con sol, `pr` y `pr_temp` son `null` (no 0).
+89. **Confianza de la predicción.** Se calcula siempre que hay ≥ 7 puntos (describe el ajuste), aunque `days_to_cleaning` sea `null` por no haber tendencia. La regla `cleaning_due_soon` (F5) exige además días entre 1 y 7.
+90. **Vecinas sin ubicación.** Si la planta evaluada no tiene lat/lon, se pasa directo al criterio de código postal.

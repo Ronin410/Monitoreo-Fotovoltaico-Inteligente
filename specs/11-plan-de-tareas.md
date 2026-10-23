@@ -42,7 +42,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 - [x] **F3-T5 Esqueletos de adaptadores reales.** _(2026-10-23)_ GoodWe, Huawei, Fronius y Enphase lanzando `NotImplementedError`, con un TODO que exija documentación oficial.
 
 ## Fase 4 — Motor de rendimiento 🧪
-- [ ] **F4-T1 Fórmulas puras.** `packages/core/performance` con §1–8 de `05`.
+- [x] **F4-T1 Fórmulas puras.** _(2026-10-23)_ `packages/core/performance` con §1–8 de `05`.
   - CA: los casos A, B y C de `05` §10 y los "otros casos" pasan.
 - [ ] **F4-T2 Job `metrics.daily`.** Orquestación por empresa, recálculo por rango de fechas, eventos `rain_cleaning` automáticos.
 - [ ] **F4-T3 Semilla demo.** `pnpm db:seed:demo` según `04` §4, ejecutando el pipeline real sobre 90 días.
