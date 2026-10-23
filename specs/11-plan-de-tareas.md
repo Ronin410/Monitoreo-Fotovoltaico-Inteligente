@@ -71,7 +71,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
   - CA: con el proveedor simulado devolviendo una cifra inventada, se usa la plantilla; la UI y el correo muestran el resumen.
 
 ## Fase 8 — IA: asistente analítico 🧪
-- [ ] **F8-T1 Herramientas.** Las 11 herramientas de `07` §2 con esquemas zod y pruebas contra la semilla.
+- [x] **F8-T1 Herramientas.** _(2026-10-23)_ Las 11 herramientas de `07` §2 con esquemas zod y pruebas contra la semilla.
 - [ ] **F8-T2 Ciclo agente y SSE.** `POST /ai/chat`, límite de rondas, historial, persistencia, rate limit.
 - [ ] **F8-T3 UI del chat.** Conversaciones, streaming, markdown, tablas, gráficas, enlaces a plantas, preguntas sugeridas, barra rápida en el tablero.
 - [ ] **F8-T4 Evaluación.** Script `pnpm eval:assistant` con el set de preguntas de `12`.

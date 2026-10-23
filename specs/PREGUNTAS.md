@@ -353,3 +353,10 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 171. **Regenerar.** Máximo 3 por alerta en el día local de la empresa, contados en `audit_logs` (`alert.explanation_regenerated`); el cuarto responde 429. Solo alertas abiertas, warning o critical. La página consulta la alerta cada 4 s mientras `ai_status = pending` (hasta ~100 s).
 172. **Modelos y fallas.** Explicaciones con `LLM_MODEL_FAST` (por omisión `claude-haiku-5-5`) y esfuerzo `low`. El SDK reintenta una vez los errores de red, 429 y 5xx, con 60 s por llamada. Una negativa del modelo (`refusal`) o un error del proveedor van directo a la plantilla, sin el reintento de validación. Caché del prompt en el sistema y las herramientas.
 173. **Datos que recibe la IA.** Tipo y severidad, evidencia y pérdida estimada, kWp, inclinación, orientación, antigüedad y marca de inversor, eventos de 90 días y tickets recientes (tipo, estado y fecha). Nunca nombres de clientes, teléfonos, direcciones ni credenciales (prueba en `notifications.int.test.ts`).
+
+## F8 — Asistente analítico
+
+174. **Periodos.** "Últimos 7/30 días" terminan ayer (último día completo, como el tablero); "hoy", "este mes" y "este año" llegan a hoy, cuyo día puede estar incompleto. Cada salida dice el periodo usado con sus fechas, para que el asistente lo indique.
+175. **Métricas de las herramientas.** Estado actual como el tablero (alertas abiertas y último día reciente). `availability_pct` = días con datos menos días offline entre los días del periodo. `specific_yield` = energía de todos los días con métricas entre kWp. En zonas, comparaciones y flota, el PR es Σ energía / Σ esperada de los días válidos de todas las plantas (`07` §2), sin promedios de PR.
+176. **Pérdida en `get_plants_at_risk`.** Con alerta, la de la alerta más grave (`07` §3). Sin alerta (solo lavado previsto), la de sus últimos 3 días válidos con la misma fórmula. Se marca como estimación.
+177. **Esquemas para el modelo.** Las fechas se validan con un patrón simple (`YYYY-MM-DD`) más una revisión al resolver el periodo. El patrón completo de zod multiplicaba el tamaño del esquema que se manda en cada llamada.
