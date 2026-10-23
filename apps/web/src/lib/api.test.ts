@@ -99,4 +99,14 @@ describe('cliente de la API', () => {
     expect(init.body).toBe('{"title":"Lavado"}');
     expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
   });
+
+  it('envía un archivo tal cual, con su tipo (logo)', async () => {
+    const fetchFn = vi.fn<typeof fetch>(async () => json(201, { id: 1 }));
+    const api = createApiClient({ getToken: () => 't', refresh: async () => null, fetch: fetchFn });
+    const file = new Blob(['<svg/>'], { type: 'image/svg+xml' });
+    await api('/company/logo', item, { method: 'POST', body: file });
+    const init = fetchFn.mock.calls[0]![1] as RequestInit;
+    expect(init.body).toBe(file);
+    expect((init.headers as Record<string, string>)['Content-Type']).toBe('image/svg+xml');
+  });
 });

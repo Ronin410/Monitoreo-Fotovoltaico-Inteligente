@@ -78,7 +78,7 @@ export function createApp(deps: AppDeps): Express {
     authenticated,
     meRouter(deps.db, deps.serviceDb, { simulator: deps.env.SIMULATOR_ENABLED }),
   );
-  api.use('/company', authenticated, companyUsersRouter(deps.db, auth));
+  api.use('/company', authenticated, companyUsersRouter(deps.db, auth, now));
   api.use('/company', authenticated, companyProfileRouter(deps.db, deps.storage, deps.env.API_URL));
   api.use('/public/logos', publicLogosRouter(deps.storage));
   api.use('/admin', authenticated, adminRouter(deps.serviceDb, auth, now));

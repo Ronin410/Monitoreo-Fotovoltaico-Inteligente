@@ -24,6 +24,7 @@ const NETWORK_MESSAGE =
 
 export type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  /** JSON, o un archivo (Blob) que se envía tal cual con su tipo (subir el logo). */
   body?: unknown;
   /** No intentar renovar la sesión ante un 401 (rutas de auth). */
   noRetry?: boolean;
@@ -55,12 +56,14 @@ async function send(
 ): Promise<Response> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+  const file = options.body instanceof Blob ? options.body : null;
+  if (file) headers['Content-Type'] = file.type || 'application/octet-stream';
+  else if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   try {
     return await fetchFn(url, {
       method: options.method ?? 'GET',
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: file ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
       credentials: 'same-origin',
     });
   } catch {

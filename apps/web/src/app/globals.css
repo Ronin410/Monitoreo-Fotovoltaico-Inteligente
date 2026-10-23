@@ -61,3 +61,12 @@ html.dark {
   --viz-axis: #c3c2b7;
   --viz-surface: #0f172a;
 }
+
+/* Atribución de los mapas: los enlaces de Leaflet por omisión no llegan a 4.5:1. */
+.leaflet-container .leaflet-control-attribution {
+  background: rgb(255 255 255 / 0.95);
+  color: #334155;
+}
+.leaflet-container .leaflet-control-attribution a {
+  color: #075985;
+}

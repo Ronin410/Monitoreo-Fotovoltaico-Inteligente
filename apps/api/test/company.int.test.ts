@@ -293,3 +293,118 @@ describe('GET /api/public/logos', () => {
     }
   });
 });
+
+describe('GET /api/company/invitations', () => {
+  it('lista solo las vigentes sin aceptar, de la empresa de la sesión', async () => {
+    const { company, admin } = await companyWith(['company_admin', 'operator']);
+    const other = await companyWith();
+    const invite = (auth: string, email: string) =>
+      request(ctx.app)
+        .post('/api/company/invitations')
+        .set('Authorization', auth)
+        .send({ email, role: 'technician' });
+    expect((await invite(admin.auth, 'nueva@example.com')).status).toBe(201);
+    await invite(other.admin.auth, 'ajena@example.com');
+    await ctx.owner.invitation.createMany({
+      data: [
+        {
+          companyId: company.id,
+          email: 'vencida@example.com',
+          role: 'operator',
+          tokenHash: `vencida-${company.id}`,
+          expiresAt: new Date(ctx.clock.current.getTime() - 1000),
+        },
+        {
+          companyId: company.id,
+          email: 'aceptada@example.com',
+          role: 'operator',
+          tokenHash: `aceptada-${company.id}`,
+          expiresAt: new Date(ctx.clock.current.getTime() + 86_400_000),
+          acceptedAt: ctx.clock.current,
+        },
+      ],
+    });
+    const res = await request(ctx.app)
+      .get('/api/company/invitations')
+      .set('Authorization', admin.auth);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([
+      expect.objectContaining({ email: 'nueva@example.com', role: 'technician' }),
+    ]);
+    // No expone el token.
+    expect(JSON.stringify(res.body)).not.toContain('token');
+  });
+
+  it('solo company_admin', async () => {
+    const { users } = await companyWith(['company_admin', 'operator']);
+    const operator = users[1];
+    if (!operator) throw new Error('falta operador');
+    const res = await request(ctx.app)
+      .get('/api/company/invitations')
+      .set('Authorization', operator.auth);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('GET /api/company/ai-usage', () => {
+  it('uso del mes por función, presupuesto e historial de 6 meses; solo de su empresa', async () => {
+    // 23 de octubre en Culiacán.
+    ctx.clock.current = new Date('2026-10-23T18:00:00Z');
+    const { company, users } = await companyWith(['company_admin', 'operator']);
+    const other = await companyWith();
+    const [admin, operator] = users;
+    if (!admin || !operator) throw new Error('faltan usuarios');
+    await ctx.owner.company.update({
+      where: { id: company.id },
+      data: { aiMonthlyTokenBudget: 500_000 },
+    });
+    const row = (
+      companyId: string,
+      period: string,
+      feature: 'chat' | 'alert_explanation',
+      n: number,
+    ) => ({
+      companyId,
+      period,
+      feature,
+      inputTokens: BigInt(n),
+      outputTokens: BigInt(n / 10),
+      requests: 3,
+    });
+    await ctx.owner.aiUsageMonthly.createMany({
+      data: [
+        row(company.id, '2026-10', 'chat', 10_000),
+        row(company.id, '2026-10', 'alert_explanation', 2_000),
+        row(company.id, '2026-09', 'chat', 50_000),
+        row(company.id, '2026-03', 'chat', 99_000), // fuera de los 6 meses
+        row(other.company.id, '2026-10', 'chat', 70_000),
+      ],
+    });
+    const res = await request(ctx.app)
+      .get('/api/company/ai-usage')
+      .set('Authorization', admin.auth);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      period: '2026-10',
+      budget_tokens: 500_000,
+      used_tokens: 11_000 + 2_200,
+      by_feature: [
+        { feature: 'chat', input_tokens: 10_000, output_tokens: 1_000, requests: 3 },
+        { feature: 'alert_explanation', input_tokens: 2_000, output_tokens: 200, requests: 3 },
+        { feature: 'report_narrative', input_tokens: 0, output_tokens: 0, requests: 0 },
+      ],
+    });
+    expect(res.body.history).toEqual([
+      { period: '2026-04', tokens: 0 },
+      { period: '2026-05', tokens: 0 },
+      { period: '2026-06', tokens: 0 },
+      { period: '2026-07', tokens: 0 },
+      { period: '2026-08', tokens: 0 },
+      { period: '2026-09', tokens: 55_000 },
+    ]);
+    expect(
+      (await request(ctx.app).get('/api/company/ai-usage').set('Authorization', operator.auth))
+        .status,
+    ).toBe(403);
+  });
+});

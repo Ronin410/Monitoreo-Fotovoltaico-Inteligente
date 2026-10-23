@@ -329,3 +329,16 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - "Mis tickets": tarjetas grandes con la dirección (enlace a Google Maps con las coordenadas, o con la dirección si no hay coordenadas), el teléfono del contacto y "Qué revisar".
     - Botones: iniciar y resolver con notas y la casilla "Se realizó limpieza", marcada por omisión en tickets de lavado. El técnico no puede cancelar.
     - El detalle del ticket muestra la potencia de hoy de la planta; el técnico no ve el resto del detalle de la planta ni las alertas.
+
+## F6-T6 — Configuración y superadmin
+
+158. **Endpoints agregados.**
+    - `GET /company/invitations` (solo `company_admin`): invitaciones vigentes sin aceptar, para que el admin vea a quién ya invitó. No expone el token.
+    - `GET /company/ai-usage` (solo `company_admin`): uso del mes en la zona de la empresa por función (asistente, explicación de alertas, narrativa de reportes), presupuesto e historial de los 6 meses anteriores.
+159. **Umbrales y valores técnicos.** Cada sección se guarda por separado y manda solo los valores que cambiaron; lo demás sigue al valor por omisión del spec. Cada campo muestra su valor por omisión y si está personalizado. "Restablecer" manda la sección en `null` (pide confirmación).
+160. **Marca.** El color se elige con selector o en hexadecimal, con vista previa y el contraste del texto sobre él. Al guardar el color o el logo se relee `/me` y la marca cambia en toda la interfaz sin recargar. El logo (PNG, JPG o SVG, hasta 1 MB) se sube como archivo; el cliente de la API ahora envía un `Blob` tal cual con su tipo.
+161. **Zonas horarias.** El selector ofrece las de México (Pacífico por omisión); si la empresa tiene otra, se conserva como opción.
+162. **Correo que no sale.** Si el proveedor de correo falla al invitar a un usuario o al crear una empresa, la API responde 500 aunque la invitación (o la empresa) ya quedó guardada. Un reintento del admin crea otra invitación; uno del superadmin choca con el slug ya usado. Propuesta para F10: responder 201 con `email_sent: false` y un botón "Reenviar invitación". ¿El PO lo aprueba?
+163. **Superadmin.** Ve nombre, slug, plan, número de plantas y tokens de IA del mes de cada empresa; crea empresas con la invitación al primer admin, suspende (cierra sesiones y detiene sus jobs) y reactiva, y cambia plan y presupuesto. No entra a los datos de las empresas (`02`). En "Salud del sistema" las horas se muestran en la zona del navegador, porque el superadmin no tiene empresa.
+164. **Mensaje de correo inválido.** El locale de zod en español decía "Inválido dirección de correo electrónico"; los correos de alertas ahora responden "Correo inválido", como el resto de la API.
+165. **Criterio de la Fase 6 (360 px y modo oscuro).** Barrido con Chromium de todas las vistas: tablero, plantas (lista, detalle, nueva), clientes (lista, detalle, nuevo), alertas (bandeja y detalle), tickets (lista, detalle, nuevo), configuración, asistente y reportes (pendientes de F8 y F9), la vista del técnico y las dos de superadmin, en 360 px claro, escritorio oscuro y 360 px oscuro: 114 verificaciones sin fallas (sin scroll horizontal, contraste AA del texto visible, sin errores de JavaScript). Se corrigió la atribución de los mapas (los enlaces de Leaflet quedaban en 3.6:1).

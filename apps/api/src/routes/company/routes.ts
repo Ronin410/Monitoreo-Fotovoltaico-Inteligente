@@ -1,3 +1,4 @@
+import { localDate } from '@pv/core';
 import { withTenant, type PrismaClient, type User } from '@pv/db';
 import { Router } from 'express';
 import { changesOf, recordAudit } from '../../audit.js';
@@ -8,15 +9,26 @@ import { pageArgs, paginated } from '../../http/pagination.js';
 import { respond } from '../../http/respond.js';
 import { idParam } from '../shared-schemas.js';
 import {
+  aiUsageResponse,
   companyUser,
   companyUsersResponse,
   invitationBody,
   invitationCreatedResponse,
+  pendingInvitationsResponse,
   userPatchBody,
   usersQuery,
 } from './schemas.js';
 
 // Gestión de usuarios de la empresa (specs/02: solo company_admin; specs/10 §Empresa y usuarios).
+
+const FEATURES = ['chat', 'alert_explanation', 'report_narrative'] as const;
+
+/** YYYY-MM desplazado `months` meses. */
+function shiftPeriod(period: string, months: number): string {
+  const [y = 0, m = 1] = period.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + months, 1));
+  return d.toISOString().slice(0, 7);
+}
 
 const userNotFound = () => new HttpError(404, 'NOT_FOUND', 'Usuario no encontrado');
 
@@ -32,9 +44,65 @@ function userDto(u: User) {
   };
 }
 
-export function companyUsersRouter(db: PrismaClient, auth: AuthService): Router {
+export function companyUsersRouter(db: PrismaClient, auth: AuthService, now: () => Date): Router {
   const router = Router();
   const canManage = requirePermission('users:manage');
+
+  /** Invitaciones vigentes sin aceptar: aún no son usuarios. */
+  router.get('/invitations', canManage, async (req, res) => {
+    const { companyId } = companyAuthOf(req);
+    const pending = await withTenant(db, companyId, (tx) =>
+      tx.invitation.findMany({
+        where: { acceptedAt: null, expiresAt: { gt: now() } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      }),
+    );
+    // Las invitaciones de empresa nunca son de superadmin; respond lo vuelve a validar.
+    const data = pending.map((i) => ({
+      id: i.id,
+      email: i.email,
+      role: i.role as Exclude<typeof i.role, 'superadmin'>,
+      expires_at: i.expiresAt,
+      created_at: i.createdAt,
+    }));
+    respond(res, pendingInvitationsResponse, { data });
+  });
+
+  router.get('/ai-usage', requirePermission('company:configure'), async (req, res) => {
+    const { companyId } = companyAuthOf(req);
+    const { company, usage, period } = await withTenant(db, companyId, async (tx) => {
+      const c = await tx.company.findUniqueOrThrow({ where: { id: companyId } });
+      const current = localDate(now(), c.timezone).slice(0, 7);
+      const rows = await tx.aiUsageMonthly.findMany({
+        where: { period: { gte: shiftPeriod(current, -6), lte: current } },
+      });
+      return { company: c, usage: rows, period: current };
+    });
+    const tokens = (r: { inputTokens: bigint; outputTokens: bigint }) =>
+      Number(r.inputTokens + r.outputTokens);
+    const current = usage.filter((u) => u.period === period);
+    respond(res, aiUsageResponse, {
+      period,
+      budget_tokens: company.aiMonthlyTokenBudget,
+      used_tokens: current.reduce((s, u) => s + tokens(u), 0),
+      by_feature: FEATURES.map((feature) => {
+        const row = current.find((u) => u.feature === feature);
+        return {
+          feature,
+          input_tokens: Number(row?.inputTokens ?? 0n),
+          output_tokens: Number(row?.outputTokens ?? 0n),
+          requests: row?.requests ?? 0,
+        };
+      }),
+      history: [-6, -5, -4, -3, -2, -1].map((offset) => {
+        const p = shiftPeriod(period, offset);
+        return {
+          period: p,
+          tokens: usage.filter((u) => u.period === p).reduce((s, u) => s + tokens(u), 0),
+        };
+      }),
+    });
+  });
 
   router.get('/users', canManage, async (req, res) => {
     const { companyId } = companyAuthOf(req);

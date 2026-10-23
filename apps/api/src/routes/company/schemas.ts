@@ -34,6 +34,36 @@ export const invitationCreatedResponse = z.object({
   expires_at: z.date(),
 });
 
+export const pendingInvitationsResponse = z.object({
+  data: z.array(
+    z.object({
+      id: z.uuid(),
+      email: z.string(),
+      role: companyRoleSchema,
+      expires_at: z.date(),
+      created_at: z.date(),
+    }),
+  ),
+});
+
+const aiFeature = z.enum(['chat', 'alert_explanation', 'report_narrative']);
+/** Uso de IA del mes en la zona de la empresa (specs/09 §Configuración, specs/07 §Presupuesto). */
+export const aiUsageResponse = z.object({
+  period: z.string(),
+  budget_tokens: z.number().int(),
+  used_tokens: z.number().int(),
+  by_feature: z.array(
+    z.object({
+      feature: aiFeature,
+      input_tokens: z.number().int(),
+      output_tokens: z.number().int(),
+      requests: z.number().int(),
+    }),
+  ),
+  /** Tokens de los 6 meses anteriores, del más antiguo al más reciente. */
+  history: z.array(z.object({ period: z.string(), tokens: z.number().int() })),
+});
+
 // Empresa (GET/PATCH /company, POST /company/logo)
 export const patchCompanyBody = z
   .strictObject({

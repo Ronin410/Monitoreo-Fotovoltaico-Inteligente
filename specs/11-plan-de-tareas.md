@@ -61,9 +61,9 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 - [x] **F6-T2 Tablero** _(2026-10-23)_ con mapa, tarjetas, próximos lavados y mejores/peores.
 - [x] **F6-T3 Plantas y clientes** _(2026-10-23)_ (lista, detalle, formularios, credenciales).
 - [x] **F6-T4 Detalle de planta** _(2026-10-23)_ con gráficas de `09`.
-- [x] **F6-T5 Alertas y tickets**, incluida la vista del técnico en celular. _(2026-10-23)_
-- [ ] **F6-T6 Configuración y superadmin.**
-  - CA de la fase: todas las vistas funcionan a 360 px de ancho y en modo oscuro.
+- [x] **F6-T5 Alertas y tickets** _(2026-10-23)_, incluida la vista del técnico en celular.
+- [x] **F6-T6 Configuración y superadmin.** _(2026-10-23)_
+  - CA de la fase: todas las vistas funcionan a 360 px de ancho y en modo oscuro. ✅ Barrido en navegador real de todas las vistas de los tres tipos de usuario (empresa, técnico, superadmin) a 360 px claro, escritorio oscuro y 360 px oscuro: sin scroll horizontal, contraste AA del texto y sin errores (ver `PREGUNTAS.md` #165).
 
 ## Fase 7 — IA: explicación de alertas
 - [ ] **F7-T1 `packages/ai`.** `LLMProvider` con implementación de Anthropic, registro de uso, presupuesto mensual y validador de cifras.

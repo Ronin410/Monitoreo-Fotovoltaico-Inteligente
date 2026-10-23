@@ -63,7 +63,7 @@ const notificationFields = {
   alert_emails: z
     .array(
       z
-        .email()
+        .email({ error: 'Correo inválido' })
         .max(254)
         .transform((e) => e.toLowerCase()),
     )
