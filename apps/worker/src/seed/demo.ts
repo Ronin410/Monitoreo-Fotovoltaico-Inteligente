@@ -11,6 +11,7 @@ import {
   type SimulationScenario,
 } from '@pv/core';
 import { withTenant, type TenantDb } from '@pv/db';
+import { alertsEvaluateJob, alertsOfflineCompanyJob } from '../jobs/alerts.js';
 import { metricsRecomputeJob } from '../jobs/metrics.js';
 import { ingestTelemetryPlantJob } from '../jobs/telemetry.js';
 import { ingestWeatherRange } from '../jobs/weather.js';
@@ -72,6 +73,8 @@ function jitter(c: Colonia, r: () => number) {
 
 type Location = { colonia: Colonia; lat: number; lon: number };
 
+const soilingLoss = (p: DemoPlant) => (p.scenario.kind === 'soiling' ? p.scenario.lossTodayPct : 0);
+
 /**
  * Ubicación de cada cliente. A los clientes de plantas con suciedad se les asignan los puntos con
  * la última lluvia más antigua, para que la tendencia sea visible (la lluvia la reinicia).
@@ -91,11 +94,13 @@ async function clientLocations(
   });
   const soiling = plants
     .map((p, i) => ({ p, i }))
-    .filter(({ p, i }) => p.scenario.kind === 'soiling' && i < clientCount);
+    .filter(({ p, i }) => p.scenario.kind === 'soiling' && i < clientCount)
+    // La más sucia recibe el punto más seco: necesita más días para acumular su pérdida.
+    .sort((a, b) => soilingLoss(b.p) - soilingLoss(a.p));
   if (soiling.length === 0) return locations;
 
   const candidates = colonias.flatMap((colonia) =>
-    [0, 1].map(() => ({ colonia, ...jitter(colonia, rand) })),
+    [0, 1, 2].map(() => ({ colonia, ...jitter(colonia, rand) })),
   );
   const scored = [];
   for (const c of candidates) {
@@ -377,17 +382,26 @@ async function seedCompany(
     if (at.getTime() === now.getTime()) break;
   }
 
-  // 4. Métricas diarias de cada día completo, en orden (cada día usa la historia anterior).
+  // 4. Cada día completo, en orden, como el worker cada noche: métricas y luego alertas (las
+  // alertas sudden_drop abiertas excluyen esos días de la línea base de los días siguientes).
   const yesterday = addDays(today, -1);
-  const outcome = await runJob(
-    metricsRecomputeJob,
-    { company_id: company.id, from: historyStart, to: yesterday },
-    0,
-    deps,
-  );
-  if (outcome !== 'succeeded') throw new Error(`Falló el cálculo de métricas de ${opts.slug}`);
-  // TODO(F5-T2/F5-T3): ejecutar alerts.evaluate sobre la historia y crear el ticket abierto de la
-  // falla de string antigua cuando existan esos jobs (specs/04 §4).
+  for (let date = historyStart; date <= yesterday; date = addDays(date, 1)) {
+    const payload = { company_id: company.id, from: date, to: date };
+    if ((await runJob(metricsRecomputeJob, payload, 0, deps)) !== 'succeeded') {
+      throw new Error(`Falló el cálculo de métricas de ${opts.slug} del ${date}`);
+    }
+    const alerts = { company_id: company.id, date };
+    if ((await runJob(alertsEvaluateJob, alerts, 0, deps)) !== 'succeeded') {
+      throw new Error(`Falló la evaluación de alertas de ${opts.slug} del ${date}`);
+    }
+  }
+  // 5. Regla offline con la hora actual.
+  if (
+    (await runJob(alertsOfflineCompanyJob, { company_id: company.id }, 0, deps)) !== 'succeeded'
+  ) {
+    throw new Error(`Falló la regla offline de ${opts.slug}`);
+  }
+  // TODO(F5-T3): crear el ticket abierto de la falla de string antigua (specs/04 §4).
 
   return {
     credentials,

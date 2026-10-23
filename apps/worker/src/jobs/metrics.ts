@@ -1,4 +1,4 @@
-import { metricsDaily, metricsDailyCompany, metricsRecompute } from '@pv/adapters';
+import { alertsEvaluate, metricsDaily, metricsDailyCompany, metricsRecompute } from '@pv/adapters';
 import {
   addDays,
   computeBaseline,
@@ -389,11 +389,20 @@ export const metricsDailyJob = registerJob(metricsDaily, async (_payload, ctx) =
   return { enqueued };
 });
 
-// TODO(F5-T2): al terminar, encolar alerts.evaluate para la empresa y la fecha (specs/05 §9).
-export const metricsDailyCompanyJob = registerJob(metricsDailyCompany, (payload, ctx) =>
-  computeCompanyDay(ctx, payload.company_id, payload.date),
-);
+/** Al terminar encola alerts.evaluate para la empresa y la fecha (specs/05 §9). */
+export const metricsDailyCompanyJob = registerJob(metricsDailyCompany, async (payload, ctx) => {
+  const stats = await computeCompanyDay(ctx, payload.company_id, payload.date);
+  const queued = await ctx.queue.enqueue(alertsEvaluate, {
+    company_id: payload.company_id,
+    date: payload.date,
+  });
+  return { ...stats, alerts_enqueued: queued !== null };
+});
 
+/**
+ * Recálculo de métricas de un rango. No evalúa alertas: reabrir o resolver alertas con fechas
+ * pasadas confundiría a los usuarios (specs/PREGUNTAS.md #112).
+ */
 export const metricsRecomputeJob = registerJob(metricsRecompute, async (payload, ctx) => {
   let days = 0;
   for (let date = payload.from; date <= payload.to; date = addDays(date, 1)) {

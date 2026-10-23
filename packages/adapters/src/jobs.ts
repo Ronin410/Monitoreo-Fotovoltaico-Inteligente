@@ -96,3 +96,31 @@ export const metricsRecompute = defineJob({
   expireInSeconds: 60 * 60,
   singletonKey: (p) => `metrics.recompute:${p.company_id}`,
 });
+
+/** Reglas diarias de alertas (specs/06) de una empresa para una fecha, tras metrics.daily_company. */
+export const alertsEvaluate = defineJob({
+  name: 'alerts.evaluate',
+  payload: companyPayload.extend({ date: localDateSchema }),
+  scope: 'company',
+  expireInSeconds: 15 * 60,
+  singletonKey: (p) => `alerts.evaluate:${p.company_id}:${p.date}`,
+});
+
+/** Orquestador horario de la regla offline: encola alerts.offline_company por empresa activa. */
+export const alertsOffline = defineJob({
+  name: 'alerts.offline',
+  payload: z.object({}),
+  scope: 'platform',
+  retryLimit: 1,
+  // Después de la ingesta de telemetría de :15 para que las lecturas recientes ya estén.
+  schedule: { cron: '20 * * * *' },
+});
+
+/** Regla offline (horas con sol sin lecturas) de las plantas de una empresa. */
+export const alertsOfflineCompany = defineJob({
+  name: 'alerts.offline_company',
+  payload: companyPayload,
+  scope: 'company',
+  expireInSeconds: 10 * 60,
+  singletonKey: (p) => `alerts.offline_company:${p.company_id}`,
+});

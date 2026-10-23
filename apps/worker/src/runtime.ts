@@ -83,6 +83,8 @@ export async function runJob(
     definition.scope === 'company'
       ? (z.object({ company_id: z.uuid() }).safeParse(rawPayload).data?.company_id ?? null)
       : null;
+  // El plant_id va en todos los registros (también en las fallas) para saber de qué planta fue.
+  const plantId = z.object({ plant_id: z.uuid() }).safeParse(rawPayload).data?.plant_id;
   const record = (data: {
     status: 'running' | 'succeeded' | 'failed' | 'skipped';
     error?: string;
@@ -96,7 +98,7 @@ export async function runJob(
         finishedAt: data.status === 'running' ? null : deps.now(),
         status: data.status,
         error: data.error ?? null,
-        stats: { attempt, ...data.stats },
+        stats: { attempt, ...(plantId && { plant_id: plantId }), ...data.stats },
       },
     });
 
@@ -132,13 +134,22 @@ export async function runJob(
     });
     await deps.serviceDb.jobRun.update({
       where: { id: run.id },
-      data: { status: 'succeeded', finishedAt: deps.now(), stats: { attempt, ...(stats ?? {}) } },
+      data: {
+        status: 'succeeded',
+        finishedAt: deps.now(),
+        stats: { attempt, ...(plantId && { plant_id: plantId }), ...(stats ?? {}) },
+      },
     });
     return 'succeeded';
   } catch (err) {
     await deps.serviceDb.jobRun.update({
       where: { id: run.id },
-      data: { status: 'failed', finishedAt: deps.now(), error: errorText(err) },
+      data: {
+        status: 'failed',
+        finishedAt: deps.now(),
+        error: errorText(err),
+        stats: { attempt, ...(plantId && { plant_id: plantId }) },
+      },
     });
     log.error({ company_id: companyId, error_type: (err as Error).name }, 'job falló');
     throw err;

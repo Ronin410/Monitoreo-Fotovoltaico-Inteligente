@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../settings.js';
 import { addDays } from '../time.js';
 import {
+  buildEvidence,
   evaluateDailyAlerts,
   evaluateOffline,
   sunHoursBetween,
@@ -228,6 +229,11 @@ describe('soiling', () => {
       open: { sudden_drop: { severity: 'critical', detectedOn: day(1) } },
     });
     expect(actions.map((a) => a.type)).toEqual(['sudden_drop']);
+    // Tampoco con pendiente negativa: la caída inclina la recta (#103).
+    const sloped = evaluate(series([1, dirty(45), dirty(45), dirty(45)]), {
+      open: { sudden_drop: { severity: 'critical', detectedOn: day(1) } },
+    });
+    expect(sloped.map((a) => a.type)).toEqual(['sudden_drop']);
   });
 
   it('un evento de zona no cuenta para la racha', () => {
@@ -408,6 +414,65 @@ describe('offline', () => {
       kind: 'resolve',
       type: 'offline',
       reason: 'readings_resumed',
+    });
+  });
+});
+
+describe('evidencia (specs/06 §3)', () => {
+  it('resume disparo, base, tendencia, vecinas, clima y los últimos 14 días', () => {
+    const days = Array.from({ length: 20 }, (_, i) => ({
+      ...series([i])[0]!,
+      date: day(i),
+      deviationPct: i,
+      rainMm: i === 3 || i === 10 ? 5 : 0,
+      prTemp: 0.9 - i / 100,
+      prBaseline: 0.91,
+      baselineSource: 'own' as const,
+      neighborCount: 6,
+      neighborIndex: 0.86,
+      cloudCoverAvgPct: i >= 17 ? 10 + i : 50,
+      tempAmbMaxC: 30 + i / 4,
+      soilingSlopePctPerDay: -0.4213,
+      daysToCleaning: 4,
+      predictionConfidence: 'high' as const,
+    }));
+    const evidence = buildEvidence({
+      rule: 'soiling',
+      trigger: { dates: [day(19)], deviation_pct: [19] },
+      today: day(19),
+      days,
+      events: [
+        { type: 'rain_cleaning', date: day(3) },
+        { type: 'cleaning', date: day(10) },
+        { type: 'note', date: day(15) },
+      ],
+    });
+    expect(evidence).toMatchObject({
+      rule: 'soiling',
+      baseline: { value: 0.91, source: 'own' },
+      trend: {
+        slope_pct_per_day: -0.421,
+        confidence: 'high',
+        days_to_cleaning: 4,
+        days_since_reset: 9,
+        last_reset: { type: 'cleaning', date: day(10) },
+      },
+      neighbors: { count: 6, neighbor_index: 0.86 },
+      // Solo la lluvia del día 10 cae en los últimos 14 días (6 a 19).
+      weather: { rain_mm_14d: 5, cloud_cover_avg_pct_3d: 28, temp_amb_max_c_3d: 34.8 },
+      cleaning_did_not_recover: false,
+    });
+    expect(evidence.last_14_days.map((d) => d.date)).toEqual(
+      Array.from({ length: 14 }, (_, i) => day(i + 6)),
+    );
+    expect(evidence.last_14_days[0]).toEqual({
+      date: day(6),
+      pr_temp: 0.84,
+      deviation_pct: 6,
+      neighbor_index: 0.86,
+      rain_mm: 0,
+      valid: true,
+      zone_event: false,
     });
   });
 });

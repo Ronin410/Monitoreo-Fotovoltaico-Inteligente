@@ -123,8 +123,11 @@ function soilingTrigger(
     (d) => d.date >= first.date && d.date <= last.date && (d.rainMm ?? 0) >= t.rain_reset_mm,
   );
   if (rained) return null;
+  // Con una caída brusca activa la desviación no es suciedad, aunque la recta baje: la caída
+  // misma inclina la regresión (specs/PREGUNTAS.md #103, opción conservadora).
+  if (suddenDropActive) return null;
   const slope = last.soilingSlopePctPerDay;
-  if (slope !== null ? slope >= 0 : suddenDropActive) return null;
+  if (slope !== null && slope >= 0) return null;
   return streak;
 }
 

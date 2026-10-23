@@ -68,6 +68,8 @@ describe('pnpm db:seed:demo', () => {
         where: { companyId: company.id, status: 'succeeded' },
       });
       expect(runs.map((r) => r.jobName).sort()).toEqual([
+        'alerts.evaluate',
+        'alerts.offline_company',
         'ingest.telemetry_plant',
         'metrics.recompute',
       ]);
@@ -96,6 +98,21 @@ describe('pnpm db:seed:demo', () => {
 
     const normal = rows.filter((r) => scenarioOf(r) === undefined && r.isValidDay);
     for (const r of normal) expect(Math.abs(Number(r.deviationPct))).toBeLessThan(5);
+  });
+
+  it('las alertas salen de los jobs reales: falla de string reciente y planta offline', async () => {
+    const a = await companyBySlug(DEMO_SLUGS.a);
+    const alerts = await ctx.owner.alert.findMany({
+      where: { companyId: a.id, status: 'open' },
+      include: { plant: { select: { simulationProfile: true } } },
+    });
+    const scenarioOf = (p: { simulationProfile: unknown }) =>
+      (p.simulationProfile as { scenarios: { type: string; start: string }[] }).scenarios[0];
+    const opened = alerts.map((x) => `${x.type}:${scenarioOf(x.plant)?.type ?? 'normal'}`);
+    expect(opened).toContain('offline:offline');
+    // La falla reciente (hace 3 días) se detecta; la antigua empezó antes de la historia.
+    expect(opened).toContain('sudden_drop:string_failure');
+    expect(opened.filter((o) => o.endsWith(':normal'))).toEqual([]);
   });
 
   it('no vuelve a sembrar si la demo ya existe', async () => {
