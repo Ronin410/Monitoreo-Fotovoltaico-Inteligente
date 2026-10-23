@@ -1,3 +1,5 @@
+import { notificationsSend, type JobEnqueuer } from '@pv/adapters';
+import { renderEmail, type NotificationPayload } from '@pv/core';
 import type { Prisma, TenantDb } from '@pv/db';
 import type { z } from 'zod';
 import { dec } from '../../http/decimal.js';
@@ -125,6 +127,85 @@ export async function createTicket(
     },
     include: ticketInclude,
   });
-  // TODO(F5-T4): con responsable, encolar notifications.send "Ticket asignado" (specs/06 §6).
   return ticket;
+}
+
+/**
+ * Guarda el correo "Ticket asignado" para el responsable (specs/06 §6) y devuelve su id, para
+ * encolarlo al confirmar la transacción. Un ticket se notifica una vez por responsable.
+ */
+export async function queueAssignedEmail(
+  tx: TenantDb,
+  ticket: TicketWithRelations,
+): Promise<string | null> {
+  if (!ticket.assignedToId) return null;
+  const assignee = await tx.user.findFirst({
+    where: { id: ticket.assignedToId, status: 'active' },
+    select: { email: true },
+  });
+  if (!assignee) return null;
+  const already = await tx.notification.findFirst({
+    where: {
+      template: 'ticket_assigned',
+      relatedType: 'ticket',
+      relatedId: ticket.id,
+      recipient: assignee.email,
+    },
+  });
+  if (already) return null;
+  const company = await tx.company.findUniqueOrThrow({ where: { id: ticket.companyId } });
+  const p = ticket.plant;
+  const payload: NotificationPayload<'ticket_assigned'> = {
+    ticket_id: ticket.id,
+    title: ticket.title,
+    priority: ticket.priority,
+    description: ticket.description,
+    scheduled_for: ticket.scheduledFor ? ticket.scheduledFor.toISOString().slice(0, 10) : null,
+    plant_name: p.name,
+    client_name: p.client.name,
+    client_phone: p.client.phone,
+    address: p.client.address,
+    colonia: p.colonia,
+    lat: dec(p.lat),
+    lon: dec(p.lon),
+  };
+  const brand = {
+    companyName: company.name,
+    brandColor: company.brandColor,
+    logoUrl: company.logoUrl,
+    timezone: company.timezone,
+  };
+  const notification = await tx.notification.create({
+    data: {
+      companyId: company.id,
+      recipient: assignee.email,
+      subject: renderEmail('ticket_assigned', payload, brand, '').subject,
+      template: 'ticket_assigned',
+      payload,
+      relatedType: 'ticket',
+      relatedId: ticket.id,
+    },
+  });
+  return notification.id;
+}
+
+/** Encola el envío; si la cola falla, la notificación queda guardada (status queued). */
+export async function enqueueEmail(
+  jobs: JobEnqueuer,
+  log: { error: (obj: object, msg: string) => void },
+  companyId: string,
+  notificationId: string | null,
+): Promise<void> {
+  if (!notificationId) return;
+  try {
+    await jobs.enqueue(notificationsSend, {
+      company_id: companyId,
+      notification_id: notificationId,
+    });
+  } catch (err) {
+    log.error(
+      { notification_id: notificationId, error_type: (err as Error).name },
+      'no se pudo encolar el correo',
+    );
+  }
 }

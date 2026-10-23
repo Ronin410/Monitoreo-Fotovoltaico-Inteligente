@@ -1,4 +1,5 @@
 import {
+  createEmailProvider,
   createWeatherProvider,
   CredentialCipher,
   createAdapterRegistry,
@@ -34,6 +35,8 @@ try {
     weather: createWeatherProvider(env),
     cipher: CredentialCipher.fromEnv(env),
     adapters: (companyId) => createAdapterRegistry({ simulator: dbSimulatorSource(db, companyId) }),
+    email: createEmailProvider(env),
+    appUrl: env.APP_URL,
     logger,
     now: () => new Date(),
   });

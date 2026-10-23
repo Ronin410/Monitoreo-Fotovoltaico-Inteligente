@@ -1,5 +1,6 @@
 import type {
   CredentialCipher,
+  EmailProvider,
   InverterAdapterRegistry,
   JobDefinition,
   JobQueue,
@@ -26,6 +27,15 @@ export type JobContext = {
   cipher: CredentialCipher;
   /** Adaptadores de inversor para una empresa (el simulador lee sus datos de esa empresa). */
   adapters: (companyId: string) => InverterAdapterRegistry;
+  /** Envío de correo (EMAIL_PROVIDER); solo lo usa notifications.send. */
+  email: EmailProvider;
+  /** APP_URL, para los enlaces de los correos. */
+  appUrl: string;
+  /**
+   * La semilla de demo reproduce la historia: sus alertas no deben generar correos
+   * (specs/PREGUNTAS.md #129).
+   */
+  suppressNotifications?: boolean;
   log: Logger;
   now: () => Date;
   /** 0 en el primer intento. */

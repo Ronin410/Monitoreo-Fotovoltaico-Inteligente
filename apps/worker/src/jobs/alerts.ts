@@ -17,8 +17,9 @@ import {
   type EvidenceDay,
   type OpenAlert,
 } from '@pv/core';
-import { listActiveCompanies, withTenant, type Prisma, type TenantDb } from '@pv/db';
+import { listActiveCompanies, withTenant, type Company, type Prisma, type TenantDb } from '@pv/db';
 import { registerJob, type JobContext } from '../runtime.js';
+import { enqueueEmails, queueEmails, recipientsFor } from './notifications.js';
 
 // Job alerts.evaluate (specs/06): evento de zona → reglas diarias por planta → aplica las acciones
 // (abrir, actualizar evidencia, resolver) → recalcula el estado del día. La regla offline corre
@@ -55,9 +56,9 @@ async function applyAction(
   at: Date,
   evidence: (trigger: AlertEvidence['trigger'], cleaningDidNotRecover: boolean) => AlertEvidence,
   counts: Applied,
-): Promise<void> {
+): Promise<string | null> {
   if (action.kind === 'open') {
-    await tx.alert.create({
+    const created = await tx.alert.create({
       data: {
         companyId,
         plantId,
@@ -70,19 +71,18 @@ async function applyAction(
         aiStatus: action.severity === 'info' ? 'skipped' : 'pending',
       },
     });
-    // TODO(F5-T4): encolar notifications.send para alertas warning y critical (specs/06 §6).
     // TODO(F7-T2): encolar ai.explain_alert para alertas warning y critical (specs/07 §3).
     counts.opened++;
-    return;
+    return created.id;
   }
-  if (!existing) return;
+  if (!existing) return null;
   if (action.kind === 'resolve') {
     await tx.alert.update({
       where: { id: existing.id },
       data: { status: 'resolved', resolvedAt: at, resolution: 'auto' },
     });
     counts.resolved++;
-    return;
+    return null;
   }
   const previous = existing.evidence as Partial<AlertEvidence> | null;
   const trigger = action.trigger ?? previous?.trigger ?? { dates: [], deviation_pct: [] };
@@ -96,11 +96,54 @@ async function applyAction(
     },
   });
   counts.updated++;
+  return null;
+}
+
+/** Máxima antigüedad de una alerta para avisar por correo (no se notifica la historia). */
+const NOTIFY_MAX_AGE_MS = 24 * HOUR_MS;
+
+/**
+ * Correo de alerta nueva warning o critical a alert_emails y company_admin (specs/06 §6). Devuelve
+ * los ids para encolarlos al confirmar la transacción.
+ */
+async function notifyOpened(
+  ctx: JobContext,
+  tx: TenantDb,
+  company: Company,
+  alert: {
+    id: string;
+    type: AlertType;
+    severity: AlertSeverity;
+    detectedAt: Date;
+    deviationPct: number | null;
+  },
+  plant: { name: string; colonia: string; client: { name: string } },
+): Promise<string[]> {
+  if (alert.severity === 'info' || ctx.suppressNotifications) return [];
+  if (ctx.now().getTime() - alert.detectedAt.getTime() > NOTIFY_MAX_AGE_MS) return [];
+  const recipients = await recipientsFor(tx, company, ['company_admin']);
+  return queueEmails(
+    tx,
+    company,
+    recipients,
+    'alert_opened',
+    {
+      alert_id: alert.id,
+      type: alert.type,
+      severity: alert.severity,
+      plant_name: plant.name,
+      client_name: plant.client.name,
+      colonia: plant.colonia,
+      detected_at: alert.detectedAt.toISOString(),
+      deviation_pct: alert.deviationPct,
+    },
+    { type: 'alert', id: alert.id },
+  );
 }
 
 /** Evalúa las reglas diarias de la empresa para la fecha local `date`. */
 export async function evaluateCompanyDay(ctx: JobContext, companyId: string, date: string) {
-  return withTenant(
+  const result = await withTenant(
     ctx.db,
     companyId,
     async (tx) => {
@@ -115,7 +158,15 @@ export async function evaluateCompanyDay(ctx: JobContext, companyId: string, dat
 
       const plants = await tx.solarPlant.findMany({
         where: { deletedAt: null, status: 'active' },
-        select: { id: true, postalCode: true, lat: true, lon: true },
+        select: {
+          id: true,
+          name: true,
+          colonia: true,
+          postalCode: true,
+          lat: true,
+          lon: true,
+          client: { select: { name: true } },
+        },
       });
       const ids = plants.map((p) => p.id);
       const [metrics, events, openAlerts] = await Promise.all([
@@ -178,6 +229,7 @@ export async function evaluateCompanyDay(ctx: JobContext, companyId: string, dat
 
       // 2. Reglas por planta.
       const counts: Applied = { opened: 0, updated: 0, resolved: 0 };
+      const emails: string[] = [];
       for (const m of todays) {
         const days: EvidenceDay[] = metrics
           .filter((x) => x.plantId === m.plantId)
@@ -222,7 +274,7 @@ export async function evaluateCompanyDay(ctx: JobContext, companyId: string, dat
           thresholds,
         });
         for (const action of actions) {
-          await applyAction(
+          const openedId = await applyAction(
             tx,
             companyId,
             m.plantId,
@@ -240,6 +292,24 @@ export async function evaluateCompanyDay(ctx: JobContext, companyId: string, dat
               }),
             counts,
           );
+          const plant = plantById.get(m.plantId);
+          if (openedId && action.kind === 'open' && plant) {
+            emails.push(
+              ...(await notifyOpened(
+                ctx,
+                tx,
+                company,
+                {
+                  id: openedId,
+                  type: action.type,
+                  severity: action.severity,
+                  detectedAt: at,
+                  deviationPct: action.trigger.deviation_pct.at(-1) ?? null,
+                },
+                plant,
+              )),
+            );
+          }
         }
       }
 
@@ -267,10 +337,21 @@ export async function evaluateCompanyDay(ctx: JobContext, companyId: string, dat
         }
       }
 
-      return { date, plants: todays.length, zone_events: zone.size, ...counts };
+      return {
+        emails,
+        stats: {
+          date,
+          plants: todays.length,
+          zone_events: zone.size,
+          ...counts,
+          emails: emails.length,
+        },
+      };
     },
     { timeout: 120_000 },
   );
+  await enqueueEmails(ctx, companyId, result.emails);
+  return result.stats;
 }
 
 export const alertsEvaluateJob = registerJob(alertsEvaluate, (payload, ctx) =>
@@ -297,12 +378,22 @@ export async function evaluateCompanyOffline(ctx: JobContext, companyId: string)
     ORDER BY stats->>'plant_id', started_at DESC`;
   const lastRun = new Map(runs.map((r) => [r.plant_id, r]));
 
-  return withTenant(ctx.db, companyId, async (tx) => {
+  const result = await withTenant(ctx.db, companyId, async (tx) => {
     const company = await tx.company.findUniqueOrThrow({ where: { id: companyId } });
     const { thresholds } = parseCompanySettings(company.settings);
+    const emails: string[] = [];
     const plants = await tx.solarPlant.findMany({
       where: { deletedAt: null, status: 'active', lat: { not: null }, lon: { not: null } },
-      select: { id: true, lat: true, lon: true, lastReadingAt: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        colonia: true,
+        lat: true,
+        lon: true,
+        lastReadingAt: true,
+        createdAt: true,
+        client: { select: { name: true } },
+      },
     });
     const openAlerts = await tx.alert.findMany({
       where: {
@@ -339,7 +430,7 @@ export async function evaluateCompanyOffline(ctx: JobContext, companyId: string)
       });
       if (action?.kind === 'open') {
         const since = plant.lastReadingAt ?? plant.createdAt;
-        await tx.alert.create({
+        const created = await tx.alert.create({
           data: {
             companyId,
             plantId: plant.id,
@@ -356,7 +447,10 @@ export async function evaluateCompanyOffline(ctx: JobContext, companyId: string)
             aiStatus: 'pending',
           },
         });
-        // TODO(F5-T4): notifications.send. TODO(F7-T2): ai.explain_alert.
+        // TODO(F7-T2): encolar ai.explain_alert.
+        emails.push(
+          ...(await notifyOpened(ctx, tx, company, { ...created, deviationPct: null }, plant)),
+        );
         counts.opened++;
       } else if (action?.kind === 'resolve' && existing) {
         await tx.alert.update({
@@ -366,8 +460,10 @@ export async function evaluateCompanyOffline(ctx: JobContext, companyId: string)
         counts.resolved++;
       }
     }
-    return { plants: plants.length, ...counts };
+    return { emails, stats: { plants: plants.length, ...counts, emails: emails.length } };
   });
+  await enqueueEmails(ctx, companyId, result.emails);
+  return result.stats;
 }
 
 export const alertsOfflineJob = registerJob(alertsOffline, async (_payload, ctx) => {

@@ -124,3 +124,30 @@ export const alertsOfflineCompany = defineJob({
   expireInSeconds: 10 * 60,
   singletonKey: (p) => `alerts.offline_company:${p.company_id}`,
 });
+
+/** Envía un correo de la tabla notifications (specs/06 §6). */
+export const notificationsSend = defineJob({
+  name: 'notifications.send',
+  payload: companyPayload.extend({ notification_id: z.uuid() }),
+  scope: 'company',
+  retryLimit: 3,
+  retryDelaySeconds: 60,
+  singletonKey: (p) => `notifications.send:${p.notification_id}`,
+});
+
+/** Orquestador horario: a las 07:00 locales encola el resumen diario de cada empresa. */
+export const notificationsDailySummary = defineJob({
+  name: 'notifications.daily_summary',
+  payload: z.object({}),
+  scope: 'platform',
+  retryLimit: 1,
+  schedule: { cron: '3 * * * *' },
+});
+
+/** Resumen diario de una empresa: alertas abiertas, próximos lavados y plantas sin datos. */
+export const notificationsDailySummaryCompany = defineJob({
+  name: 'notifications.daily_summary_company',
+  payload: companyPayload.extend({ date: localDateSchema }),
+  scope: 'company',
+  singletonKey: (p) => `notifications.daily_summary_company:${p.company_id}:${p.date}`,
+});

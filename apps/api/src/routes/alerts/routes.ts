@@ -1,3 +1,4 @@
+import type { JobEnqueuer } from '@pv/adapters';
 import { withTenant, type Alert, type Prisma, type PrismaClient } from '@pv/db';
 import { Router } from 'express';
 import type { z } from 'zod';
@@ -7,7 +8,13 @@ import { pageArgs, paginated } from '../../http/pagination.js';
 import { respond } from '../../http/respond.js';
 import { idParam } from '../shared-schemas.js';
 import { ticketResponse, ticketFromAlertBody } from '../tickets/schemas.js';
-import { createTicket, ticketDto, ticketInclude } from '../tickets/service.js';
+import {
+  createTicket,
+  enqueueEmail,
+  queueAssignedEmail,
+  ticketDto,
+  ticketInclude,
+} from '../tickets/service.js';
 import type { alertSummary } from './schemas.js';
 import { alertDetail, alertsQuery, alertsResponse, dismissAlertBody } from './schemas.js';
 
@@ -106,7 +113,7 @@ function ticketDefaults(alert: Alert, plantName: string) {
 
 const PRIORITY = { critical: 'high', warning: 'normal', info: 'low' } as const;
 
-export function alertsRouter(db: PrismaClient): Router {
+export function alertsRouter(db: PrismaClient, jobs: JobEnqueuer): Router {
   const router = Router();
   router.use(requirePermission('fleet:read'));
   const manage = requirePermission('alerts:manage');
@@ -186,7 +193,7 @@ export function alertsRouter(db: PrismaClient): Router {
     const auth = companyAuthOf(req);
     const { id } = idParam.parse(req.params);
     const body = ticketFromAlertBody.parse(req.body ?? {});
-    const ticket = await withTenant(db, auth.companyId, async (tx) => {
+    const { ticket, email } = await withTenant(db, auth.companyId, async (tx) => {
       const alert = await tx.alert.findFirst({
         where: { id },
         include: { plant: { select: { name: true } }, ticket: { select: { status: true } } },
@@ -214,11 +221,13 @@ export function alertsRouter(db: PrismaClient): Router {
         where: { id },
         data: { ticketId: created.id, ...(alert.status === 'open' && { status: 'acknowledged' }) },
       });
-      return tx.maintenanceTicket.findUniqueOrThrow({
+      const linked = await tx.maintenanceTicket.findUniqueOrThrow({
         where: { id: created.id },
         include: ticketInclude,
       });
+      return { ticket: linked, email: await queueAssignedEmail(tx, linked) };
     });
+    await enqueueEmail(jobs, req.log, auth.companyId, email);
     respond(res, ticketResponse, ticketDto(ticket), 201);
   });
 

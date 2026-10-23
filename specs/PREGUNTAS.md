@@ -212,3 +212,26 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 123. **Eventos manuales.** Se aceptan `cleaning`, `repair`, `inverter_replaced` y `note`. `rain_cleaning` solo lo crea el sistema y `commissioning` sale de la fecha de la planta. No se aceptan fechas futuras (tolerancia de 5 min).
 124. **Alerta descartada que vuelve.** Si se descarta una alerta y la condición sigue (por ejemplo, suciedad), `alerts.evaluate` abrirá una nueva al día siguiente, porque el índice único solo cubre las abiertas. ¿Se quiere un periodo de silencio después de descartar? Por ahora no hay.
 125. **Semilla.** La falla de string con alerta más antigua tiene un ticket `scheduled` de inspección para mañana, asignado al primer técnico y ligado a la alerta (que queda `acknowledged`).
+
+## F5-T4 — Correo
+
+126. **Cómo se envía.** Quien detecta el evento guarda una fila por destinatario en `notifications` (en su misma transacción) y, al confirmar, encola `notifications.send` con su id. El envío arma el correo con la plantilla y la marca vigente de la empresa, marca `sent` o `failed` (con el error, sin secretos) y pg-boss reintenta 3 veces. Si encolar falla, la fila queda `queued`. Falta un barrido que reencole esas filas (Fase 10).
+127. **Destinatarios y repeticiones.**
+    - Alerta nueva `warning` o `critical`: `alert_emails` más los `company_admin` activos, sin repetir correos aunque cambien mayúsculas.
+    - Un mismo evento no se notifica dos veces al mismo destinatario: `related_type` + `related_id`, y para el resumen la fecha.
+    - Ticket asignado: solo el responsable, al crear o reasignar; volver a asignar a quien ya fue avisado no repite el correo.
+128. **Resumen diario.**
+    - Sale a las 07:00 locales a `alert_emails` más los admins y operadores activos.
+    - Lleva:
+      - los conteos de alertas abiertas por severidad;
+      - hasta 10 alertas `warning`/`critical` que requieren atención;
+      - los próximos lavados (`days_to_cleaning` ≤ 7 en las métricas de ayer);
+      - las plantas con alerta `offline` abierta.
+    - Si no hay nada que reportar no se envía (sería ruido). ¿El PO prefiere recibirlo siempre?
+129. **Historia sin correos.** No se notifican alertas detectadas hace más de 24 h (recálculos), y la semilla de demo suprime todos sus correos (`suppressNotifications`).
+130. **Plantillas.**
+    - Son funciones puras en `packages/core/notifications`, en español, con texto y HTML.
+    - Encabezado con el color de marca (si no es `#RRGGBB` se usa uno neutro) y el logo solo si es una URL `http(s)`.
+    - Todo el texto dinámico se escapa.
+    - Los enlaces usan `APP_URL` con las rutas `/alerts/:id`, `/tickets/:id` y `/`, que el frontend (F6) debe respetar.
+    - El correo del técnico incluye el enlace a Google Maps con las coordenadas.

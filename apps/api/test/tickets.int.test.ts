@@ -383,3 +383,65 @@ describe('eventos de planta', () => {
     );
   });
 });
+
+describe('correo de ticket asignado', () => {
+  it('avisa al responsable al crear y al reasignar, una vez por responsable', async () => {
+    const f = await fleet();
+    const op = http(f.users.operator.auth);
+    const sends = () =>
+      ctx.jobs.jobs.filter(
+        (j) =>
+          j.name === 'notifications.send' &&
+          (j.payload as { company_id: string }).company_id === f.company.id,
+      );
+    const notifications = () =>
+      ctx.owner.notification.findMany({
+        where: { companyId: f.company.id },
+        orderBy: { createdAt: 'asc' },
+      });
+
+    const t = (
+      await op.post('/tickets', {
+        plant_id: f.plant.id,
+        type: 'cleaning',
+        title: 'Lavado mensual',
+        assigned_to: f.users.technician.id,
+        scheduled_for: '2026-10-24',
+      })
+    ).body as { id: string };
+    const [first] = await notifications();
+    const tech = await ctx.owner.user.findUniqueOrThrow({ where: { id: f.users.technician.id } });
+    expect(first).toMatchObject({
+      recipient: tech.email,
+      template: 'ticket_assigned',
+      status: 'queued',
+      relatedType: 'ticket',
+      relatedId: t.id,
+      subject: 'Nuevo ticket asignado: Lavado mensual',
+      payload: {
+        ticket_id: t.id,
+        plant_name: 'Comercial Centro',
+        address: 'Av. Obregón 100',
+        client_phone: '667 123 4567',
+        scheduled_for: '2026-10-24',
+        lat: 24.8069,
+      },
+    });
+    expect(sends().map((j) => (j.payload as { notification_id: string }).notification_id)).toEqual([
+      first!.id,
+    ]);
+
+    // Cambios que no son de responsable no avisan; reasignar sí, y volver al primero no repite.
+    await op.patch(`/tickets/${t.id}`, { priority: 'high' });
+    await op.patch(`/tickets/${t.id}`, { assigned_to: f.users.technician2.id });
+    await op.patch(`/tickets/${t.id}`, { assigned_to: f.users.technician.id });
+    expect(await notifications()).toHaveLength(2);
+    expect(sends()).toHaveLength(2);
+
+    // Sin responsable no hay correo; desde una alerta, sí.
+    await op.post('/tickets', { plant_id: f.plant.id, type: 'other', title: 'Sin asignar' });
+    const alert = await openAlert(f);
+    await op.post(`/alerts/${alert.id}/ticket`, { assigned_to: f.users.technician2.id });
+    expect(await notifications()).toHaveLength(3);
+  });
+});

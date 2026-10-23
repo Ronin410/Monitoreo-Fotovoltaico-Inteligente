@@ -1,3 +1,4 @@
+import type { JobEnqueuer } from '@pv/adapters';
 import { can } from '@pv/core';
 import { withTenant, type Prisma, type PrismaClient } from '@pv/db';
 import { Router } from 'express';
@@ -17,6 +18,8 @@ import {
 import {
   assertAssignee,
   createTicket,
+  enqueueEmail,
+  queueAssignedEmail,
   ticketDto,
   ticketInclude,
   ticketNotFound,
@@ -28,7 +31,7 @@ import {
 const OPEN_STATUSES = ['pending', 'scheduled', 'in_progress'] as const;
 const forbidden = (message: string) => new HttpError(403, 'FORBIDDEN', message);
 
-export function ticketsRouter(db: PrismaClient, now: () => Date): Router {
+export function ticketsRouter(db: PrismaClient, now: () => Date, jobs: JobEnqueuer): Router {
   const router = Router();
   router.use(requirePermission('tickets:update'));
 
@@ -72,13 +75,13 @@ export function ticketsRouter(db: PrismaClient, now: () => Date): Router {
   router.post('/', requirePermission('alerts:manage'), async (req, res) => {
     const auth = companyAuthOf(req);
     const body = createTicketBody.parse(req.body);
-    const ticket = await withTenant(db, auth.companyId, async (tx) => {
+    const { ticket, email } = await withTenant(db, auth.companyId, async (tx) => {
       const plant = await tx.solarPlant.findFirst({
         where: { id: body.plant_id, deletedAt: null },
         select: { id: true },
       });
       if (!plant) throw new HttpError(400, 'INVALID_PLANT', 'La planta no existe o fue eliminada');
-      return createTicket(tx, auth.companyId, auth.userId, {
+      const created = await createTicket(tx, auth.companyId, auth.userId, {
         plantId: plant.id,
         type: body.type,
         priority: body.priority,
@@ -87,7 +90,9 @@ export function ticketsRouter(db: PrismaClient, now: () => Date): Router {
         assignedTo: body.assigned_to,
         scheduledFor: body.scheduled_for,
       });
+      return { ticket: created, email: await queueAssignedEmail(tx, created) };
     });
+    await enqueueEmail(jobs, req.log, auth.companyId, email);
     respond(res, ticketResponse, ticketDto(ticket), 201);
   });
 
@@ -116,7 +121,7 @@ export function ticketsRouter(db: PrismaClient, now: () => Date): Router {
       if (body.status === 'cancelled') throw forbidden('El técnico no puede cancelar tickets');
     }
 
-    const ticket = await withTenant(db, auth.companyId, async (tx) => {
+    const { ticket, email } = await withTenant(db, auth.companyId, async (tx) => {
       const current = await tx.maintenanceTicket.findFirst({ where: { id, ...scopeOf(auth) } });
       if (!current) throw ticketNotFound();
       if (current.status === 'resolved' || current.status === 'cancelled') {
@@ -160,9 +165,15 @@ export function ticketsRouter(db: PrismaClient, now: () => Date): Router {
           },
         });
       }
-      // TODO(F5-T4): si cambió el responsable, notificar al nuevo técnico (specs/06 §6).
-      return tx.maintenanceTicket.findUniqueOrThrow({ where: { id }, include: ticketInclude });
+      const updated = await tx.maintenanceTicket.findUniqueOrThrow({
+        where: { id },
+        include: ticketInclude,
+      });
+      // Nuevo responsable: se le avisa por correo (specs/06 §6).
+      const reassigned = body.assigned_to && body.assigned_to !== current.assignedToId;
+      return { ticket: updated, email: reassigned ? await queueAssignedEmail(tx, updated) : null };
     });
+    await enqueueEmail(jobs, req.log, auth.companyId, email);
     respond(res, ticketResponse, ticketDto(ticket));
   });
 

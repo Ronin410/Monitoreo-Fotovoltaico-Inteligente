@@ -3,6 +3,7 @@ import {
   createAdapterRegistry,
   defineJob,
   JobQueue,
+  MemoryEmailProvider,
   SyntheticWeatherProvider,
 } from '@pv/adapters';
 import { createPrismaClient, withTenant, type PrismaClient } from '@pv/db';
@@ -34,6 +35,8 @@ beforeAll(async () => {
     weather: new SyntheticWeatherProvider(),
     cipher: TEST_CIPHER,
     adapters: () => createAdapterRegistry(),
+    email: new MemoryEmailProvider(),
+    appUrl: 'https://app.pv-iot.example',
     logger: pino({ level: 'silent' }),
     now: () => new Date(),
   };

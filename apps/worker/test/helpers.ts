@@ -3,6 +3,7 @@ import {
   createAdapterRegistry,
   CredentialCipher,
   JobQueue,
+  MemoryEmailProvider,
   SyntheticWeatherProvider,
   type InverterAdapterRegistry,
   type WeatherProvider,
@@ -30,6 +31,7 @@ export async function createWorkerTestContext(
     supervise: false,
   });
   let now = new Date('2026-10-21T19:00:00Z');
+  const email = new MemoryEmailProvider();
   const deps: RuntimeDeps = {
     db,
     serviceDb,
@@ -39,6 +41,8 @@ export async function createWorkerTestContext(
     adapters: (companyId) =>
       adapters?.(companyId, db) ??
       createAdapterRegistry({ simulator: dbSimulatorSource(db, companyId) }),
+    email,
+    appUrl: 'https://app.pv-iot.example',
     logger: pino({ level: 'silent' }),
     now: () => now,
   };
@@ -48,6 +52,7 @@ export async function createWorkerTestContext(
     serviceDb,
     queue,
     deps,
+    email,
     setNow: (d: Date) => {
       now = d;
     },

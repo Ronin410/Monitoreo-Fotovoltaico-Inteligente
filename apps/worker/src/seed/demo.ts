@@ -449,9 +449,11 @@ async function seedCompany(
 
 /** Siembra la demo. Falla si ya existe (no borra nada). `days` permite historias cortas en pruebas. */
 export async function seedDemo(
-  deps: RuntimeDeps,
+  runtime: RuntimeDeps,
   opts: { days?: number } = {},
 ): Promise<SeedDemoResult> {
+  // La historia sembrada nunca envía correos (specs/PREGUNTAS.md #129).
+  const deps: RuntimeDeps = { ...runtime, suppressNotifications: true };
   const days = opts.days ?? 90;
   const existing = await deps.serviceDb.company.count({
     where: { slug: { in: [DEMO_SLUGS.a, DEMO_SLUGS.b] } },
