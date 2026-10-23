@@ -137,3 +137,33 @@ export const plantResponse = z.object({
   updated_at: z.date(),
 });
 export const plantsResponse = paginatedSchema(plantResponse);
+
+// Eventos de planta (specs/03 §plant_events, specs/10). rain_cleaning lo crea solo el sistema.
+export const manualEventTypeSchema = z.enum(['cleaning', 'repair', 'inverter_replaced', 'note']);
+
+export const createEventBody = z.object({
+  type: manualEventTypeSchema,
+  occurred_at: z.iso.datetime({ offset: true, error: 'Fecha y hora ISO 8601' }),
+  notes: text(2000).nullable().optional(),
+});
+
+export const eventsQuery = paginationQuery;
+
+export const eventResponse = z.object({
+  id: z.uuid(),
+  type: z.enum([
+    'cleaning',
+    'rain_cleaning',
+    'repair',
+    'inverter_replaced',
+    'commissioning',
+    'note',
+  ]),
+  occurred_at: z.date(),
+  source: z.enum(['ticket', 'auto', 'manual']),
+  ticket_id: z.uuid().nullable(),
+  notes: z.string().nullable(),
+  created_at: z.date(),
+});
+
+export const eventsResponse = paginatedSchema(eventResponse);

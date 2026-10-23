@@ -6,7 +6,14 @@ import {
   type JobEnqueuer,
 } from '@pv/adapters';
 import { parseCompanySettings, type InverterBrand } from '@pv/core';
-import { Prisma, withTenant, type PrismaClient, type SolarPlant, type TenantDb } from '@pv/db';
+import {
+  Prisma,
+  withTenant,
+  type PlantEvent,
+  type PrismaClient,
+  type SolarPlant,
+  type TenantDb,
+} from '@pv/db';
 import { Router } from 'express';
 import type { z } from 'zod';
 import { recordAudit } from '../../audit.js';
@@ -20,7 +27,11 @@ import { idParam } from '../shared-schemas.js';
 import {
   createPlantBody,
   credentialsStatus,
+  createEventBody,
   credentialsTestResponse,
+  eventResponse,
+  eventsQuery,
+  eventsResponse,
   patchPlantBody,
   plantResponse,
   plantsQuery,
@@ -47,6 +58,18 @@ const CONNECTION_TEST_TIMEOUT_MS = 15_000;
 const TEST_OK = 'Conexión exitosa';
 const TEST_FAILED =
   'No se pudo conectar con el proveedor. Revisa las credenciales e inténtalo de nuevo.';
+
+function eventDto(e: PlantEvent): z.input<typeof eventResponse> {
+  return {
+    id: e.id,
+    type: e.type,
+    occurred_at: e.occurredAt,
+    source: e.source,
+    ticket_id: e.ticketId,
+    notes: e.notes,
+    created_at: e.createdAt,
+  };
+}
 
 const plantNotFound = () => new HttpError(404, 'NOT_FOUND', 'Planta no encontrada');
 const invalidClient = () =>
@@ -447,6 +470,61 @@ export function plantsRouter(db: PrismaClient, options: PlantsRouterOptions): Ro
       message: ok ? TEST_OK : TEST_FAILED,
       tested_at: testedAt,
     });
+  });
+
+  /** Eventos de la planta, del más reciente al más antiguo. */
+  router.get('/:id/events', async (req, res) => {
+    const { companyId } = companyAuthOf(req);
+    const { id } = idParam.parse(req.params);
+    const query = eventsQuery.parse(req.query);
+    const [events, total] = await withTenant(db, companyId, async (tx) => {
+      if (
+        !(await tx.solarPlant.findFirst({ where: { id, deletedAt: null }, select: { id: true } }))
+      ) {
+        throw plantNotFound();
+      }
+      return Promise.all([
+        tx.plantEvent.findMany({
+          where: { plantId: id },
+          orderBy: [{ occurredAt: 'desc' }, { id: 'asc' }],
+          ...pageArgs(query),
+        }),
+        tx.plantEvent.count({ where: { plantId: id } }),
+      ]);
+    });
+    respond(res, eventsResponse, paginated(events.map(eventDto), query, total));
+  });
+
+  /**
+   * Registra un evento manual. Una limpieza o reparación reinicia la tendencia de suciedad y
+   * cuenta para resolver las alertas (specs/06).
+   */
+  router.post('/:id/events', async (req, res) => {
+    const { companyId } = companyAuthOf(req);
+    const { id } = idParam.parse(req.params);
+    const body = createEventBody.parse(req.body);
+    const occurredAt = new Date(body.occurred_at);
+    if (occurredAt.getTime() > options.now().getTime() + 5 * 60_000) {
+      throw badRequest('FUTURE_EVENT', 'La fecha del evento no puede estar en el futuro');
+    }
+    const event = await withTenant(db, companyId, async (tx) => {
+      if (
+        !(await tx.solarPlant.findFirst({ where: { id, deletedAt: null }, select: { id: true } }))
+      ) {
+        throw plantNotFound();
+      }
+      return tx.plantEvent.create({
+        data: {
+          companyId,
+          plantId: id,
+          type: body.type,
+          occurredAt,
+          source: 'manual',
+          notes: body.notes ?? null,
+        },
+      });
+    });
+    respond(res, eventResponse, eventDto(event), 201);
   });
 
   /** Borrado lógico, auditado (specs/02). */

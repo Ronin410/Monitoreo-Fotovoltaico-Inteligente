@@ -189,3 +189,26 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 115. **Problema de conexión.** Para no crear la alerta `offline`, se toma el último intento de `ingest.telemetry_plant` de la planta en `job_runs`. Cuenta como problema de conexión que haya fallado con `ProviderError` o que se haya omitido por `no_credentials`. Ahora `job_runs` guarda `plant_id` en todos los intentos, también en las fallas.
 116. **Evidencia.** `plant_daily_metrics` no guarda r² de la tendencia: la evidencia lleva `confidence` (y `days_to_cleaning`) en su lugar. Cada `last_14_days` incluye `zone_event`. La evidencia de `offline` es distinta: `last_reading_at`, horas de sol sin datos y el umbral.
 117. **Pendiente para F5-T4 y F7-T2.** Al abrir una alerta `warning` o `critical` se debe encolar `notifications.send` y `ai.explain_alert`. Esos jobs aún no existen; quedaron TODO en `apps/worker/src/jobs/alerts.ts`. Las alertas `info` se guardan con `ai_status = skipped`.
+
+## F5-T3 — Tickets
+
+118. **Alcance de la API.** Además de `/tickets`, se implementaron `GET /alerts`, `GET /alerts/:id`, `POST /alerts/:id/acknowledge`, `POST /alerts/:id/dismiss`, `POST /alerts/:id/ticket` y `GET/POST /plants/:id/events`, porque crear desde una alerta y registrar limpiezas son parte del ciclo de vida. `POST /alerts/:id/regenerate-explanation` queda para F7-T2. El filtro `open=true` en alertas y tickets agrupa los estados abiertos.
+119. **Ticket desde alerta.**
+    - Tipo: `soiling` y `cleaning_due_soon` → `cleaning`; `sudden_drop` y `offline` → `inspection`.
+    - Prioridad: `critical` → `high`, `warning` → `normal`, `info` → `low`.
+    - El título y la descripción se generan en español con la desviación de la evidencia y, cuando exista, el resumen de la explicación IA.
+    - Crear el ticket deja la alerta `acknowledged` y la liga (`alerts.ticket_id` y `maintenance_tickets.alert_id`).
+    - Si ya hay un ticket abierto para la alerta, responde 409 `TICKET_EXISTS`.
+120. **Estados del ticket.**
+    - Al crearlo queda `scheduled` si trae `scheduled_for`; si no, `pending`.
+    - Uno `resolved` o `cancelled` ya no se modifica (409 `TICKET_CLOSED`).
+    - `resolved_at` es la hora de la API al resolver.
+    - El evento `cleaning` (`source = ticket`) se crea al resolver si `cleaning_performed` es verdadero, con las notas de la resolución.
+121. **Técnico.**
+    - Ve y modifica solo los tickets asignados a él; los demás le responden 404, igual que un recurso de otra empresa.
+    - Solo puede cambiar `status`, `resolution_notes` y `cleaning_performed`, y no puede cancelar (403).
+    - El ticket incluye lo necesario para ir a campo: planta, coordenadas, dirección, cliente y teléfono. Así el técnico no necesita acceso a `/plants`.
+122. **Responsable.** Debe ser un usuario activo de la empresa con rol `technician`, `operator` o `company_admin`.
+123. **Eventos manuales.** Se aceptan `cleaning`, `repair`, `inverter_replaced` y `note`. `rain_cleaning` solo lo crea el sistema y `commissioning` sale de la fecha de la planta. No se aceptan fechas futuras (tolerancia de 5 min).
+124. **Alerta descartada que vuelve.** Si se descarta una alerta y la condición sigue (por ejemplo, suciedad), `alerts.evaluate` abrirá una nueva al día siguiente, porque el índice único solo cubre las abiertas. ¿Se quiere un periodo de silencio después de descartar? Por ahora no hay.
+125. **Semilla.** La falla de string con alerta más antigua tiene un ticket `scheduled` de inspección para mañana, asignado al primer técnico y ligado a la alerta (que queda `acknowledged`).

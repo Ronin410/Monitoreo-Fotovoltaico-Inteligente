@@ -103,7 +103,7 @@ describe('pnpm db:seed:demo', () => {
   it('las alertas salen de los jobs reales: falla de string reciente y planta offline', async () => {
     const a = await companyBySlug(DEMO_SLUGS.a);
     const alerts = await ctx.owner.alert.findMany({
-      where: { companyId: a.id, status: 'open' },
+      where: { companyId: a.id, status: { in: ['open', 'acknowledged'] } },
       include: { plant: { select: { simulationProfile: true } } },
     });
     const scenarioOf = (p: { simulationProfile: unknown }) =>
@@ -113,6 +113,22 @@ describe('pnpm db:seed:demo', () => {
     // La falla reciente (hace 3 días) se detecta; la antigua empezó antes de la historia.
     expect(opened).toContain('sudden_drop:string_failure');
     expect(opened.filter((o) => o.endsWith(':normal'))).toEqual([]);
+  });
+
+  it('la falla de string con alerta tiene un ticket abierto asignado a un técnico', async () => {
+    const a = await companyBySlug(DEMO_SLUGS.a);
+    const tickets = await ctx.owner.maintenanceTicket.findMany({
+      where: { companyId: a.id },
+      include: { alert: true, assignedTo: true },
+    });
+    expect(tickets).toHaveLength(1);
+    expect(tickets[0]).toMatchObject({
+      type: 'inspection',
+      status: 'scheduled',
+      alert: { type: 'sudden_drop', status: 'acknowledged' },
+      assignedTo: { role: 'technician' },
+    });
+    expect(tickets[0]!.alert!.ticketId).toBe(tickets[0]!.id);
   });
 
   it('no vuelve a sembrar si la demo ya existe', async () => {

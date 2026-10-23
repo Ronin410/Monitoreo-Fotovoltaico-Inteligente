@@ -15,6 +15,7 @@ import helmet from 'helmet';
 import type { Logger } from 'pino';
 import { pinoHttp } from 'pino-http';
 import { adminRouter } from './routes/admin/routes.js';
+import { alertsRouter } from './routes/alerts/routes.js';
 import { requireAuth } from './auth/middleware.js';
 import { authRouter } from './routes/auth/routes.js';
 import { clientsRouter } from './routes/clients/routes.js';
@@ -24,6 +25,7 @@ import { companyUsersRouter } from './routes/company/routes.js';
 import { errorHandler, notFoundHandler } from './http/errors.js';
 import { meRouter } from './routes/me/routes.js';
 import { plantsRouter } from './routes/plants/routes.js';
+import { ticketsRouter } from './routes/tickets/routes.js';
 
 export type AppDeps = {
   env: Env;
@@ -86,6 +88,9 @@ export function createApp(deps: AppDeps): Express {
       now,
     }),
   );
+
+  api.use('/alerts', authenticated, alertsRouter(deps.db));
+  api.use('/tickets', authenticated, ticketsRouter(deps.db, now));
 
   app.use('/api', api);
   app.use(notFoundHandler);

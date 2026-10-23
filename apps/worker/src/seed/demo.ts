@@ -401,7 +401,45 @@ async function seedCompany(
   ) {
     throw new Error(`Falló la regla offline de ${opts.slug}`);
   }
-  // TODO(F5-T3): crear el ticket abierto de la falla de string antigua (specs/04 §4).
+  // 6. Ticket abierto para la falla de string más antigua con alerta (specs/04 §4), asignado
+  // al primer técnico, como lo crearía el operador desde la alerta.
+  await withTenant(deps.db, company.id, async (tx) => {
+    const failures = plants.filter((p) => p.demo.scenario.kind === 'string_failure');
+    const alert = await tx.alert.findFirst({
+      where: {
+        plantId: { in: failures.map((p) => p.id) },
+        type: 'sudden_drop',
+        status: { in: ['open', 'acknowledged'] },
+      },
+      orderBy: { detectedAt: 'asc' },
+      include: { plant: { select: { name: true } } },
+    });
+    const technician = await tx.user.findFirst({
+      where: { role: 'technician', status: 'active' },
+      orderBy: { email: 'asc' },
+    });
+    const operator = await tx.user.findFirst({ where: { role: 'operator' } });
+    if (!alert || !technician) return;
+    const ticket = await tx.maintenanceTicket.create({
+      data: {
+        companyId: company.id,
+        plantId: alert.plantId,
+        alertId: alert.id,
+        type: 'inspection',
+        priority: alert.severity === 'critical' ? 'high' : 'normal',
+        status: 'scheduled',
+        title: `Revisión por caída de producción — ${alert.plant.name}`,
+        description: 'Caída brusca de producción; revisar inversor y strings.',
+        assignedToId: technician.id,
+        scheduledFor: new Date(`${addDays(today, 1)}T00:00:00Z`),
+        createdById: operator?.id ?? null,
+      },
+    });
+    await tx.alert.update({
+      where: { id: alert.id },
+      data: { ticketId: ticket.id, status: 'acknowledged' },
+    });
+  });
 
   return {
     credentials,
