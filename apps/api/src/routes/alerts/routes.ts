@@ -1,10 +1,11 @@
-import type { JobEnqueuer } from '@pv/adapters';
-import { estimatedDailyLossKwh, parseCompanySettings } from '@pv/core';
-import { withTenant, type Alert, type Prisma, type PrismaClient, type TenantDb } from '@pv/db';
+import { aiExplainAlert, type JobEnqueuer } from '@pv/adapters';
+import { estimateAlertLoss } from '@pv/ai';
+import { localDate, startOfLocalDay } from '@pv/core';
+import { withTenant, type Alert, type Prisma, type PrismaClient } from '@pv/db';
 import { Router } from 'express';
 import type { z } from 'zod';
+import { recordAudit } from '../../audit.js';
 import { requirePermission, companyAuthOf } from '../../auth/authorize.js';
-import { dec } from '../../http/decimal.js';
 import { HttpError } from '../../http/errors.js';
 import { pageArgs, paginated } from '../../http/pagination.js';
 import { respond } from '../../http/respond.js';
@@ -40,6 +41,12 @@ const withPlant = {
 } as const satisfies Prisma.AlertInclude;
 type AlertWithPlant = Prisma.AlertGetPayload<{ include: typeof withPlant }>;
 
+/** El `resumen` de la explicación (IA o plantilla), para listas y correos (specs/07 §3). */
+function aiSummaryOf(a: Alert): string | null {
+  const resumen = asObject(a.aiExplanation)?.resumen;
+  return typeof resumen === 'string' ? resumen : null;
+}
+
 function summaryDto(a: AlertWithPlant): z.input<typeof alertSummary> {
   return {
     id: a.id,
@@ -50,6 +57,7 @@ function summaryDto(a: AlertWithPlant): z.input<typeof alertSummary> {
     resolved_at: a.resolvedAt,
     resolution: a.resolution,
     ai_status: a.aiStatus,
+    ai_summary: aiSummaryOf(a),
     ticket_id: a.ticketId,
     plant: {
       id: a.plant.id,
@@ -77,53 +85,6 @@ function detailDto(
     ai_explanation: asObject(a.aiExplanation),
     estimated_loss: estimatedLoss,
   };
-}
-
-const LOSS_FALLBACK_DAYS = 3;
-
-/**
- * Pérdida por día de la alerta: con los días que la dispararon (o los últimos días calculados) y
- * la tarifa del cliente o, si no tiene, la de la empresa.
- */
-async function estimateLoss(tx: TenantDb, alert: Alert): Promise<EstimatedLoss> {
-  if (alert.type === 'cleaning_due_soon') return null;
-  const trigger = asObject((asObject(alert.evidence)?.trigger ?? null) as Prisma.JsonValue);
-  const dates = Array.isArray(trigger?.dates)
-    ? (trigger.dates as unknown[]).filter((d): d is string => typeof d === 'string')
-    : [];
-  const metrics = await tx.plantDailyMetric.findMany({
-    where: {
-      plantId: alert.plantId,
-      ...(dates.length > 0 && alert.type !== 'offline'
-        ? { date: { in: dates.map((d) => new Date(`${d}T00:00:00Z`)) } }
-        : { date: { lte: alert.detectedAt } }),
-    },
-    orderBy: { date: 'desc' },
-    take: dates.length > 0 && alert.type !== 'offline' ? dates.length : LOSS_FALLBACK_DAYS,
-    select: { expectedTempKwh: true, prTemp: true, prBaseline: true, isValidDay: true },
-  });
-  const kwh = estimatedDailyLossKwh(
-    alert.type === 'offline' ? 'no_production' : 'underperformance',
-    metrics.map((m) => ({
-      expectedTempKwh: Number(m.expectedTempKwh),
-      prTemp: dec(m.prTemp),
-      prBaseline: dec(m.prBaseline),
-      isValidDay: m.isValidDay,
-    })),
-  );
-  if (kwh === null) return null;
-  const plant = await tx.solarPlant.findUniqueOrThrow({
-    where: { id: alert.plantId },
-    select: {
-      client: { select: { tariffMxnPerKwh: true } },
-      company: { select: { settings: true } },
-    },
-  });
-  const tariff =
-    dec(plant.client.tariffMxnPerKwh) ??
-    parseCompanySettings(plant.company.settings).defaults.tariff_mxn_per_kwh;
-  const round = (v: number) => Math.round(v * 100) / 100;
-  return { kwh_per_day: round(kwh), mxn_per_day: round(kwh * tariff), tariff_mxn_per_kwh: tariff };
 }
 
 /** Datos con que se prellena el ticket de una alerta (specs/06 §5). */
@@ -169,7 +130,10 @@ function ticketDefaults(alert: Alert, plantName: string) {
 
 const PRIORITY = { critical: 'high', warning: 'normal', info: 'low' } as const;
 
-export function alertsRouter(db: PrismaClient, jobs: JobEnqueuer): Router {
+/** "Regenerar explicación": máximo por alerta en el día local de la empresa (specs/07 §3). */
+export const MAX_REGENERATIONS_PER_DAY = 3;
+
+export function alertsRouter(db: PrismaClient, jobs: JobEnqueuer, now: () => Date): Router {
   const router = Router();
   router.use(requirePermission('fleet:read'));
   const manage = requirePermission('alerts:manage');
@@ -205,10 +169,51 @@ export function alertsRouter(db: PrismaClient, jobs: JobEnqueuer): Router {
     const { id } = idParam.parse(req.params);
     const found = await withTenant(db, companyId, async (tx) => {
       const alert = await tx.alert.findFirst({ where: { id }, include: withPlant });
-      return alert && { alert, loss: await estimateLoss(tx, alert) };
+      return alert && { alert, loss: await estimateAlertLoss(tx, alert) };
     });
     if (!found) throw alertNotFound();
     respond(res, alertDetail, detailDto(found.alert, found.loss));
+  });
+
+  /** Pide una explicación nueva; la genera ai.explain_alert y la UI espera a que termine. */
+  router.post('/:id/regenerate-explanation', manage, async (req, res) => {
+    const auth = companyAuthOf(req);
+    const { id } = idParam.parse(req.params);
+    const alert = await withTenant(db, auth.companyId, async (tx) => {
+      const current = await tx.alert.findFirst({ where: { id } });
+      if (!current) throw alertNotFound();
+      if (!(OPEN_STATUSES as readonly string[]).includes(current.status)) throw alertClosed();
+      if (current.severity === 'info') {
+        throw new HttpError(409, 'NOT_EXPLAINABLE', 'Los avisos no llevan explicación');
+      }
+      const company = await tx.company.findUniqueOrThrow({ where: { id: auth.companyId } });
+      const today = startOfLocalDay(localDate(now(), company.timezone), company.timezone);
+      const done = await tx.auditLog.count({
+        where: {
+          action: 'alert.explanation_regenerated',
+          entityId: id,
+          createdAt: { gte: today },
+        },
+      });
+      if (done >= MAX_REGENERATIONS_PER_DAY) {
+        throw new HttpError(
+          429,
+          'REGENERATE_LIMIT',
+          `Solo se puede regenerar ${MAX_REGENERATIONS_PER_DAY} veces al día por alerta`,
+        );
+      }
+      await recordAudit(tx, {
+        action: 'alert.explanation_regenerated',
+        companyId: auth.companyId,
+        userId: auth.userId,
+        entityType: 'alert',
+        entityId: id,
+        ip: req.ip ?? null,
+      });
+      return tx.alert.update({ where: { id }, data: { aiStatus: 'pending' }, include: withPlant });
+    });
+    await jobs.enqueue(aiExplainAlert, { company_id: auth.companyId, alert_id: id, notify: false });
+    respond(res, alertDetail, detailDto(alert), 202);
   });
 
   router.post('/:id/acknowledge', manage, async (req, res) => {

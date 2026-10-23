@@ -151,3 +151,19 @@ export const notificationsDailySummaryCompany = defineJob({
   scope: 'company',
   singletonKey: (p) => `notifications.daily_summary_company:${p.company_id}:${p.date}`,
 });
+
+/**
+ * Explicación IA de una alerta (specs/07 §3). `notify`: al terminar manda el correo de alerta
+ * nueva con el resumen (specs/06 §6).
+ */
+export const aiExplainAlert = defineJob({
+  name: 'ai.explain_alert',
+  payload: companyPayload.extend({
+    alert_id: z.uuid(),
+    notify: z.boolean().default(false),
+  }),
+  scope: 'company',
+  retryLimit: 2,
+  retryDelaySeconds: 60,
+  singletonKey: (p) => `ai.explain_alert:${p.alert_id}`,
+});

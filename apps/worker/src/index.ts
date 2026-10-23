@@ -1,3 +1,4 @@
+import { createAiConfig } from '@pv/ai';
 import {
   createAdapterRegistry,
   createEmailProvider,
@@ -37,6 +38,7 @@ await startJobs(JOBS, {
   cipher: CredentialCipher.fromEnv(env),
   adapters: (companyId) => createAdapterRegistry({ simulator: dbSimulatorSource(db, companyId) }),
   email: createEmailProvider(env),
+  ai: createAiConfig(env),
   appUrl: env.APP_URL,
   logger,
   now: () => new Date(),

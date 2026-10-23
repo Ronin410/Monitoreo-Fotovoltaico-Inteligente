@@ -1,1 +1,11 @@
-export {};
+export * from './provider.js';
+export { AnthropicProvider, toLLMError } from './anthropic.js';
+export { MockLLMProvider, type MockReply } from './mock.js';
+export * from './figures.js';
+export * from './usage.js';
+export * from './explanation/schema.js';
+export { templateExplanation } from './explanation/template.js';
+export { explainAlert, type ExplainResult } from './explanation/explain.js';
+export { ALERT_EXPLANATION_SYSTEM } from './prompts/alert-explanation.js';
+export { buildExplainInput, estimateAlertLoss, type EstimatedLoss } from './explanation/input.js';
+export { createAiConfig, type AiConfig } from './config.js';

@@ -66,8 +66,8 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
   - CA de la fase: todas las vistas funcionan a 360 px de ancho y en modo oscuro. ✅ Barrido en navegador real de todas las vistas de los tres tipos de usuario (empresa, técnico, superadmin) a 360 px claro, escritorio oscuro y 360 px oscuro: sin scroll horizontal, contraste AA del texto y sin errores (ver `PREGUNTAS.md` #165).
 
 ## Fase 7 — IA: explicación de alertas
-- [ ] **F7-T1 `packages/ai`.** `LLMProvider` con implementación de Anthropic, registro de uso, presupuesto mensual y validador de cifras.
-- [ ] **F7-T2 Explicación de alertas.** Job `ai.explain_alert`, esquema de salida, plantilla de respaldo, botón regenerar (ver `07` §3).
+- [x] **F7-T1 `packages/ai`.** _(2026-10-23)_ `LLMProvider` con implementación de Anthropic, registro de uso, presupuesto mensual y validador de cifras.
+- [x] **F7-T2 Explicación de alertas.** _(2026-10-23)_ Job `ai.explain_alert`, esquema de salida, plantilla de respaldo, botón regenerar (ver `07` §3).
   - CA: con el proveedor simulado devolviendo una cifra inventada, se usa la plantilla; la UI y el correo muestran el resumen.
 
 ## Fase 8 — IA: asistente analítico 🧪

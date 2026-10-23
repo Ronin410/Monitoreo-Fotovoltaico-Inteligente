@@ -6,6 +6,7 @@ import type {
   JobQueue,
   WeatherProvider,
 } from '@pv/adapters';
+import type { AiConfig } from '@pv/ai';
 import type { Prisma, PrismaClient } from '@pv/db';
 import type { Logger } from 'pino';
 import { z } from 'zod';
@@ -29,6 +30,8 @@ export type JobContext = {
   adapters: (companyId: string) => InverterAdapterRegistry;
   /** Envío de correo (EMAIL_PROVIDER); solo lo usa notifications.send. */
   email: EmailProvider;
+  /** Proveedor y modelos de IA (LLM_PROVIDER). */
+  ai: AiConfig;
   /** APP_URL, para los enlaces de los correos. */
   appUrl: string;
   /**
@@ -36,6 +39,11 @@ export type JobContext = {
    * (specs/PREGUNTAS.md #129).
    */
   suppressNotifications?: boolean;
+  /**
+   * La semilla explica sus alertas en línea al terminar; no encola ai.explain_alert (el worker
+   * las volvería a generar y gastaría tokens).
+   */
+  inlineExplanations?: boolean;
   log: Logger;
   now: () => Date;
   /** 0 en el primer intento. */

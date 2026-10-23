@@ -24,6 +24,7 @@ export const alertSummary = z.object({
   resolved_at: z.string().nullable(),
   resolution: z.enum(['auto', 'ticket', 'manual']).nullable(),
   ai_status: z.enum(['pending', 'done', 'failed', 'skipped']),
+  ai_summary: z.string().nullable(),
   ticket_id: z.uuid().nullable(),
   plant: alertPlant,
 });
@@ -84,6 +85,8 @@ export const aiExplanationSchema = z.object({
   confianza: z.enum(['baja', 'media', 'alta']),
   que_revisar: z.array(z.string()).default([]),
   urgencia: z.enum(['baja', 'media', 'alta']).optional(),
+  /** La redactó la IA o es la plantilla de respaldo (specs/07 §3). */
+  generated_by: z.enum(['ai', 'template']).optional(),
 });
 export type AiExplanation = z.infer<typeof aiExplanationSchema>;
 

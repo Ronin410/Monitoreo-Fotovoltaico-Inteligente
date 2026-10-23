@@ -1,4 +1,4 @@
-import { alertsEvaluate } from '@pv/adapters';
+import { aiExplainAlert, alertsEvaluate } from '@pv/adapters';
 import { addDays, simulationProfileSchema, startOfLocalDay } from '@pv/core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -25,6 +25,8 @@ let ctx: WorkerTestContext;
 beforeAll(async () => {
   ctx = await createWorkerTestContext();
   ctx.setNow(new Date('2026-11-01T00:00:00Z'));
+  // Las alertas warning y critical encolan su explicación.
+  await ctx.queue.ensureQueue(aiExplainAlert);
 });
 afterAll(() => ctx.close());
 

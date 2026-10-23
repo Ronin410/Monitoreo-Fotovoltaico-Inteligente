@@ -137,6 +137,69 @@ describe('alertas', () => {
     expect((await op.post(`/alerts/${alert.id}/dismiss`, { reason: 'otra vez' })).status).toBe(409);
   });
 
+  it('la lista y el detalle traen el resumen de la explicación', async () => {
+    const f = await fleet();
+    const alert = await openAlert(f);
+    const op = http(f.users.operator.auth);
+    expect((await op.get(`/alerts?plant_id=${f.plant.id}`)).body.data[0].ai_summary).toBeNull();
+    await ctx.owner.alert.update({
+      where: { id: alert.id },
+      data: {
+        aiStatus: 'done',
+        aiExplanation: { resumen: 'Polvo acumulado.', generated_by: 'ai' },
+      },
+    });
+    expect((await op.get(`/alerts?plant_id=${f.plant.id}`)).body.data[0]).toMatchObject({
+      ai_status: 'done',
+      ai_summary: 'Polvo acumulado.',
+    });
+    expect((await op.get(`/alerts/${alert.id}`)).body.ai_explanation).toMatchObject({
+      resumen: 'Polvo acumulado.',
+    });
+  });
+
+  it('regenerar explicación: encola ai.explain_alert, máximo 3 al día por alerta', async () => {
+    const f = await fleet();
+    const alert = await openAlert(f);
+    const op = http(f.users.operator.auth);
+    const explains = () =>
+      ctx.jobs.jobs.filter(
+        (j) =>
+          j.name === 'ai.explain_alert' &&
+          (j.payload as { alert_id: string }).alert_id === alert.id,
+      );
+    for (let i = 0; i < 3; i++) {
+      const res = await op.post(`/alerts/${alert.id}/regenerate-explanation`);
+      expect(res.status).toBe(202);
+      expect(res.body.ai_status).toBe('pending');
+    }
+    expect(explains()).toHaveLength(3);
+    expect(explains()[0]?.payload).toEqual({
+      company_id: f.company.id,
+      alert_id: alert.id,
+      notify: false,
+    });
+    const fourth = await op.post(`/alerts/${alert.id}/regenerate-explanation`);
+    expect(fourth.status).toBe(429);
+    expect(fourth.body.error.code).toBe('REGENERATE_LIMIT');
+    expect(explains()).toHaveLength(3);
+    // Las de ayer (día local de la empresa) ya no cuentan.
+    await ctx.owner.auditLog.updateMany({
+      where: { entityId: alert.id, action: 'alert.explanation_regenerated' },
+      data: { createdAt: new Date(ctx.clock.current.getTime() - 24 * 3_600_000) },
+    });
+    expect((await op.post(`/alerts/${alert.id}/regenerate-explanation`)).status).toBe(202);
+
+    // El técnico no puede; un aviso info o una alerta cerrada no se explican.
+    expect(
+      (await http(f.users.technician.auth).post(`/alerts/${alert.id}/regenerate-explanation`))
+        .status,
+    ).toBe(403);
+    const resolved = await openAlert(f, { type: 'sudden_drop' });
+    await ctx.owner.alert.update({ where: { id: resolved.id }, data: { status: 'resolved' } });
+    expect((await op.post(`/alerts/${resolved.id}/regenerate-explanation`)).status).toBe(409);
+  });
+
   it('el técnico no ve la bandeja de alertas', async () => {
     const f = await fleet();
     const alert = await openAlert(f);

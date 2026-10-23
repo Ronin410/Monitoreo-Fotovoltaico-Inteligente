@@ -1,10 +1,13 @@
 import {
+  aiExplainAlert,
   notificationsDailySummaryCompany,
   notificationsSend,
   type EmailProvider,
 } from '@pv/adapters';
 import { addDays, startOfLocalDay } from '@pv/core';
+import { MockLLMProvider } from '@pv/ai';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { explainAlertFor } from '../src/jobs/ai.js';
 import { evaluateCompanyDay } from '../src/jobs/alerts.js';
 import {
   dailySummaryFor,
@@ -30,6 +33,7 @@ beforeAll(async () => {
   ctx = await createWorkerTestContext();
   await ctx.queue.ensureQueue(notificationsSend);
   await ctx.queue.ensureQueue(notificationsDailySummaryCompany);
+  await ctx.queue.ensureQueue(aiExplainAlert);
 });
 afterAll(() => ctx.close());
 
@@ -90,6 +94,14 @@ async function dropMetrics(f: Fixture, devs = [1, 2, 45], extra: object = {}) {
 
 const notificationsOf = (companyId: string) =>
   ctx.owner.notification.findMany({ where: { companyId }, orderBy: { recipient: 'asc' } });
+async function queuedExplanations(companyId: string) {
+  const jobs = await ctx.queue.boss.fetch<{
+    company_id: string;
+    alert_id: string;
+    notify: boolean;
+  }>('ai.explain_alert', { batchSize: 500 });
+  return jobs.filter((j) => j.data.company_id === companyId).map((j) => j.data);
+}
 async function queuedSends(companyId: string) {
   const jobs = await ctx.queue.boss.fetch<{ company_id: string; notification_id: string }>(
     'notifications.send',
@@ -99,7 +111,7 @@ async function queuedSends(companyId: string) {
 }
 
 describe('correo de alerta nueva', () => {
-  it('guarda una notificación por destinatario (alert_emails + admins activos) y encola el envío', async () => {
+  it('la evaluación encola la explicación; al explicarla se guarda una notificación por destinatario con el resumen', async () => {
     const f = await companyWithUsers();
     // El admin también está en alert_emails (con otras mayúsculas): recibe un solo correo.
     await ctx.owner.company.update({
@@ -117,25 +129,46 @@ describe('correo de alerta nueva', () => {
       f.company.id,
       addDays(D0, 2),
     );
-    expect(stats).toMatchObject({ opened: 1, emails: 2 });
+    expect(stats).toMatchObject({ opened: 1, explanations: 1, notify: 1 });
+    const alert = await ctx.owner.alert.findFirstOrThrow({ where: { plantId: f.plant.id } });
+    expect(await queuedExplanations(f.company.id)).toEqual([
+      { company_id: f.company.id, alert_id: alert.id, notify: true },
+    ]);
+    // Antes de la explicación no sale ningún correo.
+    expect(await notificationsOf(f.company.id)).toHaveLength(0);
 
+    // La IA simulada no responde: el correo lleva el resumen de la plantilla.
+    const explained = await explainAlertFor(
+      ctx.jobContext(f.company.id),
+      f.company.id,
+      alert.id,
+      true,
+    );
+    expect(explained).toMatchObject({ ai_status: 'failed', generated_by: 'template', emails: 2 });
     const rows = await notificationsOf(f.company.id);
     expect(rows.map((r) => r.recipient).sort()).toEqual(
       [f.admin.email, 'guardia@solar.example'].sort(),
     );
-    const alert = await ctx.owner.alert.findFirstOrThrow({ where: { plantId: f.plant.id } });
     expect(rows[0]).toMatchObject({
       status: 'queued',
       template: 'alert_opened',
       relatedType: 'alert',
       relatedId: alert.id,
       subject: `[Crítica] Caída brusca de producción — ${f.plant.name}`,
-      payload: { alert_id: alert.id, severity: 'critical', deviation_pct: 45 },
+      payload: {
+        alert_id: alert.id,
+        severity: 'critical',
+        deviation_pct: 45,
+        summary: expect.stringContaining('La producción cayó de golpe'),
+      },
     });
     expect((await queuedSends(f.company.id)).sort()).toEqual(rows.map((r) => r.id).sort());
 
-    // Repetir la evaluación no vuelve a notificar.
-    await evaluateCompanyDay(ctx.jobContext(f.company.id), f.company.id, addDays(D0, 2));
+    // Repetir la evaluación no vuelve a abrir ni a explicar; repetir el correo no duplica.
+    expect(
+      await evaluateCompanyDay(ctx.jobContext(f.company.id), f.company.id, addDays(D0, 2)),
+    ).toMatchObject({ opened: 0, explanations: 0 });
+    await explainAlertFor(ctx.jobContext(f.company.id), f.company.id, alert.id, true);
     expect(await notificationsOf(f.company.id)).toHaveLength(2);
   });
 
@@ -145,20 +178,14 @@ describe('correo de alerta nueva', () => {
     ctx.setNow(localTime(addDays(D0, 1), 23));
     expect(
       await evaluateCompanyDay(ctx.jobContext(info.company.id), info.company.id, addDays(D0, 1)),
-    ).toMatchObject({
-      opened: 1,
-      emails: 0,
-    });
+    ).toMatchObject({ opened: 1, explanations: 0, notify: 0 });
 
     const old = await companyWithUsers();
     await dropMetrics(old);
     ctx.setNow(localTime(addDays(D0, 10), 12));
     expect(
       await evaluateCompanyDay(ctx.jobContext(old.company.id), old.company.id, addDays(D0, 2)),
-    ).toMatchObject({
-      opened: 1,
-      emails: 0,
-    });
+    ).toMatchObject({ opened: 1, explanations: 1, notify: 0 });
 
     const seeded = await companyWithUsers();
     await dropMetrics(seeded);
@@ -166,10 +193,160 @@ describe('correo de alerta nueva', () => {
     const quiet = { ...ctx.jobContext(seeded.company.id), suppressNotifications: true };
     expect(await evaluateCompanyDay(quiet, seeded.company.id, addDays(D0, 2))).toMatchObject({
       opened: 1,
+      explanations: 1,
+      notify: 0,
+    });
+    // Aunque se pida avisar, la semilla no manda correos.
+    const alert = await ctx.owner.alert.findFirstOrThrow({ where: { plantId: seeded.plant.id } });
+    expect(await explainAlertFor(quiet, seeded.company.id, alert.id, true)).toMatchObject({
       emails: 0,
     });
   });
 });
+
+describe('explicación IA (ai.explain_alert)', () => {
+  const valid = (resumen: string) =>
+    JSON.stringify({
+      resumen,
+      causa_probable: 'Falla de inversor',
+      otras_causas: [],
+      confianza: 'media',
+      que_revisar: ['Revisar alarmas del inversor'],
+      urgencia: 'alta',
+    });
+
+  async function openedDrop() {
+    const f = await companyWithUsers();
+    await dropMetrics(f);
+    ctx.setNow(localTime(addDays(D0, 2), 22.5));
+    await evaluateCompanyDay(ctx.jobContext(f.company.id), f.company.id, addDays(D0, 2));
+    const alert = await ctx.owner.alert.findFirstOrThrow({ where: { plantId: f.plant.id } });
+    return { f, alert };
+  }
+  const usageOf = (companyId: string) =>
+    ctx.owner.aiUsageMonthly.findMany({ where: { companyId } });
+
+  it('respuesta válida: guarda la explicación de la IA y suma los tokens del mes', async () => {
+    const { f, alert } = await openedDrop();
+    const provider = new MockLLMProvider(() => valid('Cayó 45 % frente a su normal.'));
+    ctx.setLLM(provider);
+    const stats = await explainAlertFor(
+      ctx.jobContext(f.company.id),
+      f.company.id,
+      alert.id,
+      false,
+    );
+    expect(stats).toMatchObject({ ai_status: 'done', generated_by: 'ai', calls: 1, emails: 0 });
+    const stored = await ctx.owner.alert.findUniqueOrThrow({ where: { id: alert.id } });
+    expect(stored.aiStatus).toBe('done');
+    expect(stored.aiExplanation).toMatchObject({
+      resumen: 'Cayó 45 % frente a su normal.',
+      generated_by: 'ai',
+      model: 'modelo-rapido',
+    });
+    // La entrada lleva la evidencia y la pérdida calculadas por nuestro código.
+    const sent = JSON.parse(
+      String(provider.requests[0]?.messages[0]?.content).split('\n')[1] ?? '{}',
+    );
+    expect(sent).toMatchObject({
+      alert: { type: 'sudden_drop', severity: 'critical' },
+      evidence: { rule: 'sudden_drop', estimated_loss_kwh_per_day: expect.any(Number) },
+      plant: { capacity_kwp: expect.any(Number) },
+    });
+    expect(JSON.stringify(sent)).not.toMatch(/phone|email|address|contact/);
+    expect(await usageOf(f.company.id)).toMatchObject([
+      { feature: 'alert_explanation', requests: 1, inputTokens: 100n, outputTokens: 50n },
+    ]);
+    ctx.setLLM(new MockLLMProvider());
+  });
+
+  it('CA F7: cifra inventada dos veces → plantilla, ai_status failed y el correo con su resumen', async () => {
+    const { f, alert } = await openedDrop();
+    ctx.setLLM(new MockLLMProvider(() => valid('Cayó 73 % y pierde 99 kWh.')));
+    const stats = await explainAlertFor(ctx.jobContext(f.company.id), f.company.id, alert.id, true);
+    expect(stats).toMatchObject({ ai_status: 'failed', generated_by: 'template', calls: 2 });
+    expect(String((stats as { failure?: string }).failure)).toContain('73');
+    const stored = await ctx.owner.alert.findUniqueOrThrow({ where: { id: alert.id } });
+    expect(stored.aiExplanation).toMatchObject({ generated_by: 'template', model: null });
+    const [email] = await notificationsOf(f.company.id);
+    expect(email?.payload).toMatchObject({
+      summary: (stored.aiExplanation as { resumen: string }).resumen,
+    });
+    expect((await usageOf(f.company.id))[0]?.requests).toBe(2);
+    ctx.setLLM(new MockLLMProvider());
+  });
+
+  it('presupuesto agotado: plantilla sin llamar a la IA (skipped); al cruzar el 80 % avisa una vez', async () => {
+    const { f, alert } = await openedDrop();
+    const provider = new MockLLMProvider(() => valid('Cayó 45 % frente a su normal.'));
+    ctx.setLLM(provider);
+    // 150 tokens por llamada: con presupuesto de 180, la primera cruza el 80 %.
+    await ctx.owner.company.update({
+      where: { id: f.company.id },
+      data: { aiMonthlyTokenBudget: 180 },
+    });
+    const job = ctx.jobContext(f.company.id);
+    await explainAlertFor(job, f.company.id, alert.id, false);
+    const warnings = async () =>
+      (await notificationsOf(f.company.id)).filter((n) => n.template === 'ai_budget_warning');
+    expect((await warnings()).map((w) => w.recipient)).toEqual([f.admin.email]);
+    expect((await warnings())[0]?.subject).toBe('Uso de IA al 83 % del presupuesto del mes');
+
+    // Ya se gastó todo: la siguiente usa la plantilla sin llamar y no vuelve a avisar.
+    await ctx.owner.aiUsageMonthly.updateMany({
+      where: { companyId: f.company.id },
+      data: { inputTokens: 500n },
+    });
+    expect(await explainAlertFor(job, f.company.id, alert.id, false)).toMatchObject({
+      ai_status: 'skipped',
+      generated_by: 'template',
+      calls: 0,
+    });
+    expect(provider.requests).toHaveLength(1);
+    expect(await warnings()).toHaveLength(1);
+    ctx.setLLM(new MockLLMProvider());
+  });
+
+  it('la evaluación diaria vuelve a pedir las explicaciones pendientes hace más de una hora', async () => {
+    const { f, alert } = await openedDrop();
+    await ctx.queue.boss.deleteAllJobs('ai.explain_alert');
+    // Recién abierta: su job está en curso, no se duplica.
+    await evaluateCompanyDay(ctx.jobContext(f.company.id), f.company.id, addDays(D0, 2));
+    expect(await queuedExplanations(f.company.id)).toEqual([]);
+    // Pendiente hace 2 horas (job perdido): se vuelve a encolar, sin correo.
+    await ctx.owner
+      .$executeRaw`UPDATE alerts SET updated_at = now() - interval '2 hours' WHERE id = ${alert.id}::uuid`;
+    ctx.setNow(new Date());
+    await evaluateCompanyDay(ctx.jobContext(f.company.id), f.company.id, addDays(D0, 2));
+    expect(await queuedExplanations(f.company.id)).toEqual([
+      { company_id: f.company.id, alert_id: alert.id, notify: false },
+    ]);
+  });
+
+  it('avisos info, alertas cerradas y alertas de otra empresa no se explican', async () => {
+    const { f, alert } = await openedDrop();
+    await ctx.owner.alert.update({ where: { id: alert.id }, data: { status: 'resolved' } });
+    expect(
+      await explainAlertFor(ctx.jobContext(f.company.id), f.company.id, alert.id, false),
+    ).toEqual({ skipped: 'closed' });
+    const other = await companyWithUsers();
+    const reopened = await ctx.owner.alert.update({
+      where: { id: alert.id },
+      data: { status: 'open' },
+    });
+    // El job corre con el company_id del payload: la alerta de A no existe para B.
+    expect(
+      await explainAlertFor(ctx.jobContext(other.company.id), other.company.id, reopened.id, true),
+    ).toEqual({ skipped: 'not_found' });
+    expect(await notificationsOf(other.company.id)).toHaveLength(0);
+  });
+});
+
+/** Explica la alerta abierta de la planta y manda su correo (lo que hace ai.explain_alert). */
+async function explainOpened(f: Fixture) {
+  const alert = await ctx.owner.alert.findFirstOrThrow({ where: { plantId: f.plant.id } });
+  await explainAlertFor(ctx.jobContext(f.company.id), f.company.id, alert.id, true);
+}
 
 describe('notifications.send', () => {
   it('envía con la marca de la empresa, marca sent y no reenvía', async () => {
@@ -181,6 +358,7 @@ describe('notifications.send', () => {
     await dropMetrics(f);
     ctx.setNow(localTime(addDays(D0, 2), 22.5));
     await evaluateCompanyDay(ctx.jobContext(f.company.id), f.company.id, addDays(D0, 2));
+    await explainOpened(f);
     const [n] = await notificationsOf(f.company.id);
     const payload = { company_id: f.company.id, notification_id: n!.id };
 
@@ -204,6 +382,7 @@ describe('notifications.send', () => {
     await dropMetrics(f);
     ctx.setNow(localTime(addDays(D0, 2), 22.5));
     await evaluateCompanyDay(ctx.jobContext(f.company.id), f.company.id, addDays(D0, 2));
+    await explainOpened(f);
     const [n] = await notificationsOf(f.company.id);
     const broken: EmailProvider = {
       name: 'roto',

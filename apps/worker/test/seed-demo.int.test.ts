@@ -114,6 +114,16 @@ describe('pnpm db:seed:demo', () => {
     // La falla reciente (hace 3 días) se detecta; la antigua empezó antes de la historia.
     expect(opened).toContain('sudden_drop:string_failure');
     expect(opened.filter((o) => o.endsWith(':normal'))).toEqual([]);
+    // Todas las warning y critical llegan explicadas (con la IA simulada, por plantilla) y sin
+    // correos: la semilla reproduce la historia.
+    for (const x of alerts.filter((y) => y.severity !== 'info')) {
+      expect(x.aiStatus).toBe('failed');
+      expect(x.aiExplanation).toMatchObject({
+        generated_by: 'template',
+        resumen: expect.any(String),
+      });
+    }
+    expect(await ctx.owner.notification.count({ where: { companyId: a.id } })).toBe(0);
   });
 
   it('la falla de string con alerta tiene un ticket abierto asignado a un técnico', async () => {

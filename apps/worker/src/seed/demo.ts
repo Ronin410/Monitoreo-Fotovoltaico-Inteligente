@@ -11,6 +11,7 @@ import {
   type SimulationScenario,
 } from '@pv/core';
 import { withTenant, type TenantDb } from '@pv/db';
+import { explainAlertFor } from '../jobs/ai.js';
 import { alertsEvaluateJob, alertsOfflineCompanyJob } from '../jobs/alerts.js';
 import { metricsRecomputeJob } from '../jobs/metrics.js';
 import { ingestTelemetryPlantJob } from '../jobs/telemetry.js';
@@ -401,6 +402,15 @@ async function seedCompany(
   ) {
     throw new Error(`Falló la regla offline de ${opts.slug}`);
   }
+  // 5b. Explicación de las alertas abiertas (specs/07 §3), sin esperar al worker. Con
+  // LLM_PROVIDER=mock se usa la plantilla.
+  const toExplain = await withTenant(deps.db, company.id, (tx) =>
+    tx.alert.findMany({
+      where: { status: { in: ['open', 'acknowledged'] }, severity: { not: 'info' } },
+      select: { id: true },
+    }),
+  );
+  for (const a of toExplain) await explainAlertFor(ctx, company.id, a.id, false);
   // 6. Ticket abierto para la falla de string más antigua con alerta (specs/04 §4), asignado
   // al primer técnico, como lo crearía el operador desde la alerta.
   await withTenant(deps.db, company.id, async (tx) => {
@@ -453,7 +463,7 @@ export async function seedDemo(
   opts: { days?: number } = {},
 ): Promise<SeedDemoResult> {
   // La historia sembrada nunca envía correos (specs/PREGUNTAS.md #129).
-  const deps: RuntimeDeps = { ...runtime, suppressNotifications: true };
+  const deps: RuntimeDeps = { ...runtime, suppressNotifications: true, inlineExplanations: true };
   const days = opts.days ?? 90;
   const existing = await deps.serviceDb.company.count({
     where: { slug: { in: [DEMO_SLUGS.a, DEMO_SLUGS.b] } },

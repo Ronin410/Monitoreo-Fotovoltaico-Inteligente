@@ -4,7 +4,7 @@ import { can } from '@pv/core';
 import { Check, RefreshCw, Sparkles, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { fieldErrors, TextArea, type FieldErrors } from '@/components/form';
 import { PageHeader } from '@/components/page-header';
 import { SeverityBadge } from '@/components/status';
@@ -26,7 +26,8 @@ import { useApiQuery } from '@/lib/use-api';
 import { EvidenceChart } from './evidence-chart';
 
 // Detalle de una alerta (specs/09 §Alertas): resumen IA, pérdida estimada, evidencia de los
-// últimos 14 días y acciones (reconocer, crear ticket, descartar con motivo, regenerar).
+// últimos 14 días y acciones (reconocer, crear ticket, descartar con motivo, regenerar). Mientras
+// la explicación se genera (ai_status pending), la página la vuelve a consultar.
 
 const PRIORITY_BY_SEVERITY = { critical: 'high', warning: 'normal', info: 'low' } as const;
 const CONFIDENCE = { baja: 'Baja', media: 'Media', alta: 'Alta' } as const;
@@ -38,8 +39,13 @@ const RESOLUTION = {
 const card =
   'flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-900';
 
-function Explanation({ alert }: { alert: Alert }) {
+/** Cada cuánto se revisa una explicación en curso, y hasta cuándo. */
+const POLL_MS = 4_000;
+const POLL_MAX = 25;
+
+function Explanation({ alert, stale }: { alert: Alert; stale: boolean }) {
   const parsed = aiExplanationSchema.safeParse(alert.ai_explanation);
+  const pending = alert.ai_status === 'pending' && !stale;
   return (
     <section
       aria-labelledby="ai-title"
@@ -47,7 +53,26 @@ function Explanation({ alert }: { alert: Alert }) {
     >
       <h2 id="ai-title" className="flex items-center gap-2 text-base font-semibold">
         <Sparkles aria-hidden="true" className="size-4" /> Resumen
+        {parsed.success && !pending && (
+          <span className="text-xs font-normal text-slate-600 dark:text-slate-400">
+            {parsed.data.generated_by === 'template'
+              ? '· automático, sin IA'
+              : '· redactado por IA con los datos de la alerta'}
+          </span>
+        )}
       </h2>
+      {pending && (
+        <div
+          role="status"
+          className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400"
+        >
+          <span
+            aria-hidden="true"
+            className="size-4 animate-spin rounded-full border-2 border-slate-300 border-t-brand"
+          />
+          Generando la explicación…
+        </div>
+      )}
       {parsed.success ? (
         <>
           <p className="text-base">{parsed.data.resumen}</p>
@@ -78,10 +103,13 @@ function Explanation({ alert }: { alert: Alert }) {
             </div>
           )}
         </>
-      ) : (
+      ) : pending ? null : (
         <p className="text-sm text-slate-600 dark:text-slate-400">
-          La explicación automática aún no está disponible para esta alerta. Mientras tanto, la
-          evidencia de abajo muestra qué la disparó.
+          {alert.severity === 'info'
+            ? 'Los avisos no llevan explicación; la evidencia de abajo muestra qué lo disparó.'
+            : stale
+              ? 'La explicación está tardando más de lo normal. Puedes pedirla de nuevo con “Regenerar explicación”; mientras tanto, la evidencia de abajo muestra qué la disparó.'
+              : 'Esta alerta aún no tiene explicación. La evidencia de abajo muestra qué la disparó.'}
         </p>
       )}
     </section>
@@ -283,6 +311,26 @@ export function AlertDetail({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const manage = state.status === 'authenticated' && can(state.user.role, 'alerts:manage');
+  const pending = alert.data?.ai_status === 'pending';
+  const { reload } = alert;
+  // Sigue pendiente después de esperar: el job no corrió (o se perdió); se puede pedir otra vez.
+  const [stale, setStale] = useState(false);
+  // Cada "Regenerar" reinicia la espera.
+  const [round, setRound] = useState(0);
+
+  // Mientras se genera la explicación, se vuelve a consultar cada pocos segundos.
+  useEffect(() => {
+    if (!pending) return;
+    let polls = 0;
+    const timer = setInterval(() => {
+      polls += 1;
+      if (polls > POLL_MAX) {
+        clearInterval(timer);
+        setStale(true);
+      } else void reload();
+    }, POLL_MS);
+    return () => clearInterval(timer);
+  }, [pending, reload, round]);
 
   if (alert.error) {
     return (
@@ -294,6 +342,21 @@ export function AlertDetail({ id }: { id: string }) {
   if (!alert.data) return <Spinner />;
   const a = alert.data;
   const isOpen = a.status === 'open' || a.status === 'acknowledged';
+
+  async function regenerate() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`/alerts/${id}/regenerate-explanation`, alertDetail, { method: 'POST' });
+      setStale(false);
+      setRound((r) => r + 1);
+      await alert.reload();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function acknowledge() {
     setBusy(true);
@@ -362,14 +425,16 @@ export function AlertDetail({ id }: { id: string }) {
           <Button type="button" variant="secondary" onClick={() => setMode('dismiss')}>
             Descartar
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            disabled
-            title="Disponible cuando se active la explicación automática"
-          >
-            <RefreshCw aria-hidden="true" className="size-4" /> Regenerar explicación
-          </Button>
+          {a.severity !== 'info' && (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={busy || (a.ai_status === 'pending' && !stale)}
+              onClick={() => void regenerate()}
+            >
+              <RefreshCw aria-hidden="true" className="size-4" /> Regenerar explicación
+            </Button>
+          )}
         </div>
       )}
       {!isOpen && a.ticket_id && (
@@ -395,7 +460,7 @@ export function AlertDetail({ id }: { id: string }) {
         />
       )}
 
-      <Explanation alert={a} />
+      <Explanation alert={a} stale={stale} />
       <Facts alert={a} timezone={timezone} />
       <EvidenceChart evidence={a.evidence} />
     </div>

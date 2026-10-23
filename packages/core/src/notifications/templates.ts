@@ -16,6 +16,8 @@ export const alertOpenedPayload = z.object({
   detected_at: z.iso.datetime({ offset: true }),
   /** Última desviación del disparo, si aplica. */
   deviation_pct: z.number().nullable(),
+  /** Resumen de la explicación (IA o plantilla, specs/07 §3). */
+  summary: z.string().nullable().default(null),
 });
 
 export const ticketAssignedPayload = z.object({
@@ -48,10 +50,18 @@ export const dailySummaryPayload = z.object({
   offline_plants: z.array(z.object({ plant_name: z.string() })),
 });
 
+/** Aviso al company_admin al 80 % del presupuesto mensual de IA (specs/07 §Límites y costos). */
+export const aiBudgetWarningPayload = z.object({
+  period: z.string().regex(/^\d{4}-\d{2}$/),
+  used_tokens: z.number().int(),
+  budget_tokens: z.number().int(),
+});
+
 export const NOTIFICATION_TEMPLATES = {
   alert_opened: alertOpenedPayload,
   ticket_assigned: ticketAssignedPayload,
   daily_summary: dailySummaryPayload,
+  ai_budget_warning: aiBudgetWarningPayload,
 } as const;
 export type NotificationTemplate = keyof typeof NOTIFICATION_TEMPLATES;
 export type NotificationPayload<T extends NotificationTemplate> = z.infer<
@@ -195,7 +205,7 @@ function alertOpened(p: NotificationPayload<'alert_opened'>, brand: EmailBrand, 
   }
   return {
     subject,
-    ...layout(brand, `${label}: ${p.plant_name}`, [{ p: what[p.type] }, { rows }], {
+    ...layout(brand, `${label}: ${p.plant_name}`, [{ p: p.summary ?? what[p.type] }, { rows }], {
       label: 'Ver la alerta',
       url: `${base(appUrl)}/alerts/${p.alert_id}`,
     }),
@@ -226,6 +236,35 @@ function ticketAssigned(
       label: 'Abrir el ticket',
       url: `${base(appUrl)}/tickets/${p.ticket_id}`,
     }),
+  };
+}
+
+function aiBudgetWarning(
+  p: NotificationPayload<'ai_budget_warning'>,
+  brand: EmailBrand,
+  appUrl: string,
+) {
+  const pct = p.budget_tokens > 0 ? Math.round((p.used_tokens / p.budget_tokens) * 100) : 100;
+  const nf = new Intl.NumberFormat('es-MX');
+  return {
+    subject: `Uso de IA al ${pct} % del presupuesto del mes`,
+    ...layout(
+      brand,
+      `Uso de IA al ${pct} % del presupuesto`,
+      [
+        {
+          p: 'Al llegar al 100 % el asistente se pausa hasta el siguiente mes. Las explicaciones de alertas y los reportes siguen funcionando con su texto de plantilla.',
+        },
+        {
+          rows: [
+            ['Mes', p.period],
+            ['Tokens usados', nf.format(p.used_tokens)],
+            ['Presupuesto', nf.format(p.budget_tokens)],
+          ],
+        },
+      ],
+      { label: 'Ver el uso de IA', url: `${base(appUrl)}/settings` },
+    ),
   };
 }
 
@@ -279,5 +318,7 @@ export function renderEmail(
       return ticketAssigned(ticketAssignedPayload.parse(payload), brand, appUrl);
     case 'daily_summary':
       return dailySummary(dailySummaryPayload.parse(payload), brand, appUrl);
+    case 'ai_budget_warning':
+      return aiBudgetWarning(aiBudgetWarningPayload.parse(payload), brand, appUrl);
   }
 }

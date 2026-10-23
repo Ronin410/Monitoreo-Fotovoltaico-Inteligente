@@ -1,3 +1,4 @@
+import { MockLLMProvider } from '@pv/ai';
 import {
   companyPayload,
   createAdapterRegistry,
@@ -36,6 +37,7 @@ beforeAll(async () => {
     cipher: TEST_CIPHER,
     adapters: () => createAdapterRegistry(),
     email: new MemoryEmailProvider(),
+    ai: { provider: new MockLLMProvider(), chatModel: 'chat', fastModel: 'rapido' },
     appUrl: 'https://app.pv-iot.example',
     logger: pino({ level: 'silent' }),
     now: () => new Date(),

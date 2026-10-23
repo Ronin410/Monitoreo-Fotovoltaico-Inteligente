@@ -98,7 +98,7 @@ export function createApp(deps: AppDeps): Express {
   );
 
   api.use('/dashboard', authenticated, dashboardRouter(deps.db, now));
-  api.use('/alerts', authenticated, alertsRouter(deps.db, deps.jobs));
+  api.use('/alerts', authenticated, alertsRouter(deps.db, deps.jobs, now));
   api.use('/tickets', authenticated, ticketsRouter(deps.db, now, deps.jobs));
 
   app.use('/api', api);

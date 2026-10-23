@@ -8,6 +8,7 @@ import {
   type InverterAdapterRegistry,
   type WeatherProvider,
 } from '@pv/adapters';
+import { MockLLMProvider } from '@pv/ai';
 import { createPrismaClient, type PrismaClient } from '@pv/db';
 import { testAppDatabaseUrl, testDatabaseUrl, testServiceDatabaseUrl } from '@pv/db/testing';
 import { pino } from 'pino';
@@ -32,6 +33,8 @@ export async function createWorkerTestContext(
   });
   let now = new Date('2026-10-21T19:00:00Z');
   const email = new MemoryEmailProvider();
+  // Sin respuesta configurada, la IA simulada falla y se usa la plantilla.
+  const llm = { current: new MockLLMProvider() };
   const deps: RuntimeDeps = {
     db,
     serviceDb,
@@ -42,6 +45,13 @@ export async function createWorkerTestContext(
       adapters?.(companyId, db) ??
       createAdapterRegistry({ simulator: dbSimulatorSource(db, companyId) }),
     email,
+    ai: {
+      get provider() {
+        return llm.current;
+      },
+      chatModel: 'modelo-chat',
+      fastModel: 'modelo-rapido',
+    },
     appUrl: 'https://app.pv-iot.example',
     logger: pino({ level: 'silent' }),
     now: () => now,
@@ -53,6 +63,10 @@ export async function createWorkerTestContext(
     queue,
     deps,
     email,
+    /** Cambia la respuesta de la IA simulada. */
+    setLLM: (provider: MockLLMProvider) => {
+      llm.current = provider;
+    },
     setNow: (d: Date) => {
       now = d;
     },

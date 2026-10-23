@@ -22,6 +22,8 @@ export const AUDIT_ACTIONS = [
   'company.settings_updated',
   'plant.deleted',
   'report.sent',
+  // IA: cada "Regenerar explicación" (límite de 3 por alerta al día, specs/07 §3).
+  'alert.explanation_regenerated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

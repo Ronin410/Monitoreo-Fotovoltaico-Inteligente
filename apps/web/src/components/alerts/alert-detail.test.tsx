@@ -22,6 +22,7 @@ const api = vi.fn(
     if (path === '/tickets/assignees')
       return schema.parse({ data: [{ id: ID(9), name: 'Técnico Uno', role: 'technician' }] });
     if (path.endsWith('/acknowledge')) alert = { ...alert, status: 'acknowledged' };
+    if (path.endsWith('/regenerate-explanation')) alert = { ...alert, ai_status: 'pending' };
     if (path.endsWith('/dismiss'))
       alert = {
         ...alert,
@@ -51,7 +52,8 @@ beforeEach(() => {
     detected_at: '2026-10-21T13:00:00Z',
     resolved_at: null,
     resolution: null,
-    ai_status: 'pending',
+    ai_status: 'done',
+    ai_summary: null,
     ticket_id: null,
     plant: {
       id: ID(2),
@@ -82,10 +84,7 @@ describe('detalle de alerta', () => {
     expect(screen.getByText('99 %')).toBeTruthy();
     expect(screen.getByText('6.4 kWh/día')).toBeTruthy();
     expect(screen.getByText(/≈ \$19 MXN por día/)).toBeTruthy();
-    expect(screen.getByText(/explicación automática aún no está disponible/)).toBeTruthy();
-    expect(
-      (screen.getByRole('button', { name: /Regenerar explicación/ }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(screen.getByText(/Esta alerta aún no tiene explicación/)).toBeTruthy();
   });
 
   it('con explicación IA válida muestra resumen, causa, confianza y qué revisar', async () => {
@@ -101,6 +100,30 @@ describe('detalle de alerta', () => {
     expect(screen.getByText('Acumulación de polvo')).toBeTruthy();
     expect(screen.getByText('Alta')).toBeTruthy();
     expect(screen.getByText('Inspección visual de los paneles')).toBeTruthy();
+    expect(screen.getByText(/redactado por IA/)).toBeTruthy();
+  });
+
+  it('la plantilla se distingue de la IA', async () => {
+    alert.ai_explanation = {
+      resumen: 'La planta rinde 15.2 % por debajo de su normal.',
+      causa_probable: 'Acumulación de polvo',
+      otras_causas: [],
+      confianza: 'media',
+      que_revisar: ['Inspección visual de los paneles'],
+      generated_by: 'template',
+    };
+    render(<AlertDetail id={ID(1)} />);
+    expect(await screen.findByText(/automático, sin IA/)).toBeTruthy();
+  });
+
+  it('regenerar pide una explicación nueva y muestra que se está generando', async () => {
+    render(<AlertDetail id={ID(1)} />);
+    await userEvent.click(await screen.findByRole('button', { name: /Regenerar explicación/ }));
+    expect(calls.find((c) => c.path.endsWith('/regenerate-explanation'))?.method).toBe('POST');
+    expect(await screen.findByText('Generando la explicación…')).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: /Regenerar explicación/ }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it('reconocer y descartar con motivo', async () => {

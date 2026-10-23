@@ -3,15 +3,20 @@
 import Link from 'next/link';
 import { SeverityBadge } from '@/components/status';
 import { Notice, Spinner } from '@/components/ui';
-import { alertsResponse, ALERT_TYPE_LABELS } from '@/lib/dashboard';
+import { ALERT_TYPE_LABELS } from '@/lib/dashboard';
 import { formatDateTime } from '@/lib/format';
-import { ALERT_STATUS_LABELS, TICKET_STATUS_LABELS, ticketsPage } from '@/lib/operations';
+import {
+  ALERT_STATUS_LABELS,
+  alertsPage,
+  TICKET_STATUS_LABELS,
+  ticketsPage,
+} from '@/lib/operations';
 import { useApiQuery } from '@/lib/use-api';
 
 // Alertas y tickets de la planta (specs/09 §Detalle de planta).
 
 export function PlantActivity({ plantId, timezone }: { plantId: string; timezone: string }) {
-  const alerts = useApiQuery(`/alerts?plant_id=${plantId}&page_size=10`, alertsResponse);
+  const alerts = useApiQuery(`/alerts?plant_id=${plantId}&page_size=10`, alertsPage);
   const tickets = useApiQuery(`/tickets?plant_id=${plantId}&page_size=10`, ticketsPage);
   const card =
     'flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-900';
@@ -44,6 +49,9 @@ export function PlantActivity({ plantId, timezone }: { plantId: string; timezone
                 <span className="text-xs text-slate-600 dark:text-slate-400">
                   Detectada {formatDateTime(a.detected_at, timezone)}
                 </span>
+                {a.ai_summary && (
+                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{a.ai_summary}</p>
+                )}
               </li>
             ))}
           </ul>

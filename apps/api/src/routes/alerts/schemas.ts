@@ -48,6 +48,8 @@ export const alertSummary = z.object({
   resolved_at: z.date().nullable(),
   resolution: z.enum(['auto', 'ticket', 'manual']).nullable(),
   ai_status: z.enum(['pending', 'done', 'failed', 'skipped']),
+  /** Resumen de la explicación (IA o plantilla); null mientras no exista. */
+  ai_summary: z.string().nullable(),
   ticket_id: z.uuid().nullable(),
   plant: alertPlant,
 });

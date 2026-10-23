@@ -64,6 +64,18 @@ describe('correo de alerta nueva', () => {
     expect(email.html).toContain('<img src="https://api.example/logo.png"');
   });
 
+  it('con el resumen de la explicación, lo usa como texto principal (escapado)', () => {
+    const email = renderEmail(
+      'alert_opened',
+      { ...alertPayload, summary: 'Cayó 45 % <b>por</b> una falla.' },
+      BRAND,
+      APP,
+    );
+    expect(email.text).toContain('Cayó 45 % <b>por</b> una falla.');
+    expect(email.html).toContain('Cayó 45 % &lt;b&gt;por&lt;/b&gt; una falla.');
+    expect(email.text).not.toContain('La producción cayó de golpe');
+  });
+
   it('rechaza un payload inválido', () => {
     expect(() =>
       renderEmail('alert_opened', { ...alertPayload, severity: 'x' }, BRAND, APP),
@@ -132,6 +144,26 @@ describe('ticket asignado y resumen diario', () => {
     expect(email.text).toContain('- Comercial Infonavit 18: en 1 día');
     expect(email.text).toContain('- Residencial Tres Ríos 16: en 5 días');
     expect(email.html).toContain('<li>Residencial Centro 22</li>');
+  });
+
+  it('aviso de presupuesto de IA al 80 %', () => {
+    const email = renderEmail(
+      'ai_budget_warning',
+      { period: '2026-10', used_tokens: 1_650_000, budget_tokens: 2_000_000 },
+      BRAND,
+      APP,
+    );
+    expect(email.subject).toBe('Uso de IA al 83 % del presupuesto del mes');
+    expect(email.text).toContain('Tokens usados: 1,650,000');
+    expect(email.text).toContain('https://app.pv-iot.example/settings');
+    expect(
+      renderEmail(
+        'ai_budget_warning',
+        { period: '2026-10', used_tokens: 5, budget_tokens: 0 },
+        BRAND,
+        APP,
+      ).subject,
+    ).toBe('Uso de IA al 100 % del presupuesto del mes');
   });
 
   it('escapeHtml cubre los cinco caracteres', () => {
