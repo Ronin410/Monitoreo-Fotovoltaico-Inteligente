@@ -44,7 +44,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       ) : (
         <div className="mx-auto flex max-w-lg flex-col gap-4">
           <Notice tone="error">No tienes acceso a esta sección.</Notice>
-          <Link href={homeFor(state.user.role)} className="text-sm text-brand hover:underline">
+          <Link href={homeFor(state.user.role)} className="text-sm text-brand-text hover:underline">
             Ir a mi inicio
           </Link>
         </div>

@@ -19,6 +19,7 @@ import { alertsRouter } from './routes/alerts/routes.js';
 import { requireAuth } from './auth/middleware.js';
 import { authRouter } from './routes/auth/routes.js';
 import { clientsRouter } from './routes/clients/routes.js';
+import { dashboardRouter } from './routes/dashboard/routes.js';
 import { AuthService } from './auth/service.js';
 import { companyProfileRouter, publicLogosRouter } from './routes/company/profile-routes.js';
 import { companyUsersRouter } from './routes/company/routes.js';
@@ -89,6 +90,7 @@ export function createApp(deps: AppDeps): Express {
     }),
   );
 
+  api.use('/dashboard', authenticated, dashboardRouter(deps.db, now));
   api.use('/alerts', authenticated, alertsRouter(deps.db, deps.jobs));
   api.use('/tickets', authenticated, ticketsRouter(deps.db, now, deps.jobs));
 

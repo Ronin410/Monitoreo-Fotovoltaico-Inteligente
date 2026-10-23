@@ -54,7 +54,7 @@ export function LoginForm() {
         </Button>
         <Link
           href="/recuperar-contrasena"
-          className="text-center text-sm text-brand underline-offset-2 hover:underline"
+          className="text-center text-sm text-brand-text underline-offset-2 hover:underline"
         >
           ¿Olvidaste tu contraseña?
         </Link>

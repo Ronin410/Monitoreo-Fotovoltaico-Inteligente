@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
             Si el correo está registrado, te enviamos un enlace para definir una nueva contraseña.
             Vence en una hora.
           </Notice>
-          <Link href="/login" className="text-center text-sm text-brand hover:underline">
+          <Link href="/login" className="text-center text-sm text-brand-text hover:underline">
             Volver a iniciar sesión
           </Link>
         </div>
@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
           <Button type="submit" disabled={busy}>
             {busy ? 'Enviando…' : 'Enviar enlace'}
           </Button>
-          <Link href="/login" className="text-center text-sm text-brand hover:underline">
+          <Link href="/login" className="text-center text-sm text-brand-text hover:underline">
             Volver a iniciar sesión
           </Link>
         </form>

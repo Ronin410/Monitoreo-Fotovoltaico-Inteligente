@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { contrast } from '@/lib/brand';
 import { AppShell } from './app-shell';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/tickets/123' }));
@@ -57,6 +58,11 @@ describe('AppShell', () => {
     const root = container.firstElementChild as HTMLElement;
     expect(root.style.getPropertyValue('--brand')).toBe('#FDE047');
     expect(root.style.getPropertyValue('--on-brand')).toBe('#14181F');
+    // Amarillo como texto sobre blanco se oscurece hasta 4.5:1; sobre fondo oscuro queda igual.
+    expect(
+      contrast(root.style.getPropertyValue('--brand-text-light'), '#FFFFFF'),
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(root.style.getPropertyValue('--brand-text-dark')).toBe('#FDE047');
     expect(screen.getAllByText('Solar Demo Culiacán').length).toBeGreaterThan(0);
     await userEvent.click(screen.getAllByRole('button', { name: 'Cerrar sesión' })[0]!);
     expect(logout).toHaveBeenCalled();

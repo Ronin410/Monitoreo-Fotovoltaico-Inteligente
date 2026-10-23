@@ -47,7 +47,7 @@ export default function ResetPasswordPage() {
       {done ? (
         <div className="flex flex-col gap-4">
           <Notice tone="success">Listo: tu contraseña cambió. Ya puedes iniciar sesión.</Notice>
-          <Link href="/login" className="text-center text-sm text-brand hover:underline">
+          <Link href="/login" className="text-center text-sm text-brand-text hover:underline">
             Iniciar sesión
           </Link>
         </div>

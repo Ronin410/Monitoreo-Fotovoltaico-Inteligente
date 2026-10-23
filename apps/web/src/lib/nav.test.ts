@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { brandColor, contrast, onBrand } from './brand';
+import { brandColor, brandText, contrast, onBrand } from './brand';
 import { canVisit, homeFor, navItems, safeNext } from './nav';
 
 const labels = (role: Parameters<typeof navItems>[0]) => navItems(role).map((i) => i.label);
@@ -65,5 +65,14 @@ describe('marca blanca', () => {
     for (const c of ['#0E7490', '#FDE047', '#F59E0B', '#7C3AED', '#000000', '#FFFFFF']) {
       expect(contrast(c, onBrand(c))).toBeGreaterThanOrEqual(4.5);
     }
+  });
+
+  it('el color de marca como texto llega a 4.5:1 en modo claro y oscuro', () => {
+    for (const c of ['#0E7490', '#FDE047', '#F59E0B', '#7C3AED', '#000000', '#FFFFFF', '#1D4ED8']) {
+      expect(contrast(brandText(c, '#FFFFFF'), '#FFFFFF')).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(brandText(c, '#0F172A'), '#0F172A')).toBeGreaterThanOrEqual(4.5);
+    }
+    // Si ya se lee, no cambia.
+    expect(brandText('#0E7490', '#FFFFFF')).toBe('#0E7490');
   });
 });

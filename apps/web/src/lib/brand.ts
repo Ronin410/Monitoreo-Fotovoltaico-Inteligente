@@ -25,3 +25,31 @@ export function contrast(a: string, b: string): number {
 export function onBrand(hex: string): '#FFFFFF' | '#14181F' {
   return contrast(hex, '#FFFFFF') >= contrast(hex, '#14181F') ? '#FFFFFF' : '#14181F';
 }
+
+function mix(hex: string, toward: '#FFFFFF' | '#000000', t: number): string {
+  const target = parseInt(toward.slice(1), 16);
+  const channels = [16, 8, 0].map((shift, i) => {
+    const from = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+    const to = (target >> shift) & 255;
+    return Math.round(from + (to - from) * t);
+  });
+  return `#${channels
+    .map((c) => c.toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase()}`;
+}
+
+/**
+ * El color de marca como texto sobre `background`: se aclara (fondo oscuro) u oscurece (fondo
+ * claro) lo mínimo necesario para llegar a 4.5:1 (WCAG AA).
+ */
+export function brandText(hex: string, background: string, min = 4.5): string {
+  if (contrast(hex, background) >= min) return hex;
+  const toward =
+    contrast('#FFFFFF', background) > contrast('#000000', background) ? '#FFFFFF' : '#000000';
+  for (let t = 0.05; t <= 1; t += 0.05) {
+    const candidate = mix(hex, toward, t);
+    if (contrast(candidate, background) >= min) return candidate;
+  }
+  return toward;
+}

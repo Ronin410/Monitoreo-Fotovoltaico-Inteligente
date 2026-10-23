@@ -23,7 +23,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useAuth } from '@/lib/auth';
-import { brandColor, onBrand } from '@/lib/brand';
+import { brandColor, brandText, onBrand } from '@/lib/brand';
 import { navItems, ROLE_LABELS, type NavIcon } from '@/lib/nav';
 import type { Me } from '@/lib/schemas';
 import { useTheme, type ThemeChoice } from '@/lib/theme';
@@ -139,7 +139,7 @@ export function AppShell({
             aria-current={active ? 'page' : undefined}
             className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm ${
               active
-                ? 'bg-brand/10 font-semibold text-brand dark:bg-brand/20'
+                ? 'bg-brand/10 font-semibold text-brand-text dark:bg-brand/20'
                 : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
             }`}
           >
@@ -181,7 +181,16 @@ export function AppShell({
 
   return (
     <div
-      style={{ '--brand': brand, '--on-brand': onBrand(brand) } as CSSProperties}
+      data-brand=""
+      style={
+        {
+          '--brand': brand,
+          '--on-brand': onBrand(brand),
+          // Fondos: blanco y slate-900 (tarjetas y barra lateral).
+          '--brand-text-light': brandText(brand, '#FFFFFF'),
+          '--brand-text-dark': brandText(brand, '#0F172A'),
+        } as CSSProperties
+      }
       className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100"
     >
       <a

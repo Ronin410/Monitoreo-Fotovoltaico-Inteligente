@@ -58,7 +58,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 
 ## Fase 6 — Frontend base
 - [x] **F6-T1 Shell.** _(2026-10-23)_ Layout, navegación por rol, marca blanca, modo oscuro, auth en el cliente.
-- [ ] **F6-T2 Tablero** con mapa, tarjetas, próximos lavados y mejores/peores.
+- [x] **F6-T2 Tablero** _(2026-10-23)_ con mapa, tarjetas, próximos lavados y mejores/peores.
 - [ ] **F6-T3 Plantas y clientes** (lista, detalle, formularios, credenciales).
 - [ ] **F6-T4 Detalle de planta** con gráficas de `09`.
 - [ ] **F6-T5 Alertas y tickets**, incluida la vista del técnico en celular.

@@ -268,3 +268,22 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Objetivos táctiles de 44 px, enlace "Saltar al contenido" y menú de celular con `aria-expanded`.
     - Sin scroll horizontal a 360 px (verificado en el navegador).
 136. **Turbopack.** `@pv/core` importa archivos `.ts` con extensión `.js` (ESM de Node) y Turbopack de Next 16 no lo resuelve. `dev` y `build` usan webpack (`--webpack`) con `extensionAlias`. Se puede volver a Turbopack cuando lo soporte.
+
+## F6-T2 — Tablero
+
+137. **Endpoints del tablero.**
+    - `/dashboard/summary`:
+      - Energía de hoy: telemetría desde las 00:00 locales.
+      - Energía del mes: métricas diarias del 1 a ayer más la telemetría de hoy.
+      - PR corregido de 7 días: promedio de días válidos de los 7 días anteriores a hoy.
+      - Alertas abiertas (`open` y `acknowledged`) por severidad.
+      - Plantas offline: alertas `offline` abiertas.
+    - `/dashboard/map`: el estado actual de cada planta lo mandan sus alertas abiertas (`offline` > crítica > advertencia); si no tiene, cuenta el último día calculado de los últimos 2; sin eso, `no_data`.
+    - `/dashboard/upcoming-cleanings`: `days_to_cleaning` ≤ N del último día reciente, sin plantas con caída brusca abierta (#103).
+    - `/dashboard/top-bottom`: mínimo 5 días válidos; con menos de 10 plantas, ninguna aparece en las dos listas.
+138. **"Requieren atención"** usa `GET /alerts?open=true` y muestra las 5 más recientes `critical`/`warning`, sin los avisos `info`. La barra "Pregúntale a tu flota" lleva a `/assistant?q=…`, que se implementa en F8-T3.
+139. **Mapa.**
+    - Leaflet con mosaicos de `tile.openstreetmap.org`. La política de uso de OSM no admite tráfico alto: para producción conviene un proveedor de mosaicos con cuenta o contrato (decisión del PO, Fase 10).
+    - Los marcadores cambian de color y forma por estado (círculo, rombo, cuadrado, anillo), son más grandes para ≥ 30 kWp y se abren con teclado.
+    - En este entorno los mosaicos están bloqueados por la red; en el navegador del usuario cargan.
+140. **Marca blanca (corrección).** Las variables de color de marca se declaran con `@theme inline`. Antes, Tailwind las resolvía en `:root` y el color de la empresa no llegaba a botones ni enlaces. Para texto y enlaces se usa una variante ajustada a 4.5:1 sobre el fondo de cada modo. Ojo: el color por omisión de una empresa es ámbar (`#F59E0B`, specs/03), igual que el estado "advertencia". Los estados siempre llevan ícono y texto, pero conviene que el PO elija otro color por omisión.

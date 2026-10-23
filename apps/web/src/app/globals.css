@@ -3,10 +3,18 @@
 /* Modo oscuro por clase (ThemeProvider pone .dark en <html>). */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Acento de la empresa (marca blanca): AppShell define --brand y --on-brand. */
-@theme {
+/*
+ * Acento de la empresa (marca blanca): AppShell define --brand, --on-brand y las variantes de
+ * texto. `inline` hace que cada utilidad lea la variable en el elemento donde se usa; sin él,
+ * Tailwind la resolvería una sola vez en :root y se perdería el color de la empresa.
+ */
+@theme inline {
   --color-brand: var(--brand, #0e7490);
   --color-on-brand: var(--on-brand, #ffffff);
+  --color-brand-text: var(--brand-text);
+}
+
+@theme {
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -17,7 +25,21 @@ html.dark {
   color-scheme: dark;
 }
 
+/* Texto de marca por modo. Fuera del shell (login) se usan los colores por omisión. */
+:root {
+  --brand-text: #0e7490;
+}
+.dark {
+  --brand-text: #22d3ee;
+}
+[data-brand] {
+  --brand-text: var(--brand-text-light);
+}
+.dark [data-brand] {
+  --brand-text: var(--brand-text-dark);
+}
+
 :focus-visible {
-  outline: 2px solid var(--color-brand);
+  outline: 2px solid var(--brand-text, var(--brand, #0e7490));
   outline-offset: 2px;
 }

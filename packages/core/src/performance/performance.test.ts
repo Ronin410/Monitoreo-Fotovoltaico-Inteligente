@@ -11,7 +11,7 @@ import {
   linearRegression,
   predictSoiling,
 } from './soiling.js';
-import { dailyStatus } from './status.js';
+import { currentPlantStatus, dailyStatus } from './status.js';
 
 // specs/05 §10. Tolerancia ±0.0001.
 const TOL = 4; // decimales para toBeCloseTo: |a − b| < 0.5 × 10⁻⁴ (más estricto que ±0.0001)
@@ -421,5 +421,24 @@ describe('estado diario (§8)', () => {
     expect(dailyStatus({ ...base, openAlertSeverities: ['warning'] })).toBe('warning');
     expect(dailyStatus({ ...base, openAlertSeverities: ['info'], daysToCleaning: 8 })).toBe('ok');
     expect(dailyStatus(base)).toBe('ok');
+  });
+});
+
+describe('estado actual de la planta', () => {
+  it('las alertas abiertas mandan; sin métricas recientes, no_data', () => {
+    const offline = { type: 'offline', severity: 'critical' as const };
+    const drop = { type: 'sudden_drop', severity: 'critical' as const };
+    const soiling = { type: 'soiling', severity: 'warning' as const };
+    const dueSoon = { type: 'cleaning_due_soon', severity: 'info' as const };
+    expect(currentPlantStatus({ openAlerts: [soiling, offline], lastDailyStatus: 'ok' })).toBe(
+      'offline',
+    );
+    expect(currentPlantStatus({ openAlerts: [soiling, drop], lastDailyStatus: 'ok' })).toBe(
+      'critical',
+    );
+    expect(currentPlantStatus({ openAlerts: [soiling], lastDailyStatus: 'ok' })).toBe('warning');
+    expect(currentPlantStatus({ openAlerts: [dueSoon], lastDailyStatus: 'ok' })).toBe('ok');
+    expect(currentPlantStatus({ openAlerts: [], lastDailyStatus: 'warning' })).toBe('warning');
+    expect(currentPlantStatus({ openAlerts: [], lastDailyStatus: null })).toBe('no_data');
   });
 });
