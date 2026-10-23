@@ -235,3 +235,12 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Todo el texto dinámico se escapa.
     - Los enlaces usan `APP_URL` con las rutas `/alerts/:id`, `/tickets/:id` y `/`, que el frontend (F6) debe respetar.
     - El correo del técnico incluye el enlace a Google Maps con las coordenadas.
+
+## `pnpm eval:alerts`
+
+131. **Cómo se mide.** Los escenarios inyectados salen de `simulation_profile`. Cada uno se cuenta así:
+    - **Suciedad:** cuenta si la desviación cruzó el umbral en un día válido de la historia (las de 3 % y 7 % nunca deben alertar). El retraso va desde ese día hasta la detección de `soiling`. Si cruzó hace menos de 4 días y aún no hay alerta, no se cuenta.
+    - **Falla de string:** cuenta si empezó dentro de la historia y hace al menos 2 días. El retraso va del inicio a la detección de `sudden_drop`.
+    - **Offline:** ver O4 de `REVISION-FASE-5.md`.
+    - **Falsas:** cualquier alerta `warning` o `critical` en una planta sin escenario (incluidas las de Mazatlán y las nuevas). La planta con sombra no cuenta ni como inyectada ni como normal.
+    - **Metas:** las de `12` §4. Si no se cumplen, el script termina con código 1.

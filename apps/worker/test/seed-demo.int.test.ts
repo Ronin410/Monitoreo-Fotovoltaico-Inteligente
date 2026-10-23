@@ -6,6 +6,7 @@ import {
   seedDemo,
   type SeedDemoResult,
 } from '../src/seed/demo.js';
+import { evaluateAlertQuality } from '../src/eval/alerts-eval.js';
 import { createWorkerTestContext, type WorkerTestContext } from './helpers.js';
 
 const DAYS = 21;
@@ -133,5 +134,35 @@ describe('pnpm db:seed:demo', () => {
 
   it('no vuelve a sembrar si la demo ya existe', async () => {
     await expect(seedDemo(ctx.deps, { days: 1 })).rejects.toBeInstanceOf(DemoAlreadyExistsError);
+  });
+});
+
+describe('pnpm eval:alerts sobre la semilla', () => {
+  const companyIds = async () =>
+    (
+      await ctx.owner.company.findMany({
+        where: { slug: { in: Object.values(DEMO_SLUGS) } },
+        select: { id: true },
+      })
+    ).map((c) => c.id);
+
+  it('cumple las metas: detecta la falla de string y la planta offline, sin falsas', async () => {
+    const report = await evaluateAlertQuality(ctx.db, await companyIds(), ctx.deps.now());
+    expect(report.failures).toEqual([]);
+    expect(report.passed).toBe(true);
+    // La falla antigua empezó antes de los 21 días de historia: no cuenta.
+    expect(report.recall.string_failure).toEqual({ injected: 1, detected: 1, pct: 100 });
+    expect(report.recall.offline).toEqual({ injected: 1, detected: 1, pct: 100 });
+    expect(report.falsePlantsPct).toBe(0);
+    expect(report.normalPlants).toBe(15 + 2 + 5);
+  });
+
+  it('sin las alertas de caída brusca no cumple', async () => {
+    await ctx.owner.maintenanceTicket.deleteMany({});
+    await ctx.owner.alert.deleteMany({ where: { type: 'sudden_drop' } });
+    const report = await evaluateAlertQuality(ctx.db, await companyIds(), ctx.deps.now());
+    expect(report.passed).toBe(false);
+    expect(report.recall.string_failure).toEqual({ injected: 1, detected: 0, pct: 0 });
+    expect(report.failures[0]).toMatch(/Recall de string_failure: 0 %/);
   });
 });

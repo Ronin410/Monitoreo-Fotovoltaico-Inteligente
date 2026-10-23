@@ -349,6 +349,28 @@ describe('aislamiento entre empresas', () => {
   });
 });
 
+describe('company_id del cliente no tiene efecto', () => {
+  it('en el body de tickets y en el query de alertas y tickets', async () => {
+    const a = await fleet();
+    const b = await fleet();
+    await openAlert(b);
+    const op = http(a.users.operator.auth);
+    const created = await op.post('/tickets', {
+      plant_id: a.plant.id,
+      type: 'other',
+      title: 'Con company_id ajeno',
+      company_id: b.company.id,
+    });
+    expect(created.status).toBe(201);
+    const stored = await ctx.owner.maintenanceTicket.findUniqueOrThrow({
+      where: { id: created.body.id },
+    });
+    expect(stored.companyId).toBe(a.company.id);
+    expect((await op.get(`/alerts?company_id=${b.company.id}`)).body.total).toBe(0);
+    expect((await op.get(`/tickets?company_id=${b.company.id}`)).body.data).toHaveLength(1);
+  });
+});
+
 describe('eventos de planta', () => {
   it('registra una limpieza manual y la lista; no acepta fechas futuras ni rain_cleaning', async () => {
     ctx.clock.current = new Date('2026-10-23T18:00:00Z');

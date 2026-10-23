@@ -48,7 +48,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 - [x] **F4-T3 Semilla demo.** `pnpm db:seed:demo` según `04` §4, ejecutando el pipeline real sobre 90 días. _(2026-10-23)_
   - CA: la semilla termina en menos de 10 minutos y cada escenario es visible en `plant_daily_metrics` (por ejemplo, la planta con suciedad muestra tendencia descendente y la de falla de string un salto).
 
-## Fase 5 — Alertas, tickets y notificaciones 🧪
+## Fase 5 — Alertas, tickets y notificaciones 🧪 (revisión: `REVISION-FASE-5.md`)
 - [x] **F5-T1 Reglas puras.** _(2026-10-23)_ `packages/core/alerts` con las reglas de `06` §1–2.
   - CA: pruebas con series sintéticas para cada regla, incluyendo: día nublado no dispara; evento de zona suprime; falla de 1 de 3 strings (33 %) dispara la advertencia de `sudden_drop`; lavado que no recupera mantiene la alerta.
 - [x] **F5-T2 Job `alerts.evaluate`.** _(2026-10-23)_ Apertura, actualización de evidencia y resolución automática; regla de una alerta abierta por tipo.
