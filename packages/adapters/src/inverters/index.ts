@@ -1,6 +1,10 @@
 import type { InverterBrand } from '@pv/core';
 import { createSimulatorAdapter, type SimulatorDataSource } from './simulator.js';
 import type { InverterAdapter } from './types.js';
+import { enphaseAdapter } from './enphase.js';
+import { froniusAdapter } from './fronius.js';
+import { goodweAdapter } from './goodwe.js';
+import { huaweiAdapter } from './huawei.js';
 import { unimplementedAdapter } from './unimplemented.js';
 
 export * from './types.js';
@@ -14,10 +18,11 @@ export function createAdapterRegistry(
 ): InverterAdapterRegistry {
   return {
     simulator: createSimulatorAdapter(options.simulator),
-    goodwe: unimplementedAdapter('goodwe'),
-    huawei: unimplementedAdapter('huawei'),
-    fronius: unimplementedAdapter('fronius'),
-    enphase: unimplementedAdapter('enphase'),
+    goodwe: goodweAdapter,
+    huawei: huaweiAdapter,
+    fronius: froniusAdapter,
+    enphase: enphaseAdapter,
+    // "Otra marca": sin integración; la planta se registra pero no se lee.
     other: unimplementedAdapter('other'),
   };
 }
