@@ -4,3 +4,4 @@ export * from './hourly.js';
 export * from './neighbors.js';
 export * from './soiling.js';
 export * from './status.js';
+export * from './loss.js';

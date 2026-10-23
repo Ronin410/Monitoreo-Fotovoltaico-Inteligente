@@ -2,6 +2,7 @@
 
 import { Plus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Filter, filterControl } from '@/components/filter';
 import { LinkButton, PageHeader } from '@/components/page-header';
 import { Pagination } from '@/components/pagination';
 import { STATUS } from '@/components/status';
@@ -25,39 +26,6 @@ const SORTS = [
   { value: 'days_to_cleaning', label: 'Lavado más próximo' },
   { value: '-capacity_kwp', label: 'Mayor capacidad' },
 ];
-
-const select =
-  'min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-600 dark:bg-slate-900';
-
-function Filter({
-  id,
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <label
-      htmlFor={id}
-      className="flex min-w-36 flex-1 flex-col gap-1 text-xs font-medium text-slate-600 dark:text-slate-400"
-    >
-      {label}
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={select}>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
 
 export function PlantsList() {
   const [q, setQ] = useState('');
@@ -165,7 +133,7 @@ export function PlantsList() {
               id="colonia"
               value={colonia}
               onChange={(e) => reset(setColonia)(e.target.value)}
-              className={select}
+              className={filterControl}
             />
           </label>
           <label
@@ -179,7 +147,7 @@ export function PlantsList() {
               maxLength={5}
               value={postalCode}
               onChange={(e) => reset(setPostalCode)(e.target.value)}
-              className={select}
+              className={filterControl}
             />
           </label>
           <Filter

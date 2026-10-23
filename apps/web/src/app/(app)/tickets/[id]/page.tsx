@@ -1,13 +1,8 @@
-import { ComingSoon } from '@/components/coming-soon';
+'use client';
 
-export const metadata = { title: 'Ticket · PV-IoT' };
+import { useParams } from 'next/navigation';
+import { TicketDetail } from '@/components/tickets/ticket-detail';
 
-export default function Page() {
-  return (
-    <ComingSoon
-      title="Ticket"
-      task="F6-T5"
-      description="Detalle con la planta, la dirección, el mapa y los cambios de estado."
-    />
-  );
+export default function TicketPage() {
+  return <TicketDetail id={useParams<{ id: string }>().id} />;
 }

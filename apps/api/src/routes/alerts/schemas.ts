@@ -58,6 +58,14 @@ export const alertDetail = alertSummary.extend({
   evidence: z.record(z.string(), z.unknown()),
   /** Explicación IA (specs/07 §3); null mientras no exista. */
   ai_explanation: z.record(z.string(), z.unknown()).nullable(),
+  /** Pérdida estimada por día (specs/09); null si no hay datos para estimarla. */
+  estimated_loss: z
+    .object({
+      kwh_per_day: z.number(),
+      mxn_per_day: z.number(),
+      tariff_mxn_per_kwh: z.number(),
+    })
+    .nullable(),
 });
 
 export const alertsResponse = paginatedSchema(alertSummary);

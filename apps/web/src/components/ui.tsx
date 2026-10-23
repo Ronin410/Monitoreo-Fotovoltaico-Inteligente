@@ -11,7 +11,8 @@ export function Button({
     primary: 'bg-brand text-on-brand hover:opacity-90 disabled:opacity-60',
     secondary:
       'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800',
-    ghost: 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800',
+    ghost:
+      'text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:hover:bg-transparent dark:text-slate-200 dark:hover:bg-slate-800',
   }[variant];
   return (
     <button

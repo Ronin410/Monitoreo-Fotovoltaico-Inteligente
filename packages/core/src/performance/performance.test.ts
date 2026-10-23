@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeReadings } from '../telemetry.js';
 import { computeBaseline, deviationPct, percentile, type BaselineDay } from './baseline.js';
+import { estimatedDailyLossKwh } from './loss.js';
 import { computeDay, type DayHourInput } from './daily.js';
 import { computeHour, temperatureFactor } from './hourly.js';
 import { haversineKm, neighborIndex, type NeighborCandidate } from './neighbors.js';
@@ -440,5 +441,39 @@ describe('estado actual de la planta', () => {
     expect(currentPlantStatus({ openAlerts: [dueSoon], lastDailyStatus: 'ok' })).toBe('ok');
     expect(currentPlantStatus({ openAlerts: [], lastDailyStatus: 'warning' })).toBe('warning');
     expect(currentPlantStatus({ openAlerts: [], lastDailyStatus: null })).toBe('no_data');
+  });
+});
+
+describe('pérdida estimada por día', () => {
+  const day = (
+    expectedTempKwh: number,
+    prTemp: number | null,
+    prBaseline: number | null,
+    isValidDay = true,
+  ) => ({
+    expectedTempKwh,
+    prTemp,
+    prBaseline,
+    isValidDay,
+  });
+
+  it('bajo rendimiento: esperada × (base − real), promedio de días válidos', () => {
+    // 40 × (0.9 − 0.6) = 12; 30 × (0.9 − 0.7) = 6 → 9 kWh/día; el día no válido no cuenta.
+    near(
+      estimatedDailyLossKwh('underperformance', [
+        day(40, 0.6, 0.9),
+        day(30, 0.7, 0.9),
+        day(50, 0.1, 0.9, false),
+      ]) as number,
+      9,
+    );
+    // Rendir arriba de lo normal no es "pérdida negativa".
+    expect(estimatedDailyLossKwh('underperformance', [day(40, 0.95, 0.9)])).toBe(0);
+    expect(estimatedDailyLossKwh('underperformance', [day(40, null, 0.9)])).toBeNull();
+  });
+
+  it('sin producción: todo lo que debió producir con su rendimiento normal', () => {
+    near(estimatedDailyLossKwh('no_production', [day(40, null, 0.85, false)]) as number, 34);
+    expect(estimatedDailyLossKwh('no_production', [day(0, null, 0.85)])).toBeNull();
   });
 });

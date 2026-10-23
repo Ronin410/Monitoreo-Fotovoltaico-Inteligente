@@ -1,8 +1,10 @@
 import type { JobEnqueuer } from '@pv/adapters';
-import { withTenant, type Alert, type Prisma, type PrismaClient } from '@pv/db';
+import { estimatedDailyLossKwh, parseCompanySettings } from '@pv/core';
+import { withTenant, type Alert, type Prisma, type PrismaClient, type TenantDb } from '@pv/db';
 import { Router } from 'express';
 import type { z } from 'zod';
 import { requirePermission, companyAuthOf } from '../../auth/authorize.js';
+import { dec } from '../../http/decimal.js';
 import { HttpError } from '../../http/errors.js';
 import { pageArgs, paginated } from '../../http/pagination.js';
 import { respond } from '../../http/respond.js';
@@ -62,13 +64,66 @@ function summaryDto(a: AlertWithPlant): z.input<typeof alertSummary> {
 const asObject = (v: Prisma.JsonValue | null) =>
   v !== null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 
-function detailDto(a: AlertWithPlant): z.input<typeof alertDetail> {
+type EstimatedLoss = z.input<typeof alertDetail>['estimated_loss'];
+
+function detailDto(
+  a: AlertWithPlant,
+  estimatedLoss: EstimatedLoss = null,
+): z.input<typeof alertDetail> {
   return {
     ...summaryDto(a),
     dismiss_reason: a.dismissReason,
     evidence: asObject(a.evidence) ?? {},
     ai_explanation: asObject(a.aiExplanation),
+    estimated_loss: estimatedLoss,
   };
+}
+
+const LOSS_FALLBACK_DAYS = 3;
+
+/**
+ * Pérdida por día de la alerta: con los días que la dispararon (o los últimos días calculados) y
+ * la tarifa del cliente o, si no tiene, la de la empresa.
+ */
+async function estimateLoss(tx: TenantDb, alert: Alert): Promise<EstimatedLoss> {
+  if (alert.type === 'cleaning_due_soon') return null;
+  const trigger = asObject((asObject(alert.evidence)?.trigger ?? null) as Prisma.JsonValue);
+  const dates = Array.isArray(trigger?.dates)
+    ? (trigger.dates as unknown[]).filter((d): d is string => typeof d === 'string')
+    : [];
+  const metrics = await tx.plantDailyMetric.findMany({
+    where: {
+      plantId: alert.plantId,
+      ...(dates.length > 0 && alert.type !== 'offline'
+        ? { date: { in: dates.map((d) => new Date(`${d}T00:00:00Z`)) } }
+        : { date: { lte: alert.detectedAt } }),
+    },
+    orderBy: { date: 'desc' },
+    take: dates.length > 0 && alert.type !== 'offline' ? dates.length : LOSS_FALLBACK_DAYS,
+    select: { expectedTempKwh: true, prTemp: true, prBaseline: true, isValidDay: true },
+  });
+  const kwh = estimatedDailyLossKwh(
+    alert.type === 'offline' ? 'no_production' : 'underperformance',
+    metrics.map((m) => ({
+      expectedTempKwh: Number(m.expectedTempKwh),
+      prTemp: dec(m.prTemp),
+      prBaseline: dec(m.prBaseline),
+      isValidDay: m.isValidDay,
+    })),
+  );
+  if (kwh === null) return null;
+  const plant = await tx.solarPlant.findUniqueOrThrow({
+    where: { id: alert.plantId },
+    select: {
+      client: { select: { tariffMxnPerKwh: true } },
+      company: { select: { settings: true } },
+    },
+  });
+  const tariff =
+    dec(plant.client.tariffMxnPerKwh) ??
+    parseCompanySettings(plant.company.settings).defaults.tariff_mxn_per_kwh;
+  const round = (v: number) => Math.round(v * 100) / 100;
+  return { kwh_per_day: round(kwh), mxn_per_day: round(kwh * tariff), tariff_mxn_per_kwh: tariff };
 }
 
 /** Datos con que se prellena el ticket de una alerta (specs/06 §5). */
@@ -81,7 +136,8 @@ function ticketDefaults(alert: Alert, plantName: string) {
     typeof lastDeviation === 'number'
       ? ` Rinde ${lastDeviation.toFixed(1)} % por debajo de su normal.`
       : '';
-  const summary = asObject(alert.aiExplanation)?.summary;
+  // Campo `resumen` de la explicación IA (specs/07 §3).
+  const summary = asObject(alert.aiExplanation)?.resumen;
   const ai = typeof summary === 'string' ? ` ${summary}` : '';
   switch (alert.type) {
     case 'soiling':
@@ -147,11 +203,12 @@ export function alertsRouter(db: PrismaClient, jobs: JobEnqueuer): Router {
   router.get('/:id', async (req, res) => {
     const { companyId } = companyAuthOf(req);
     const { id } = idParam.parse(req.params);
-    const alert = await withTenant(db, companyId, (tx) =>
-      tx.alert.findFirst({ where: { id }, include: withPlant }),
-    );
-    if (!alert) throw alertNotFound();
-    respond(res, alertDetail, detailDto(alert));
+    const found = await withTenant(db, companyId, async (tx) => {
+      const alert = await tx.alert.findFirst({ where: { id }, include: withPlant });
+      return alert && { alert, loss: await estimateLoss(tx, alert) };
+    });
+    if (!found) throw alertNotFound();
+    respond(res, alertDetail, detailDto(found.alert, found.loss));
   });
 
   router.post('/:id/acknowledge', manage, async (req, res) => {

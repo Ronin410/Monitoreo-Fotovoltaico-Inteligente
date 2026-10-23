@@ -117,3 +117,13 @@ export const ticketResponse = z.object({
 });
 
 export const ticketsResponse = paginatedSchema(ticketResponse);
+
+export const assigneesResponse = z.object({
+  data: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string(),
+      role: z.enum(['company_admin', 'operator', 'technician']),
+    }),
+  ),
+});

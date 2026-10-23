@@ -315,4 +315,17 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Leyenda en texto, tooltip y una tabla con los mismos datos.
     - Los días no válidos no se dibujan. Lluvias y limpiezas se marcan con líneas verticales.
     - La predicción de lavado y las vecinas usan siempre los últimos 30 días; el rendimiento, 30, 90 días o un año.
-150. **"Crear ticket" desde la planta** llega en F6-T5, junto con las pantallas de tickets. Hoy el detalle lista las alertas y tickets de la planta con enlace a su detalle.
+150. **"Crear ticket" desde la planta.** Resuelto en F6-T5: el detalle de la planta tiene el botón, que abre el formulario con la planta elegida.
+
+## F6-T5 — Alertas y tickets
+
+151. **Pérdida estimada en el detalle de la alerta.** `GET /alerts/:id` trae `estimated_loss` (kWh y MXN por día, con la tarifa usada), calculada con la fórmula de `07` §3 en `packages/core` (`estimatedDailyLossKwh`): promedio en los días disparadores de `expected_temp_kwh × pr_baseline − energy_kwh`; para `offline`, todo lo que debió producir con su rendimiento normal (`expected_temp_kwh × pr_baseline`). Tarifa del cliente o, si no tiene, la de la empresa. Sin datos suficientes es `null` y la pantalla lo dice.
+152. **Explicación IA antes de F7.** Mientras no exista `ai.explain_alert`, el detalle muestra un aviso y la evidencia. El botón "Regenerar explicación" se ve deshabilitado. Cuando exista, se muestran `resumen`, `causa_probable`, `confianza`, `otras_causas` y `que_revisar` validados con zod. Lo que no cumpla el esquema no se muestra. Corrección: la descripción prellenada del ticket leía `summary` y el campo de `07` §3 es `resumen`.
+153. **Vecinas en la evidencia.** `neighbor_index` (`05`) es el rendimiento de la planta frente a la mediana de sus vecinas, no el de las vecinas. Se muestra como "Frente a sus vecinas: 67 %" (100 % = igual que ellas).
+154. **Responsables de un ticket.** El operador no puede listar usuarios (`02`), así que se agregó `GET /tickets/assignees` (requiere `alerts:manage`): usuarios activos técnico, operador o administrador de la empresa, solo id, nombre y rol.
+155. **Tablero de tickets.** Muestra los abiertos (pendiente, programado, en curso), hasta 100. Los resueltos y cancelados se consultan en la vista de lista con el filtro de estado.
+156. **Formulario de nuevo ticket.** El selector de plantas lista las primeras 100 plantas activas por nombre. Desde el detalle de una planta, "Crear ticket" la deja elegida. Si una empresa supera 100 plantas habrá que cambiarlo por un buscador.
+157. **Vista del técnico.**
+    - "Mis tickets": tarjetas grandes con la dirección (enlace a Google Maps con las coordenadas, o con la dirección si no hay coordenadas), el teléfono del contacto y "Qué revisar".
+    - Botones: iniciar y resolver con notas y la casilla "Se realizó limpieza", marcada por omisión en tickets de lavado. El técnico no puede cancelar.
+    - El detalle del ticket muestra la potencia de hoy de la planta; el técnico no ve el resto del detalle de la planta ni las alertas.

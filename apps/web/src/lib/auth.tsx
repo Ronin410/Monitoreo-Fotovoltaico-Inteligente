@@ -144,3 +144,9 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error('useAuth debe usarse dentro de <AuthProvider>');
   return ctx;
 }
+
+/** Zona horaria de la empresa de la sesión (las fechas se muestran en ella, specs/09). */
+export function useCompanyTimezone(): string {
+  const { state } = useAuth();
+  return (state.status === 'authenticated' && state.company?.timezone) || 'America/Mazatlan';
+}

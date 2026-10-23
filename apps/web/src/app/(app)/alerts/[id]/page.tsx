@@ -1,13 +1,8 @@
-import { ComingSoon } from '@/components/coming-soon';
+'use client';
 
-export const metadata = { title: 'Alerta · PV-IoT' };
+import { useParams } from 'next/navigation';
+import { AlertDetail } from '@/components/alerts/alert-detail';
 
-export default function Page() {
-  return (
-    <ComingSoon
-      title="Alerta"
-      task="F6-T5"
-      description="Detalle con evidencia, explicación y acciones: reconocer, crear ticket o descartar."
-    />
-  );
+export default function AlertPage() {
+  return <AlertDetail id={useParams<{ id: string }>().id} />;
 }

@@ -11,6 +11,7 @@ import {
   createTicketBody,
   patchTicketBody,
   TECHNICIAN_FIELDS,
+  assigneesResponse,
   ticketResponse,
   ticketsQuery,
   ticketsResponse,
@@ -94,6 +95,21 @@ export function ticketsRouter(db: PrismaClient, now: () => Date, jobs: JobEnqueu
     });
     await enqueueEmail(jobs, req.log, auth.companyId, email);
     respond(res, ticketResponse, ticketDto(ticket), 201);
+  });
+
+  /** Posibles responsables: el operador los necesita y no puede listar usuarios (specs/02). */
+  router.get('/assignees', requirePermission('alerts:manage'), async (req, res) => {
+    const auth = companyAuthOf(req);
+    const users = await withTenant(db, auth.companyId, (tx) =>
+      tx.user.findMany({
+        where: { status: 'active', role: { in: ['technician', 'operator', 'company_admin'] } },
+        select: { id: true, name: true, role: true },
+        orderBy: [{ role: 'desc' }, { name: 'asc' }],
+      }),
+    );
+    // El filtro de la consulta deja solo roles de empresa; respond lo vuelve a validar.
+    const data = users.map((u) => ({ ...u, role: u.role as Exclude<typeof u.role, 'superadmin'> }));
+    respond(res, assigneesResponse, { data });
   });
 
   router.get('/:id', async (req, res) => {

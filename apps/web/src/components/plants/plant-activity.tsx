@@ -5,42 +5,14 @@ import { SeverityBadge } from '@/components/status';
 import { Notice, Spinner } from '@/components/ui';
 import { alertsResponse, ALERT_TYPE_LABELS } from '@/lib/dashboard';
 import { formatDateTime } from '@/lib/format';
+import { ALERT_STATUS_LABELS, TICKET_STATUS_LABELS, ticketsPage } from '@/lib/operations';
 import { useApiQuery } from '@/lib/use-api';
-import { z } from 'zod';
 
 // Alertas y tickets de la planta (specs/09 §Detalle de planta).
 
-const ticketsResponse = z.object({
-  data: z.array(
-    z.object({
-      id: z.uuid(),
-      title: z.string(),
-      status: z.enum(['pending', 'scheduled', 'in_progress', 'resolved', 'cancelled']),
-      scheduled_for: z.string().nullable(),
-      assigned_to: z.object({ id: z.uuid(), name: z.string() }).nullable(),
-      created_at: z.string(),
-    }),
-  ),
-  total: z.number(),
-});
-
-const TICKET_STATUS = {
-  pending: 'Pendiente',
-  scheduled: 'Programado',
-  in_progress: 'En curso',
-  resolved: 'Resuelto',
-  cancelled: 'Cancelado',
-} as const;
-const ALERT_STATUS = {
-  open: 'Abierta',
-  acknowledged: 'Vista',
-  resolved: 'Resuelta',
-  dismissed: 'Descartada',
-} as const;
-
 export function PlantActivity({ plantId, timezone }: { plantId: string; timezone: string }) {
   const alerts = useApiQuery(`/alerts?plant_id=${plantId}&page_size=10`, alertsResponse);
-  const tickets = useApiQuery(`/tickets?plant_id=${plantId}&page_size=10`, ticketsResponse);
+  const tickets = useApiQuery(`/tickets?plant_id=${plantId}&page_size=10`, ticketsPage);
   const card =
     'flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-900';
   return (
@@ -64,7 +36,7 @@ export function PlantActivity({ plantId, timezone }: { plantId: string; timezone
                   <span className="font-medium">{ALERT_TYPE_LABELS[a.type]}</span>
                   <span className="flex items-center gap-2">
                     <span className="text-xs text-slate-600 dark:text-slate-400">
-                      {ALERT_STATUS[a.status]}
+                      {ALERT_STATUS_LABELS[a.status]}
                     </span>
                     <SeverityBadge severity={a.severity} />
                   </span>
@@ -95,7 +67,7 @@ export function PlantActivity({ plantId, timezone }: { plantId: string; timezone
                 >
                   <span className="font-medium">{t.title}</span>
                   <span className="text-xs text-slate-600 dark:text-slate-400">
-                    {TICKET_STATUS[t.status]}
+                    {TICKET_STATUS_LABELS[t.status]}
                   </span>
                 </Link>
                 <span className="text-xs text-slate-600 dark:text-slate-400">

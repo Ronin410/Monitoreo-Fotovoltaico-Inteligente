@@ -1,6 +1,6 @@
 'use client';
 
-import { Pause, Pencil, Play } from 'lucide-react';
+import { Pause, Pencil, Play, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
@@ -9,7 +9,7 @@ import { LinkButton, PageHeader } from '@/components/page-header';
 import { StatusBadge } from '@/components/status';
 import { Button, Notice, Spinner } from '@/components/ui';
 import { noContent } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
+import { useAuth, useCompanyTimezone } from '@/lib/auth';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, formatDateTime, formatEnergy, formatNumber, formatPct } from '@/lib/format';
 import { BRAND_LABELS, LIFECYCLE_LABELS, plantSchema } from '@/lib/inventory';
@@ -42,13 +42,12 @@ function Item({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function PlantDetail({ id }: { id: string }) {
-  const { api, state } = useAuth();
+  const { api } = useAuth();
   const router = useRouter();
   const plant = useApiQuery(`/plants/${id}`, plantSchema);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const timezone =
-    (state.status === 'authenticated' && state.company?.timezone) || 'America/Mazatlan';
+  const timezone = useCompanyTimezone();
 
   if (plant.error) {
     return (
@@ -117,6 +116,9 @@ export function PlantDetail({ id }: { id: string }) {
         }
         actions={
           <>
+            <LinkButton href={`/tickets/new?plant_id=${id}`}>
+              <Wrench aria-hidden="true" className="size-4" /> Crear ticket
+            </LinkButton>
             <LinkButton href={`/plants/${id}/edit`} variant="secondary">
               <Pencil aria-hidden="true" className="size-4" /> Editar
             </LinkButton>

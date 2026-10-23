@@ -188,6 +188,19 @@ describe('alertas', () => {
     const res = await http(f.users.company_admin.auth).post(`/alerts/${alert.id}/ticket`);
     expect(res.body).toMatchObject({ type: 'inspection', priority: 'high', status: 'pending' });
   });
+
+  it('la descripción prellenada incluye el resumen de la explicación IA', async () => {
+    const f = await fleet();
+    const alert = await openAlert(f);
+    await ctx.owner.alert.update({
+      where: { id: alert.id },
+      data: { aiExplanation: { resumen: 'Polvo acumulado desde la última lluvia.' } },
+    });
+    const res = await http(f.users.operator.auth).post(`/alerts/${alert.id}/ticket`);
+    expect(res.body.description).toBe(
+      'Posible suciedad. Rinde 15.2 % por debajo de su normal. Polvo acumulado desde la última lluvia.',
+    );
+  });
 });
 
 describe('tickets', () => {
@@ -465,5 +478,77 @@ describe('correo de ticket asignado', () => {
     const alert = await openAlert(f);
     await op.post(`/alerts/${alert.id}/ticket`, { assigned_to: f.users.technician2.id });
     expect(await notifications()).toHaveLength(3);
+  });
+});
+
+describe('responsables y pérdida estimada', () => {
+  it('el operador lista los posibles responsables activos de su empresa', async () => {
+    const f = await fleet();
+    const other = await fleet();
+    await createUser(ctx.owner, {
+      companyId: f.company.id,
+      role: 'technician',
+      status: 'disabled',
+    });
+    const res = await http(f.users.operator.auth).get('/tickets/assignees');
+    expect(res.status).toBe(200);
+    const ids = res.body.data.map((u: { id: string }) => u.id).sort();
+    expect(ids).toEqual(
+      [
+        f.users.company_admin.id,
+        f.users.operator.id,
+        f.users.technician.id,
+        f.users.technician2.id,
+      ].sort(),
+    );
+    expect(ids).not.toContain(other.users.technician.id);
+    expect((await http(f.users.technician.auth).get('/tickets/assignees')).status).toBe(403);
+  });
+
+  it('la alerta trae la pérdida por día en kWh y en pesos (tarifa del cliente o de la empresa)', async () => {
+    const f = await fleet();
+    const alert = await openAlert(f);
+    for (const [date, prTemp] of [
+      ['2026-10-19', 0.78],
+      ['2026-10-20', 0.77],
+      ['2026-10-21', 0.76],
+    ] as const) {
+      await ctx.owner.plantDailyMetric.create({
+        data: {
+          companyId: f.company.id,
+          plantId: f.plant.id,
+          date: new Date(`${date}T00:00:00Z`),
+          clientId: f.client.id,
+          postalCode: '80000',
+          colonia: 'Centro',
+          energyKwh: 100,
+          irradiationPoaKwhM2: 6,
+          expectedStcKwh: 150,
+          expectedTempKwh: 130,
+          specificYieldKwhKwp: 3.3,
+          prTemp,
+          prBaseline: 0.9,
+          isValidDay: true,
+          status: 'warning',
+        },
+      });
+    }
+    const op = http(f.users.operator.auth);
+    // 130 × (0.9 − 0.77) promedio = 16.9 kWh/día; tarifa por omisión de la empresa 3.5.
+    expect((await op.get(`/alerts/${alert.id}`)).body.estimated_loss).toEqual({
+      kwh_per_day: 16.9,
+      mxn_per_day: 59.15,
+      tariff_mxn_per_kwh: 3.5,
+    });
+    await ctx.owner.client.update({ where: { id: f.client.id }, data: { tariffMxnPerKwh: 2 } });
+    expect((await op.get(`/alerts/${alert.id}`)).body.estimated_loss).toMatchObject({
+      mxn_per_day: 33.8,
+    });
+    // Sin métricas no se estima.
+    const bare = await fleet();
+    const a2 = await openAlert(bare);
+    expect(
+      (await http(bare.users.operator.auth).get(`/alerts/${a2.id}`)).body.estimated_loss,
+    ).toBeNull();
   });
 });
