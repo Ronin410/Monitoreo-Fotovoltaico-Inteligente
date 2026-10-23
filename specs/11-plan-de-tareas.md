@@ -49,7 +49,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
   - CA: la semilla termina en menos de 10 minutos y cada escenario es visible en `plant_daily_metrics` (por ejemplo, la planta con suciedad muestra tendencia descendente y la de falla de string un salto).
 
 ## Fase 5 — Alertas, tickets y notificaciones 🧪
-- [ ] **F5-T1 Reglas puras.** `packages/core/alerts` con las reglas de `06` §1–2.
+- [x] **F5-T1 Reglas puras.** _(2026-10-23)_ `packages/core/alerts` con las reglas de `06` §1–2.
   - CA: pruebas con series sintéticas para cada regla, incluyendo: día nublado no dispara; evento de zona suprime; falla de 1 de 3 strings (33 %) dispara la advertencia de `sudden_drop`; lavado que no recupera mantiene la alerta.
 - [ ] **F5-T2 Job `alerts.evaluate`.** Apertura, actualización de evidencia y resolución automática; regla de una alerta abierta por tipo.
 - [ ] **F5-T3 Tickets.** API, creación desde alerta, vista del técnico, evento `cleaning` al resolver.

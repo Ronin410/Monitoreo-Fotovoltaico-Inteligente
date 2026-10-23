@@ -165,3 +165,17 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 ## Revisión de la Fase 4
 
 103. **Falla de string frente a tendencia de suciedad.** Una caída brusca (falla de string) entra en la regresión de `05` §7 como si fuera suciedad y da `days_to_cleaning = 0`. Propuesta conservadora para F5: con una `sudden_drop` abierta no se emite `cleaning_due_soon`, y los días con `sudden_drop` activo se excluyen también de los puntos de la tendencia (igual que de la línea base). ¿Lo confirma el PO?
+
+## F5-T1 — Reglas puras de alertas
+
+104. **Grupos del evento de zona.** `06` §1 dice "por código postal (o por el radio de vecinas)". Se usan los dos: cada código postal es un grupo, y también cada planta con sus vecinas a ≤ radio. Basta que un grupo cumpla (≥ `neighbor_min_count` plantas válidas y ≥ `zone_event_pct` % con desviación > umbral) para marcar a todas sus plantas. Así se suprimen más falsas alarmas. Las plantas con día no válido no forman parte del grupo.
+105. **Fecha de disparo.** `sudden_drop` y `soiling` solo se abren si el último día válido sin evento de zona es la fecha evaluada (un día nublado hoy no abre alertas con días viejos). Los días inválidos o con evento de zona se saltan para buscar "el día válido anterior" y para la racha de suciedad.
+106. **Advertencia de `sudden_drop`.** "2 días válidos seguidos" se toma como dos días elegibles consecutivos (saltando inválidos). `neighbor_index < 0.8` se evalúa en el último día. Si la alerta está abierta y hoy se cumple la condición crítica, la severidad sube a `critical` (nunca baja).
+107. **"No se cumplió la regla de `sudden_drop`"** (soiling sin pendiente) se interpreta como: no hay una alerta `sudden_drop` abierta ni se dispara hoy.
+108. **Resoluciones.**
+    - Solo cuentan los días válidos posteriores a la fecha de detección.
+    - Para `soiling` se usa el último evento `cleaning` o `rain_cleaning` desde la detección, y los días válidos posteriores a la fecha del evento: el día del lavado mezcla horas sucias y limpias, igual que en #92.
+    - `cleaning_did_not_recover` se marca una sola vez y solo esa vez pide regenerar la explicación IA.
+    - `cleaning_due_soon` se resuelve también con `rain_cleaning`.
+109. **`cleaning_due_soon` con caída brusca.** Mientras #103 no se decida, se aplica la opción conservadora: con un `sudden_drop` abierto o disparándose no se abre `cleaning_due_soon`. `soiling` sigue la regla del spec al pie de la letra (con pendiente negativa abre aunque haya caída brusca); #103 decidirá si se excluyen esos días de la tendencia.
+110. **`offline`.** Las horas con sol se cuentan con la elevación solar > 0 en pasos de 5 min, desde la última lectura (o, si nunca hubo, desde la puesta en marcha o el alta). Se resuelve cuando llega una lectura posterior a la detección. Con `provider_error` no se crea alerta; la alerta que ya estaba abierta no se toca.

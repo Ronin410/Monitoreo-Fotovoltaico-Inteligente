@@ -8,3 +8,4 @@ export * from './telemetry.js';
 export * from './time.js';
 export * from './types.js';
 export * from './performance/index.js';
+export * from './alerts/index.js';
