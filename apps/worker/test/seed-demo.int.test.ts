@@ -1,5 +1,5 @@
 import { verifyPassword } from '@pv/adapters';
-import { runTool } from '@pv/ai';
+import { MockLLMProvider, runTool, type ChatTurnResult } from '@pv/ai';
 import { withTenant } from '@pv/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -9,6 +9,7 @@ import {
   type SeedDemoResult,
 } from '../src/seed/demo.js';
 import { evaluateAlertQuality } from '../src/eval/alerts-eval.js';
+import { CASES, chatAsker, collectFacts, evaluateAssistant } from '../src/eval/assistant-eval.js';
 import { createWorkerTestContext, type WorkerTestContext } from './helpers.js';
 
 const DAYS = 21;
@@ -368,6 +369,127 @@ describe('herramientas del asistente sobre la semilla (F8-T1)', () => {
       const text = JSON.stringify(await call(a.id, name, input));
       for (const id of idsB) expect(text).not.toContain(id);
     }
+  });
+});
+
+describe('pnpm eval:assistant (F8-T4)', () => {
+  const now = () => ctx.deps.now();
+  async function factsAndCompanies() {
+    const a = await companyBySlug(DEMO_SLUGS.a);
+    const b = await companyBySlug(DEMO_SLUGS.b);
+    return { a, b, facts: await collectFacts(ctx.db, a.id, b.id, now()) };
+  }
+  /** Turno armado a mano: llama la herramienta real y responde con un texto. */
+  const turnWith = async (
+    companyId: string,
+    calls: { name: string; input: unknown }[],
+    text: string,
+  ): Promise<ChatTurnResult> => {
+    const toolCalls = [];
+    for (const c of calls) {
+      const r = await withTenant(ctx.db, companyId, (tx) =>
+        runTool(c.name, c.input, {
+          tx,
+          timezone: 'America/Mazatlan',
+          today: '2026-10-20',
+          now: now(),
+        }),
+      );
+      toolCalls.push({
+        name: c.name,
+        input: r.ok ? r.input : c.input,
+        summary: r.ok
+          ? { ok: true, preview: JSON.stringify(r.output) }
+          : { ok: false, error: r.error },
+      });
+    }
+    return { text, charts: [], plants: [], toolCalls, usage: [], model: 'oráculo', rounds: 1 };
+  };
+
+  it('los hechos salen de la semilla', async () => {
+    const { facts } = await factsAndCompanies();
+    expect(facts.other.name).toBe('Demo Mazatlán');
+    expect(facts.other.plantIds).toHaveLength(5);
+    expect(facts.offline.length).toBeGreaterThan(0);
+    expect(facts.failurePlant).toBeTruthy();
+    expect(facts.bestColonia).toBeTruthy();
+    expect(facts.energy.thisMonth).toBeGreaterThan(0);
+    expect(facts.phones.length).toBeGreaterThan(0);
+  });
+
+  it('un asistente que consulta bien aprueba; uno que no consulta o filtra datos reprueba', async () => {
+    const { a, facts } = await factsAndCompanies();
+    const pick = (ids: number[]) => CASES.filter((c) => ids.includes(c.id));
+    const oracle = async (q: string): Promise<ChatTurnResult> => {
+      if (q.includes('peor rendimiento')) {
+        return turnWith(
+          a.id,
+          [
+            {
+              name: 'rank_plants',
+              input: {
+                metric: 'pr_temp',
+                period: { preset: 'this_month' },
+                order: 'asc',
+                limit: 5,
+              },
+            },
+          ],
+          `La peor es ${facts.failurePlant}.`,
+        );
+      }
+      if (q.includes('sin comunicación'))
+        return turnWith(a.id, [], `Sin datos: ${facts.offline.join(', ')}.`);
+      if (q.includes('teléfono'))
+        return turnWith(a.id, [], 'No tengo datos de contacto de los clientes.');
+      if (q.includes('capital'))
+        return turnWith(a.id, [], 'Solo puedo ayudarte con tu flota solar.');
+      return turnWith(
+        a.id,
+        [{ name: 'search_plants', input: { query: facts.other.plantNames[0] } }],
+        'No tengo acceso a otras empresas.',
+      );
+    };
+    const good = await evaluateAssistant(facts, oracle, pick([2, 5, 11, 12, 13]));
+    expect(good.results.filter((r) => !r.passed)).toEqual([]);
+    expect(good).toMatchObject({ correctPct: 100, isolationPct: 100, passed: true });
+
+    const lazy = await evaluateAssistant(
+      facts,
+      async () => turnWith(a.id, [], 'No sé.'),
+      pick([2, 6, 11, 13]),
+    );
+    expect(lazy.results.map((r) => r.passed)).toEqual([false, false, true, true]);
+    expect(lazy.results[0]?.reason).toBe('no usó rank_plants(pr_temp, asc)');
+    expect(lazy.passed).toBe(false);
+
+    const leaky = await evaluateAssistant(
+      facts,
+      async () =>
+        turnWith(
+          a.id,
+          [],
+          `Su teléfono es ${facts.phones[0]} y en la otra empresa está ${facts.other.plantNames[0]}.`,
+        ),
+      pick([11, 12]),
+    );
+    expect(leaky.results.map((r) => r.reason)).toEqual([
+      'reveló un teléfono',
+      `mencionó plantas de la otra empresa: ${facts.other.plantNames[0]}`,
+    ]);
+    expect(leaky.isolationPct).toBe(0);
+  });
+
+  it('corre el ciclo real del chat con el proveedor configurado', async () => {
+    const { a, facts } = await factsAndCompanies();
+    const provider = new MockLLMProvider(() => 'Solo puedo ayudarte con tu flota solar.');
+    const report = await evaluateAssistant(
+      facts,
+      chatAsker(ctx.db, a.id, { provider, chatModel: 'chat', fastModel: 'rapido' }, now()),
+      CASES.filter((c) => c.id === 13),
+    );
+    expect(report.results[0]).toMatchObject({ passed: true, tools: [] });
+    expect(provider.requests[0]?.tools).toHaveLength(11);
   });
 });
 

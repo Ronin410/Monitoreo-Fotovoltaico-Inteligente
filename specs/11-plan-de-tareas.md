@@ -70,12 +70,13 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 - [x] **F7-T2 Explicación de alertas.** _(2026-10-23)_ Job `ai.explain_alert`, esquema de salida, plantilla de respaldo, botón regenerar (ver `07` §3).
   - CA: con el proveedor simulado devolviendo una cifra inventada, se usa la plantilla; la UI y el correo muestran el resumen.
 
-## Fase 8 — IA: asistente analítico 🧪
+## Fase 8 — IA: asistente analítico 🧪 (revisión: `REVISION-FASE-8.md`)
 - [x] **F8-T1 Herramientas.** _(2026-10-23)_ Las 11 herramientas de `07` §2 con esquemas zod y pruebas contra la semilla.
 - [x] **F8-T2 Ciclo agente y SSE.** _(2026-10-23)_ `POST /ai/chat`, límite de rondas, historial, persistencia, rate limit.
 - [x] **F8-T3 UI del chat.** _(2026-10-23)_ Conversaciones, streaming, markdown, tablas, gráficas, enlaces a plantas, preguntas sugeridas, barra rápida en el tablero.
 - [ ] **F8-T4 Evaluación.** Script `pnpm eval:assistant` con el set de preguntas de `12`.
   - CA: ≥ 90 % de respuestas correctas y 100 % en las preguntas de aislamiento.
+  - Avance (2026-10-23): script y verificaciones listos y probados contra la semilla (los 15 casos de `12` §5). **Falta correrlo con el modelo real** (`LLM_PROVIDER=anthropic` y `ANTHROPIC_API_KEY`), que no está disponible en este entorno. Ver `REVISION-FASE-8.md`.
 
 ### 🎯 Hito DEMO — al terminar la Fase 8 se puede presentar al cliente.
 

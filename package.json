@@ -19,6 +19,7 @@
     "db:migrate:dev": "pnpm --filter @pv/db migrate:dev",
     "db:seed:demo": "pnpm --filter @pv/worker seed:demo",
     "eval:alerts": "pnpm --filter @pv/worker eval:alerts",
+    "eval:assistant": "pnpm --filter @pv/worker eval:assistant",
     "admin:create-superadmin": "pnpm --filter @pv/api admin:create-superadmin",
     "coverage:core": "vitest run --project @pv/core --coverage --coverage.include='src/**' --coverage.exclude='**/*.test.ts' --coverage.reporter=text-summary --coverage.thresholds.lines=90"
   },
