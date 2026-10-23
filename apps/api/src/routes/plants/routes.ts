@@ -38,6 +38,13 @@ import {
   plantsResponse,
   putCredentialsBody,
 } from './schemas.js';
+import {
+  compareByMetric,
+  METRIC_SORTS,
+  plantMetrics,
+  type MetricSort,
+  type PlantMetrics,
+} from './metrics.js';
 
 // CRUD de plantas (F2-T2). Roles: company_admin y operator. Los valores técnicos sin indicar
 // toman los de la empresa (settings.defaults) y la ubicación se copia del cliente.
@@ -107,7 +114,7 @@ function credentialsDto(c: CredentialsMeta): z.input<typeof credentialsStatus> {
 }
 
 const SORTS: Record<
-  z.output<typeof plantsQuery>['sort'],
+  Exclude<z.output<typeof plantsQuery>['sort'], MetricSort>,
   Prisma.SolarPlantOrderByWithRelationInput
 > = {
   name: { name: 'asc' },
@@ -129,7 +136,10 @@ const jsonOrDbNull = (value: object | null | undefined) =>
       ? Prisma.DbNull
       : (value as Prisma.InputJsonObject);
 
-function plantDto(p: PlantWithClient): z.input<typeof plantResponse> {
+function plantDto(
+  p: PlantWithClient,
+  metrics: PlantMetrics | null = null,
+): z.input<typeof plantResponse> {
   return {
     id: p.id,
     client: p.client,
@@ -154,6 +164,7 @@ function plantDto(p: PlantWithClient): z.input<typeof plantResponse> {
     last_power_kw: dec(p.lastPowerKw),
     simulation_profile: p.simulationProfile as z.input<typeof plantResponse>['simulation_profile'],
     credentials: credentialsDto(p.credentials),
+    metrics,
     created_at: p.createdAt,
     updated_at: p.updatedAt,
   };
@@ -262,18 +273,43 @@ export function plantsRouter(db: PrismaClient, options: PlantsRouterOptions): Ro
           }
         : {}),
     };
-    const [plants, total] = await withTenant(db, companyId, (tx) =>
-      Promise.all([
-        tx.solarPlant.findMany({
-          where,
-          include: withClient,
-          orderBy: [SORTS[query.sort], { id: 'asc' }],
-          ...pageArgs(query),
-        }),
-        tx.solarPlant.count({ where }),
-      ]),
-    );
-    respond(res, plantsResponse, paginated(plants.map(plantDto), query, total));
+    const metricSort = (METRIC_SORTS as readonly string[]).includes(query.sort)
+      ? (query.sort as MetricSort)
+      : null;
+    const { rows, total } = await withTenant(db, companyId, async (tx) => {
+      const { timezone } = await tx.company.findUniqueOrThrow({ where: { id: companyId } });
+      const metricsOf = (ids: string[]) => plantMetrics(tx, ids, timezone, options.now());
+      if (!metricSort && !query.health) {
+        const [plants, total] = await Promise.all([
+          tx.solarPlant.findMany({
+            where,
+            include: withClient,
+            orderBy: [SORTS[query.sort as Exclude<typeof query.sort, MetricSort>], { id: 'asc' }],
+            ...pageArgs(query),
+          }),
+          tx.solarPlant.count({ where }),
+        ]);
+        const metrics = await metricsOf(plants.map((p) => p.id));
+        return { rows: plants.map((p) => plantDto(p, metrics.get(p.id) ?? null)), total };
+      }
+      // Filtro u orden por indicadores: se calculan para todas las coincidencias y se pagina en
+      // memoria (una empresa tiene cientos de plantas, no millones).
+      const all = await tx.solarPlant.findMany({
+        where,
+        include: withClient,
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      });
+      const metrics = await metricsOf(all.map((p) => p.id));
+      let items = all.map((p) => ({ p, m: metrics.get(p.id) as PlantMetrics }));
+      if (query.health) items = items.filter(({ m }) => m.status === query.health);
+      if (metricSort) items.sort((a, b) => compareByMetric(metricSort, a.m, b.m));
+      const { skip, take } = pageArgs(query);
+      return {
+        rows: items.slice(skip, skip + take).map(({ p, m }) => plantDto(p, m)),
+        total: items.length,
+      };
+    });
+    respond(res, plantsResponse, paginated(rows, query, total));
   });
 
   router.post('/', async (req, res) => {
@@ -313,11 +349,18 @@ export function plantsRouter(db: PrismaClient, options: PlantsRouterOptions): Ro
   router.get('/:id', async (req, res) => {
     const { companyId } = companyAuthOf(req);
     const { id } = idParam.parse(req.params);
-    const plant = await withTenant(db, companyId, (tx) =>
-      tx.solarPlant.findFirst({ where: { id, deletedAt: null }, include: withClient }),
-    );
-    if (!plant) throw plantNotFound();
-    respond(res, plantResponse, plantDto(plant));
+    const found = await withTenant(db, companyId, async (tx) => {
+      const plant = await tx.solarPlant.findFirst({
+        where: { id, deletedAt: null },
+        include: withClient,
+      });
+      if (!plant) return null;
+      const { timezone } = await tx.company.findUniqueOrThrow({ where: { id: companyId } });
+      const metrics = await plantMetrics(tx, [plant.id], timezone, options.now());
+      return { plant, metrics: metrics.get(plant.id) ?? null };
+    });
+    if (!found) throw plantNotFound();
+    respond(res, plantResponse, plantDto(found.plant, found.metrics));
   });
 
   router.patch('/:id', async (req, res) => {

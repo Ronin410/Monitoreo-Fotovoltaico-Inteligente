@@ -132,3 +132,13 @@ describe('simulationProfileSchema', () => {
     ).toThrow();
   });
 });
+
+describe('mensajes de validación', () => {
+  it('zod responde en español al importar @pv/core', async () => {
+    await import('./index.js');
+    const { z } = await import('zod');
+    expect(z.number().safeParse(null).error?.issues[0]?.message).toBe(
+      'Entrada inválida: se esperaba número, recibido nulo',
+    );
+  });
+});

@@ -8,7 +8,11 @@ import { meResponse } from './schemas.js';
 const sessionGone = () => new HttpError(401, 'UNAUTHENTICATED', 'Inicia sesión para continuar');
 
 /** GET /me: usuario, rol y empresa (con su marca). */
-export function meRouter(db: PrismaClient, serviceDb: PrismaClient): Router {
+export function meRouter(
+  db: PrismaClient,
+  serviceDb: PrismaClient,
+  features: { simulator: boolean },
+): Router {
   const router = Router();
 
   router.get('/', async (req, res) => {
@@ -21,6 +25,7 @@ export function meRouter(db: PrismaClient, serviceDb: PrismaClient): Router {
       respond(res, meResponse, {
         user: { id: user.id, email: user.email, name: user.name, role: user.role },
         company: null,
+        features,
       });
       return;
     }
@@ -44,6 +49,7 @@ export function meRouter(db: PrismaClient, serviceDb: PrismaClient): Router {
         brand_color: company.brandColor,
         timezone: company.timezone,
       },
+      features,
     });
   });
 

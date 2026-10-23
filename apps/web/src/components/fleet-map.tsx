@@ -38,6 +38,7 @@ function FitBounds({ plants }: { plants: MapPlant[] }) {
     map.fitBounds(L.latLngBounds(plants.map((p) => [p.lat, p.lon])), {
       padding: [32, 32],
       maxZoom: 15,
+      animate: false,
     });
   }, [map, plants]);
   return null;

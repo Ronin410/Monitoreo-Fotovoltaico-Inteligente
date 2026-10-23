@@ -33,3 +33,40 @@ export function formatDateTime(iso: string | Date, timeZone: string) {
     minute: '2-digit',
   }).format(new Date(iso));
 }
+
+/** Desfase (ms) de la zona `timeZone` respecto a UTC en el instante `utcMs`. */
+function zoneOffsetMs(utcMs: number, timeZone: string): number {
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(new Date(utcMs));
+  const asUtc = Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour'),
+    get('minute'),
+    get('second'),
+  );
+  return asUtc - utcMs;
+}
+
+/**
+ * Valor de un <input type="datetime-local"> ("2026-10-23T09:30") leído como hora de la zona de la
+ * empresa, no del navegador, a ISO UTC.
+ */
+export function zonedLocalToIso(value: string, timeZone: string): string {
+  const [y = 0, mo = 1, d = 1, h = 0, mi = 0] = value.split(/[-T:]/).map(Number);
+  const naive = Date.UTC(y, mo - 1, d, h, mi);
+  // Dos pasadas para los cambios de horario.
+  let utc = naive - zoneOffsetMs(naive, timeZone);
+  utc = naive - zoneOffsetMs(utc, timeZone);
+  return new Date(utc).toISOString();
+}

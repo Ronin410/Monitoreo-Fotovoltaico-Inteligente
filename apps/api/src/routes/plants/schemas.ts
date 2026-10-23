@@ -1,6 +1,7 @@
 import { INVERTER_BRANDS, simulationProfileSchema } from '@pv/core';
 import { z } from 'zod';
 import { paginatedSchema, paginationQuery } from '../../http/pagination.js';
+import { METRIC_SORTS } from './metrics.js';
 import { latSchema, lonSchema, postalCodeSchema } from '../clients/schemas.js';
 
 // Plantas (specs/03 §solar_plants, specs/10 §Clientes y plantas).
@@ -68,14 +69,18 @@ export const PLANT_SORTS = [
   '-capacity_kwp',
 ] as const;
 
+/** Estado de salud actual (specs/09): sale de alertas abiertas y del último día calculado. */
+export const healthSchema = z.enum(['ok', 'warning', 'critical', 'offline', 'no_data']);
+
 export const plantsQuery = paginationQuery.extend({
   status: plantStatusSchema.optional(),
+  health: healthSchema.optional(),
   postal_code: postalCodeSchema.optional(),
   colonia: z.string().trim().min(1).max(120).optional(),
   brand: inverterBrandSchema.optional(),
   client_id: z.uuid().optional(),
   q: z.string().trim().min(1).max(100).optional(),
-  sort: z.enum(PLANT_SORTS).default('name'),
+  sort: z.enum([...PLANT_SORTS, ...METRIC_SORTS]).default('name'),
 });
 
 /**
@@ -133,6 +138,18 @@ export const plantResponse = z.object({
   last_power_kw: z.number().nullable(),
   simulation_profile: simulationProfileSchema.nullable(),
   credentials: credentialsStatus,
+  /** Indicadores actuales; null en las respuestas de crear y editar. */
+  metrics: z
+    .object({
+      status: healthSchema,
+      energy_today_kwh: z.number(),
+      pr_temp_7d: z.number().nullable(),
+      deviation_pct: z.number().nullable(),
+      days_to_cleaning: z.number().int().nullable(),
+      prediction_confidence: z.enum(['low', 'medium', 'high']).nullable(),
+      last_metric_date: z.string().nullable(),
+    })
+    .nullable(),
   created_at: z.date(),
   updated_at: z.date(),
 });

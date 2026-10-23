@@ -1,3 +1,4 @@
+import './zod-locale.js';
 export * from './permissions.js';
 export * from './random.js';
 export * from './settings.js';

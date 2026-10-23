@@ -144,6 +144,8 @@ describe('access token y GET /api/me', () => {
         brand_color: '#F59E0B',
         timezone: 'America/Mazatlan',
       },
+      // SIMULATOR_ENABLED=true en el ambiente de pruebas.
+      features: { simulator: true },
     });
   });
 

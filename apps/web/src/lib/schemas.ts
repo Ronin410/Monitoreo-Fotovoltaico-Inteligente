@@ -31,6 +31,7 @@ export const meResponse = z.object({
       timezone: z.string(),
     })
     .nullable(),
+  features: z.object({ simulator: z.boolean() }).default({ simulator: false }),
 });
 export type Me = z.infer<typeof meResponse>;
 

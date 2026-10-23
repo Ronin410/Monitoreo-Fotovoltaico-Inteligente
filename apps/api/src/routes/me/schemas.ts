@@ -13,4 +13,6 @@ export const meResponse = z.object({
       timezone: z.string(),
     })
     .nullable(),
+  /** Funciones del ambiente que cambian la interfaz (SIMULATOR_ENABLED: staging o demo). */
+  features: z.object({ simulator: z.boolean() }),
 });

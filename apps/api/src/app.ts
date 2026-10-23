@@ -72,7 +72,11 @@ export function createApp(deps: AppDeps): Express {
   });
   api.use('/auth', authRouter(auth, now));
   const authenticated = requireAuth(deps.env.JWT_SECRET, now);
-  api.use('/me', authenticated, meRouter(deps.db, deps.serviceDb));
+  api.use(
+    '/me',
+    authenticated,
+    meRouter(deps.db, deps.serviceDb, { simulator: deps.env.SIMULATOR_ENABLED }),
+  );
   api.use('/company', authenticated, companyUsersRouter(deps.db, auth));
   api.use('/company', authenticated, companyProfileRouter(deps.db, deps.storage, deps.env.API_URL));
   api.use('/public/logos', publicLogosRouter(deps.storage));

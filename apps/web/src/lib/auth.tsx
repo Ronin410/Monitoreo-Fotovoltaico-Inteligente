@@ -19,7 +19,7 @@ import { meResponse, sessionResponse, type Me, type SessionResponse } from './sc
 export type AuthState =
   | { status: 'loading' }
   | { status: 'anonymous' }
-  | { status: 'authenticated'; user: Me['user']; company: Me['company'] };
+  | { status: 'authenticated'; user: Me['user']; company: Me['company']; features: Me['features'] };
 
 export type AuthContextValue = {
   state: AuthState;
@@ -79,7 +79,12 @@ export function AuthProvider({
 
   const loadMe = useCallback(async () => {
     const me = await api('/me', meResponse);
-    setState({ status: 'authenticated', user: me.user, company: me.company });
+    setState({
+      status: 'authenticated',
+      user: me.user,
+      company: me.company,
+      features: me.features,
+    });
   }, [api]);
 
   const startSession = useCallback(

@@ -287,3 +287,18 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Los marcadores cambian de color y forma por estado (círculo, rombo, cuadrado, anillo), son más grandes para ≥ 30 kWp y se abren con teclado.
     - En este entorno los mosaicos están bloqueados por la red; en el navegador del usuario cargan.
 140. **Marca blanca (corrección).** Las variables de color de marca se declaran con `@theme inline`. Antes, Tailwind las resolvía en `:root` y el color de la empresa no llegaba a botones ni enlaces. Para texto y enlaces se usa una variante ajustada a 4.5:1 sobre el fondo de cada modo. Ojo: el color por omisión de una empresa es ámbar (`#F59E0B`, specs/03), igual que el estado "advertencia". Los estados siempre llevan ícono y texto, pero conviene que el PO elija otro color por omisión.
+
+## F6-T3 — Plantas y clientes
+
+141. **Indicadores en `GET /plants` y `GET /plants/:id`.**
+    - Cada planta trae `metrics` (estado actual, energía de hoy, PR corregido de 7 días, desviación y predicción de lavado del último día calculado), calculados en lote para la página.
+    - Se agregaron el filtro `health` y los órdenes `pr_7d`, `-pr_7d`, `deviation`, `-deviation` y `days_to_cleaning`. Con ellos se calcula para todas las coincidencias y se pagina en memoria; alcanza para cientos de plantas y se medirá en la prueba de carga (F10-T4).
+    - Crear y editar devuelven `metrics: null`.
+142. **`GET /me` trae `features.simulator`** (SIMULATOR_ENABLED), para mostrar la marca "Simulador" y su editor de escenarios solo en staging o demo. Una planta que ya es simulada la conserva al editarse.
+143. **Campos de credenciales.** Los campos que pide cada portal no están definidos y no se inventan (CLAUDE.md). El formulario pide usuario, contraseña y campos adicionales libres. Al implementar cada adaptador con su documentación oficial se ajustarán los campos y su `credsSchema`. Lo guardado nunca se vuelve a mostrar.
+144. **Mensajes de validación en español.** `@pv/core` activa los mensajes en español de zod para toda la plataforma (una sola copia de zod en el monorepo). Antes, un número inválido mostraba "Invalid input: expected number". Además, el frontend valida los campos numéricos antes de enviarlos.
+145. **Hora de los eventos.** La hora que se escribe al registrar un evento se interpreta en la zona de la empresa, no en la del navegador.
+146. **Eliminar.**
+    - Eliminar planta o cliente pide confirmación en dos pasos dentro de la página.
+    - Un cliente con plantas no se puede eliminar: la API responde 409 y se muestra el mensaje.
+    - Pausar o reactivar una planta es un botón del detalle.

@@ -374,3 +374,103 @@ describe('backfill de clima', () => {
     expect(backfills(id)).toHaveLength(4);
   });
 });
+
+describe('indicadores en la lista y el detalle', () => {
+  it('estado, energía de hoy, PR de 7 días y predicción; filtro por salud y orden por métrica', async () => {
+    const s = await session();
+    ctx.clock.current = new Date('2026-10-22T18:00:00Z'); // 11:00 en Culiacán
+    const auth = `Bearer ${await tokenFor(s.user, ctx.clock.current)}`;
+    const mk = async (name: string) =>
+      (await api(auth).create({ ...minimal(s.client.id), name })).body as { id: string };
+    const good = await mk('Buena');
+    const dirty = await mk('Sucia');
+    const off = await mk('Sin datos');
+    await mk('Nueva');
+    const metric = (plantId: string, date: string, over: object) =>
+      ctx.owner.plantDailyMetric.create({
+        data: {
+          companyId: s.company.id,
+          plantId,
+          date: new Date(`${date}T00:00:00Z`),
+          clientId: s.client.id,
+          postalCode: '80060',
+          colonia: 'Las Quintas',
+          energyKwh: 20,
+          irradiationPoaKwhM2: 6,
+          expectedStcKwh: 25,
+          expectedTempKwh: 23,
+          specificYieldKwhKwp: 4,
+          isValidDay: true,
+          status: 'ok',
+          ...over,
+        },
+      });
+    await metric(good.id, '2026-10-20', { prTemp: 0.88 });
+    await metric(good.id, '2026-10-21', { prTemp: 0.9, deviationPct: 0.5 });
+    await metric(dirty.id, '2026-10-21', {
+      prTemp: 0.75,
+      deviationPct: 14,
+      daysToCleaning: 0,
+      predictionConfidence: 'high',
+      status: 'warning',
+    });
+    await metric(off.id, '2026-10-21', { prTemp: 0.8 });
+    await ctx.owner.alert.create({
+      data: { companyId: s.company.id, plantId: off.id, type: 'offline', severity: 'critical' },
+    });
+    await ctx.owner.telemetryReading.create({
+      data: {
+        companyId: s.company.id,
+        plantId: good.id,
+        ts: new Date('2026-10-22T16:00:00Z'),
+        powerKw: 4,
+        energyKwh: 1.25,
+      },
+    });
+
+    const list = await api(auth).list();
+    const byName = Object.fromEntries(
+      (list.body.data as { name: string; metrics: Record<string, unknown> }[]).map((p) => [
+        p.name,
+        p.metrics,
+      ]),
+    );
+    expect(byName.Buena).toEqual({
+      status: 'ok',
+      energy_today_kwh: 1.25,
+      pr_temp_7d: 0.89,
+      deviation_pct: 0.5,
+      days_to_cleaning: null,
+      prediction_confidence: null,
+      last_metric_date: '2026-10-21',
+    });
+    expect(byName.Sucia).toMatchObject({
+      status: 'warning',
+      days_to_cleaning: 0,
+      prediction_confidence: 'high',
+    });
+    expect(byName['Sin datos']).toMatchObject({ status: 'offline' });
+    expect(byName.Nueva).toMatchObject({
+      status: 'no_data',
+      pr_temp_7d: null,
+      energy_today_kwh: 0,
+    });
+
+    const warning = await api(auth).list('?health=warning');
+    expect(warning.body).toMatchObject({ total: 1, data: [{ name: 'Sucia' }] });
+    const byPr = await api(auth).list('?sort=-pr_7d&page_size=2');
+    expect(byPr.body.total).toBe(4);
+    expect(byPr.body.data.map((p: { name: string }) => p.name)).toEqual(['Buena', 'Sin datos']);
+    const byPrPage2 = await api(auth).list('?sort=-pr_7d&page_size=2&page=2');
+    // Sin dato al final.
+    expect(byPrPage2.body.data.map((p: { name: string }) => p.name)).toEqual(['Sucia', 'Nueva']);
+    const byDeviation = await api(auth).list('?sort=-deviation');
+    expect(byDeviation.body.data[0].name).toBe('Sucia');
+    expect((await api(auth).list('?health=raro')).status).toBe(400);
+
+    const detail = await api(auth).get(dirty.id);
+    expect(detail.body.metrics).toMatchObject({ status: 'warning', deviation_pct: 14 });
+    // Crear y editar no calculan indicadores.
+    expect((await api(auth).patch(dirty.id, { name: 'Sucia 2' })).body.metrics).toBeNull();
+  });
+});
