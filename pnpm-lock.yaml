@@ -139,6 +139,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@node-rs/argon2':
+        specifier: ^2.2.2
+        version: 2.2.2
       '@pv/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
@@ -170,6 +173,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: ^3.1156.0
         version: 3.1156.0
+      '@node-rs/argon2':
+        specifier: ^2.2.2
+        version: 2.2.2
       '@pv/config':
         specifier: workspace:*
         version: link:../config

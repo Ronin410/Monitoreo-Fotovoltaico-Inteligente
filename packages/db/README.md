@@ -46,6 +46,16 @@ El superadmin no pertenece a ninguna empresa y no se puede invitar. Se crea una 
 pnpm admin:create-superadmin admin@ejemplo.com "Nombre"
 ```
 
+## Semilla de demo
+
+Sobre una base recién migrada y con las variables de entorno cargadas (`NODE_ENV` distinto de `production`; para no depender de la red conviene `WEATHER_PROVIDER=synthetic`):
+
+```sh
+pnpm db:seed:demo
+```
+
+Crea las empresas "Solar Demo Culiacán" (25 plantas con escenarios) y "Demo Mazatlán" (5 plantas) y un superadmin. Luego ejecuta el pipeline real sobre 90 días: clima, telemetría simulada y métricas diarias. Tarda alrededor de 1.5 min. Las contraseñas se generan al azar y solo se imprimen en la consola. Si la demo ya existe no hace nada; para volver a sembrar hay que recrear la base.
+
 ## Colas (pg-boss)
 
 Las colas viven en el esquema `pgboss`, que crea la migración `jobs`. pg-boss se conecta con `SERVICE_DATABASE_URL` como rol `pv_service` (`-c role=pv_service`) e instala ahí sus tablas, a nombre del rol de grupo: se puede rotar el usuario de conexión sin perder las colas. Las colas solo guardan ids y `company_id`.

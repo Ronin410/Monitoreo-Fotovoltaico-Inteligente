@@ -5,3 +5,4 @@ export * from './storage/index.js';
 export * from './queue/index.js';
 export * from './weather/index.js';
 export * from './jobs.js';
+export * from './passwords.js';

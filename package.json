@@ -17,6 +17,7 @@
     "db:migrate": "pnpm --filter @pv/db migrate",
     "db:generate": "pnpm --filter @pv/db generate",
     "db:migrate:dev": "pnpm --filter @pv/db migrate:dev",
+    "db:seed:demo": "pnpm --filter @pv/worker seed:demo",
     "admin:create-superadmin": "pnpm --filter @pv/api admin:create-superadmin",
     "coverage:core": "vitest run --project @pv/core --coverage --coverage.include='src/**' --coverage.exclude='**/*.test.ts' --coverage.reporter=text-summary --coverage.thresholds.lines=90"
   },
