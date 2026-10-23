@@ -161,3 +161,7 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 100. **Escenarios visibles.** La lluvia lava los paneles, así que a las 4 plantas con suciedad se les asignan los puntos con la lluvia más antigua: se consulta el clima de 14 puntos candidatos. La suciedad empieza el día siguiente a la última lluvia, con la tasa que deja la pérdida pedida hoy (3 %, 7 %, 10.5 % y 16 %). Otras fechas: la falla de string reciente es de hace 3 días y la antigua de hace 25; la planta queda offline desde las 09:00 de hace 2 días; la sombra de la tarde empieza hace 30 días; las 2 plantas nuevas se instalaron hace 9 y 6 días.
 101. **Re-ejecución.** La semilla no borra nada: si ya existen las empresas demo, termina con un mensaje. Se niega a correr con `NODE_ENV=production`. Las métricas llegan hasta ayer (día local completo). Los correos usan el dominio reservado `demo.pv-iot.example`.
 102. **Hash de contraseñas compartido.** `hashPassword` y `verifyPassword` (argon2id) se movieron a `@pv/adapters` para que la semilla del worker use exactamente los mismos parámetros que la API.
+
+## Revisión de la Fase 4
+
+103. **Falla de string frente a tendencia de suciedad.** Una caída brusca (falla de string) entra en la regresión de `05` §7 como si fuera suciedad y da `days_to_cleaning = 0`. Propuesta conservadora para F5: con una `sudden_drop` abierta no se emite `cleaning_due_soon`, y los días con `sudden_drop` activo se excluyen también de los puntos de la tendencia (igual que de la línea base). ¿Lo confirma el PO?

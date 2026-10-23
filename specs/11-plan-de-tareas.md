@@ -41,7 +41,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 - [x] **F3-T4 Ingesta de telemetría.** _(2026-10-23)_ Job `ingest.telemetry` con normalización a 15 min (contador diario y potencia) y ventana de sol.
 - [x] **F3-T5 Esqueletos de adaptadores reales.** _(2026-10-23)_ GoodWe, Huawei, Fronius y Enphase lanzando `NotImplementedError`, con un TODO que exija documentación oficial.
 
-## Fase 4 — Motor de rendimiento 🧪
+## Fase 4 — Motor de rendimiento 🧪 (revisión: `REVISION-FASE-4.md`)
 - [x] **F4-T1 Fórmulas puras.** _(2026-10-23)_ `packages/core/performance` con §1–8 de `05`.
   - CA: los casos A, B y C de `05` §10 y los "otros casos" pasan.
 - [x] **F4-T2 Job `metrics.daily`.** Orquestación por empresa, recálculo por rango de fechas, eventos `rain_cleaning` automáticos. _(2026-10-23)_

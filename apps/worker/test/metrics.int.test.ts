@@ -243,6 +243,7 @@ describe('metrics.recompute / metrics.daily_company', () => {
     const c = await createCompanyWithClient(ctx.owner);
     const silent = await createPlant(ctx.owner, c.company.id, c.client.id);
     const future = await createPlant(ctx.owner, c.company.id, c.client.id);
+    const paused = await createPlant(ctx.owner, c.company.id, c.client.id, { status: 'paused' });
     await ctx.owner.solarPlant.update({
       where: { id: future.id },
       data: { commissioningDate: new Date(`${addDays(LAST, 1)}T00:00:00Z`) },
@@ -257,6 +258,79 @@ describe('metrics.recompute / metrics.daily_company', () => {
     expect(row).toMatchObject({ isValidDay: false, invalidReason: 'offline' });
     expect(row?.status).toBe('offline');
     expect(await metricsOf(future.id)).toHaveLength(0);
+    expect(await metricsOf(paused.id)).toHaveLength(0);
+  });
+
+  it('un día no válido con PR calculable no tiene desviación', async () => {
+    const c = await createCompanyWithClient(ctx.owner);
+    const plant = await simulatedPlant(c);
+    await ingest(c.company.id, [plant.id]);
+    // Irradiancia del último día al 5 %: queda por debajo del mínimo (low_irradiation).
+    const hours = await ctx.owner.plantWeatherHourly.findMany({
+      where: { plantId: plant.id, ts: { gte: startOfLocalDay(LAST, TZ) } },
+    });
+    for (const h of hours) {
+      await ctx.owner.plantWeatherHourly.update({
+        where: { plantId_ts: { plantId: h.plantId, ts: h.ts } },
+        data: { poaWm2: Number(h.poaWm2) * 0.05 },
+      });
+    }
+    await computeCompanyDay(ctx.jobContext(c.company.id), c.company.id, LAST);
+    const row = (await metricsOf(plant.id)).at(-1)!;
+    expect(row).toMatchObject({ isValidDay: false, invalidReason: 'low_irradiation' });
+    expect(row.prTemp).not.toBeNull();
+    expect(row.deviationPct).toBeNull();
+  });
+
+  it('la tendencia de suciedad no cuenta el día del reinicio', async () => {
+    const c = await createCompanyWithClient(ctx.owner);
+    const plant = await simulatedPlant(c, [
+      { type: 'soiling', start: FIRST, rate_pct_per_day: 0.6 },
+    ]);
+    await ingest(c.company.id, [plant.id]);
+    await ctx.owner.plantWeatherHourly.updateMany({
+      where: { plantId: plant.id },
+      data: { precipitationMm: 0 },
+    });
+    await recompute(c.company.id);
+    const lastDays = (await metricsOf(plant.id)).slice(-7);
+    expect(lastDays.every((r) => r.isValidDay)).toBe(true);
+
+    // Limpieza hace 6 días: 6 días posteriores (< 7) → sin predicción, aunque el día de la
+    // limpieza también sea válido.
+    await ctx.owner.plantEvent.create({
+      data: {
+        companyId: c.company.id,
+        plantId: plant.id,
+        type: 'cleaning',
+        source: 'manual',
+        occurredAt: localTime(addDays(LAST, -6), 10),
+      },
+    });
+    await computeCompanyDay(ctx.jobContext(c.company.id), c.company.id, LAST);
+    expect((await metricsOf(plant.id)).at(-1)!.predictionConfidence).toBeNull();
+  });
+
+  it('los días con sudden_drop activo no entran en la línea base', async () => {
+    const c = await createCompanyWithClient(ctx.owner);
+    const plant = await simulatedPlant(c, [
+      { type: 'string_failure', start: addDays(FIRST, 2), loss_pct: 50, end: null },
+    ]);
+    await ingest(c.company.id, [plant.id]);
+    await ctx.owner.alert.create({
+      data: {
+        companyId: c.company.id,
+        plantId: plant.id,
+        type: 'sudden_drop',
+        severity: 'critical',
+        detectedAt: localTime(addDays(FIRST, 2), 20),
+      },
+    });
+    await recompute(c.company.id);
+    // Solo quedan 2 días sanos (< 10): la base es la de omisión y la caída se ve como desviación.
+    const last = (await metricsOf(plant.id)).filter((r) => r.isValidDay).at(-1)!;
+    expect(last.baselineSource).toBe('default');
+    expect(Number(last.deviationPct)).toBeGreaterThan(40);
   });
 });
 

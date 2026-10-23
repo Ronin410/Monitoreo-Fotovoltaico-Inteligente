@@ -177,6 +177,32 @@ describe('otros casos de specs/05 §10', () => {
     expect(day).toMatchObject({ isValidDay: false, invalidReason: 'low_irradiation' });
   });
 
+  it('en el límite exacto (2.0 kWh/m² y 80 % de completitud) el día es válido', () => {
+    // 4 horas a 500 W/m² = 2.0 kWh/m²; con una quinta hora sin datos la completitud queda en 80 %.
+    const hours = Array.from({ length: 4 }, () => ({
+      poaWm2: 500,
+      tempAmbC: 25,
+      energyKwh: 2,
+      intervals: 4,
+    }));
+    const day = computeDay(hours, PANEL, THRESHOLDS, true);
+    near(day.irradiationPoaKwhM2, 2.0);
+    expect(day).toMatchObject({ isValidDay: true, invalidReason: null });
+
+    const five = [
+      ...Array.from({ length: 4 }, () => ({
+        poaWm2: 500,
+        tempAmbC: 25,
+        energyKwh: 2,
+        intervals: 4,
+      })),
+      { poaWm2: 500, tempAmbC: 25, energyKwh: 0, intervals: 0 },
+    ];
+    const edge = computeDay(five, PANEL, THRESHOLDS, true);
+    near(edge.dataCompletenessPct, 80);
+    expect(edge).toMatchObject({ isValidDay: true, invalidReason: null });
+  });
+
   it('motivos de invalidez: sin clima, sin telemetría, datos incompletos', () => {
     expect(
       computeDay(
