@@ -38,7 +38,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
   - CA: para una planta en Culiacán con inclinación de 20° al sur se guardan 24 horas con POA > 0 solo en horas de sol.
 - [x] **F3-T3 Simulador.** _(2026-10-23)_ Adaptador `simulator` con todos los escenarios de `04` §3.
   - CA: pruebas unitarias por escenario (suciedad crece y se reinicia con lluvia o limpieza; falla de string es un escalón; offline no devuelve datos).
-- [ ] **F3-T4 Ingesta de telemetría.** Job `ingest.telemetry` con normalización a 15 min (contador diario y potencia) y ventana de sol.
+- [x] **F3-T4 Ingesta de telemetría.** _(2026-10-23)_ Job `ingest.telemetry` con normalización a 15 min (contador diario y potencia) y ventana de sol.
 - [ ] **F3-T5 Esqueletos de adaptadores reales.** GoodWe, Huawei, Fronius y Enphase lanzando `NotImplementedError`, con un TODO que exija documentación oficial.
 
 ## Fase 4 — Motor de rendimiento 🧪

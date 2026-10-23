@@ -35,3 +35,26 @@ export const weatherBackfill = defineJob({
   expireInSeconds: 30 * 60,
   singletonKey: (p) => `weather.backfill:${p.plant_id}`,
 });
+
+/** Orquestador cada 15 min: encola la telemetría de cada planta activa con sol (specs/04 §1). */
+export const ingestTelemetry = defineJob({
+  name: 'ingest.telemetry',
+  payload: z.object({}),
+  scope: 'platform',
+  retryLimit: 1,
+  schedule: { cron: '*/15 * * * *' },
+});
+
+/** Telemetría de una planta: lee el inversor, normaliza a 15 min y guarda. */
+export const ingestTelemetryPlant = defineJob({
+  name: 'ingest.telemetry_plant',
+  payload: companyPayload.extend({ plant_id: z.uuid() }),
+  scope: 'company',
+  // specs/04: backoff exponencial ante 429 o 5xx; tras 3 fallos se registra en job_runs.
+  retryLimit: 3,
+  retryDelaySeconds: 30,
+  // specs/04: concurrencia máxima por proveedor, por defecto 5.
+  concurrency: 5,
+  expireInSeconds: 5 * 60,
+  singletonKey: (p) => `ingest.telemetry_plant:${p.plant_id}`,
+});

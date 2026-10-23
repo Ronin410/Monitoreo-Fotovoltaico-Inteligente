@@ -99,11 +99,17 @@ export class JobQueue implements JobEnqueuer {
     );
   }
 
-  /** Atiende la cola: un job a la vez por worker de cola. */
-  async work(name: string, handler: (job: Job<unknown>) => Promise<void>): Promise<string> {
+  /** Atiende la cola, con `concurrency` jobs en paralelo (por defecto 1). */
+  async work(
+    definition: JobDefinition,
+    handler: (job: Job<unknown>) => Promise<void>,
+  ): Promise<string> {
     return this.boss.work<unknown>(
-      name,
-      { pollingIntervalSeconds: this.options.pollingIntervalSeconds ?? 2 },
+      definition.name,
+      {
+        pollingIntervalSeconds: this.options.pollingIntervalSeconds ?? 2,
+        localConcurrency: definition.concurrency ?? 1,
+      },
       async ([job]) => {
         if (job) await handler(job);
       },

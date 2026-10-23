@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hashString, normal, seededRandom } from './random.js';
-import { incidenceCos, sunPosition, sunTimes } from './solar.js';
+import { incidenceCos, isWithinSunWindow, sunPosition, sunTimes, sunWindow } from './solar.js';
 
 const CULIACAN = { lat: 24.8, lon: -107.39 };
 
@@ -62,5 +62,25 @@ describe('seededRandom', () => {
     const sd = Math.sqrt(xs.reduce((s, x) => s + (x - mean) ** 2, 0) / xs.length);
     expect(Math.abs(mean)).toBeLessThan(0.03);
     expect(Math.abs(sd - 1)).toBeLessThan(0.03);
+  });
+});
+
+describe('sunWindow', () => {
+  const TZ = 'America/Mazatlan';
+  it('usa el día local aunque en UTC ya sea el día siguiente', () => {
+    // 17:30 locales del 20 de octubre = 00:30 UTC del 21.
+    const w = sunWindow(new Date('2026-10-21T00:30:00Z'), 24.8, -107.39, TZ);
+    expect(w?.from.toISOString().slice(0, 10)).toBe('2026-10-20');
+    expect(isWithinSunWindow(new Date('2026-10-21T00:30:00Z'), 24.8, -107.39, TZ)).toBe(true);
+  });
+
+  it('de noche está fuera; 20 min antes del amanecer está dentro', () => {
+    expect(isWithinSunWindow(new Date('2026-10-20T09:00:00Z'), 24.8, -107.39, TZ)).toBe(false); // 02:00
+    const w = sunWindow(new Date('2026-10-20T19:00:00Z'), 24.8, -107.39, TZ);
+    const before = new Date((w?.from.getTime() ?? 0) + 10 * 60_000);
+    expect(isWithinSunWindow(before, 24.8, -107.39, TZ)).toBe(true);
+    expect(isWithinSunWindow(new Date((w?.from.getTime() ?? 0) - 60_000), 24.8, -107.39, TZ)).toBe(
+      false,
+    );
   });
 });

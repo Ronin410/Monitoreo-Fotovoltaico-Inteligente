@@ -4,5 +4,6 @@ export * from './settings.js';
 export * from './simulation.js';
 export * from './simulator.js';
 export * from './solar.js';
+export * from './telemetry.js';
 export * from './time.js';
 export * from './types.js';

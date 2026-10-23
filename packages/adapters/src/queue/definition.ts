@@ -17,6 +17,8 @@ export type JobDefinition<P extends z.ZodType = z.ZodType> = {
   /** Reintentos ante error (por defecto 3), con backoff exponencial desde retryDelaySeconds. */
   retryLimit?: number;
   retryDelaySeconds?: number;
+  /** Jobs de esta cola en paralelo por worker (por defecto 1). */
+  concurrency?: number;
   /** Tiempo máximo de una ejecución (por defecto 15 min). */
   expireInSeconds?: number;
   /**

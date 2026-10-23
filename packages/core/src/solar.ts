@@ -1,4 +1,5 @@
 import { getPosition, getTimes } from 'suncalc';
+import { localDate, startOfLocalDay } from './time.js';
 
 // Geometría solar. Convención interna (specs/04 §2): azimut en grados desde el norte en sentido
 // horario, 180 = sur, 90 = este, 270 = oeste.
@@ -40,4 +41,32 @@ export function incidenceCos(sun: SunPosition, tiltDeg: number, panelAzimuthDeg:
     Math.sin(el) * Math.cos(tilt) +
     Math.cos(el) * Math.sin(tilt) * Math.cos((sun.azimuthDeg - panelAzimuthDeg) * DEG);
   return Math.max(0, cos);
+}
+
+const SUN_WINDOW_MARGIN_MS = 30 * 60_000;
+
+/**
+ * Ventana de consulta de telemetría (specs/04 §1): de amanecer − 30 min a atardecer + 30 min del
+ * día local de la planta. Se calcula desde el mediodía local para no tomar el día UTC siguiente.
+ */
+export function sunWindow(
+  now: Date,
+  lat: number,
+  lon: number,
+  timeZone: string,
+): { from: Date; to: Date } | null {
+  const noon = new Date(
+    startOfLocalDay(localDate(now, timeZone), timeZone).getTime() + 12 * 3_600_000,
+  );
+  const { sunrise, sunset } = sunTimes(noon, lat, lon);
+  if (!sunrise || !sunset) return null;
+  return {
+    from: new Date(sunrise.getTime() - SUN_WINDOW_MARGIN_MS),
+    to: new Date(sunset.getTime() + SUN_WINDOW_MARGIN_MS),
+  };
+}
+
+export function isWithinSunWindow(now: Date, lat: number, lon: number, timeZone: string): boolean {
+  const w = sunWindow(now, lat, lon, timeZone);
+  return w !== null && now >= w.from && now <= w.to;
 }

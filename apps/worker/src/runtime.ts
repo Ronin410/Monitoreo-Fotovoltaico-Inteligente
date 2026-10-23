@@ -1,4 +1,10 @@
-import type { JobDefinition, JobQueue, WeatherProvider } from '@pv/adapters';
+import type {
+  CredentialCipher,
+  InverterAdapterRegistry,
+  JobDefinition,
+  JobQueue,
+  WeatherProvider,
+} from '@pv/adapters';
 import type { Prisma, PrismaClient } from '@pv/db';
 import type { Logger } from 'pino';
 import { z } from 'zod';
@@ -16,6 +22,10 @@ export type JobContext = {
   queue: JobQueue;
   /** Proveedor de clima (WEATHER_PROVIDER). */
   weather: WeatherProvider;
+  /** Descifra credenciales de inversor en memoria (solo el worker, specs/02). */
+  cipher: CredentialCipher;
+  /** Adaptadores de inversor para una empresa (el simulador lee sus datos de esa empresa). */
+  adapters: (companyId: string) => InverterAdapterRegistry;
   log: Logger;
   now: () => Date;
   /** 0 en el primer intento. */
@@ -140,7 +150,7 @@ export async function startJobs(jobs: RegisteredJob[], deps: RuntimeDeps): Promi
   for (const job of jobs) {
     await deps.queue.ensureQueue(job.definition);
     await deps.queue.ensureSchedule(job.definition);
-    await deps.queue.work(job.definition.name, async (pgJob) => {
+    await deps.queue.work(job.definition, async (pgJob) => {
       const attempt = (pgJob as { retryCount?: number }).retryCount ?? 0;
       await runJob(job, pgJob.data, attempt, deps);
     });

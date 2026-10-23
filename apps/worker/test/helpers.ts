@@ -1,13 +1,26 @@
-import { JobQueue, SyntheticWeatherProvider, type WeatherProvider } from '@pv/adapters';
+import { randomBytes } from 'node:crypto';
+import {
+  createAdapterRegistry,
+  CredentialCipher,
+  JobQueue,
+  SyntheticWeatherProvider,
+  type InverterAdapterRegistry,
+  type WeatherProvider,
+} from '@pv/adapters';
 import { createPrismaClient, type PrismaClient } from '@pv/db';
 import { testAppDatabaseUrl, testDatabaseUrl, testServiceDatabaseUrl } from '@pv/db/testing';
 import { pino } from 'pino';
 import type { JobContext, RuntimeDeps } from '../src/runtime.js';
+import { dbSimulatorSource } from '../src/simulator-source.js';
+
+export const TEST_CIPHER = new CredentialCipher(1, { 1: randomBytes(32) });
 
 export type WorkerTestContext = Awaited<ReturnType<typeof createWorkerTestContext>>;
 
 export async function createWorkerTestContext(
   weather: WeatherProvider = new SyntheticWeatherProvider(),
+  /** Sustituye adaptadores de inversor (por defecto el registro real con el simulador). */
+  adapters?: (companyId: string, db: PrismaClient) => InverterAdapterRegistry,
 ) {
   const owner = createPrismaClient(testDatabaseUrl('worker'));
   const db = createPrismaClient(testAppDatabaseUrl('worker'));
@@ -22,6 +35,10 @@ export async function createWorkerTestContext(
     serviceDb,
     queue,
     weather,
+    cipher: TEST_CIPHER,
+    adapters: (companyId) =>
+      adapters?.(companyId, db) ??
+      createAdapterRegistry({ simulator: dbSimulatorSource(db, companyId) }),
     logger: pino({ level: 'silent' }),
     now: () => now,
   };

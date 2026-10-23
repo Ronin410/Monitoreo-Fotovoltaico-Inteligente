@@ -1,10 +1,17 @@
-import { companyPayload, defineJob, JobQueue, SyntheticWeatherProvider } from '@pv/adapters';
+import {
+  companyPayload,
+  createAdapterRegistry,
+  defineJob,
+  JobQueue,
+  SyntheticWeatherProvider,
+} from '@pv/adapters';
 import { createPrismaClient, withTenant, type PrismaClient } from '@pv/db';
 import { testAppDatabaseUrl, testDatabaseUrl, testServiceDatabaseUrl } from '@pv/db/testing';
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { registerJob, runJob, startJobs, type RuntimeDeps } from '../src/runtime.js';
+import { TEST_CIPHER } from './helpers.js';
 
 let owner: PrismaClient;
 let db: PrismaClient;
@@ -25,6 +32,8 @@ beforeAll(async () => {
     serviceDb,
     queue,
     weather: new SyntheticWeatherProvider(),
+    cipher: TEST_CIPHER,
+    adapters: () => createAdapterRegistry(),
     logger: pino({ level: 'silent' }),
     now: () => new Date(),
   };

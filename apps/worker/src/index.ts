@@ -1,9 +1,15 @@
-import { createWeatherProvider, JobQueue } from '@pv/adapters';
+import {
+  createAdapterRegistry,
+  createWeatherProvider,
+  CredentialCipher,
+  JobQueue,
+} from '@pv/adapters';
 import { loadEnvOrExit } from '@pv/config';
 import { assertAppRoleIsSafe, createPrismaClient, UnsafeDatabaseRoleError } from '@pv/db';
 import { pino } from 'pino';
 import { JOBS } from './jobs/index.js';
 import { startJobs } from './runtime.js';
+import { dbSimulatorSource } from './simulator-source.js';
 
 const env = loadEnvOrExit();
 const logger = pino({ base: { service: 'pv-worker' } });
@@ -27,6 +33,8 @@ await startJobs(JOBS, {
   serviceDb,
   queue,
   weather: createWeatherProvider(env),
+  cipher: CredentialCipher.fromEnv(env),
+  adapters: (companyId) => createAdapterRegistry({ simulator: dbSimulatorSource(db, companyId) }),
   logger,
   now: () => new Date(),
 });

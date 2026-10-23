@@ -126,3 +126,12 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Solo se generan lecturas con sol (POA > 0), como un inversor real. Durante `offline` no hay lecturas, pero el contador diario sigue sumando (se modela como pérdida de comunicación, no apagado): al volver, la ingesta debe manejar el salto del contador (F3-T4).
     - Dentro de cada hora se usa el mismo POA del clima horario para los cuatro intervalos de 15 min.
 79. **Ruido.** Normal con σ = `noise_pct` %, con semilla `hash(seed, plant_id, ts)`: la misma planta y hora dan siempre la misma lectura.
+
+## F3-T4 — Ingesta de telemetría
+
+80. **Relleno de huecos ≤ 1 h.** "Se reparte la diferencia" se implementó creando filas para los intervalos faltantes con su parte de la energía (potencia = energía / 0.25 h) y `status_code = 'filled'`. Esas filas cuentan como intervalos con datos para la completitud de `05` §1. ¿Deben contar, o solo sumar energía sin contar como "hora cubierta"?
+81. **Primer intervalo sin anterior** (o tras un hueco > 1 h): se usa el método de potencia aunque haya contador, porque la diferencia no se puede atribuir a un intervalo.
+82. **Errores del proveedor.** Cualquier falla del adaptador se convierte en `ProviderError` cuyo texto es solo el tipo de error (`provider_error: NotImplementedError`), sin el mensaje del proveedor. pg-boss reintenta 3 veces con backoff exponencial (30 s, 60 s, 120 s) y cada intento queda en `job_runs` con el `plant_id` en `stats`; la regla `offline` (F5) usará eso para distinguir "error nuestro" de "el inversor no reporta".
+83. **Concurrencia.** `ingest.telemetry_plant` corre hasta 5 plantas en paralelo por worker, para todas las marcas juntas (no por proveedor). Bastará mientras solo exista el simulador; con marcas reales conviene una cola por proveedor.
+84. **Sin credenciales.** Una planta de marca real sin credenciales se omite (`skipped: no_credentials`), no se marca como falla.
+85. **Ventana de sol.** El orquestador corre cada 15 min y solo encola plantas cuando la hora actual está entre amanecer − 30 min y atardecer + 30 min del día local; las plantas sin lat/lon se omiten.
