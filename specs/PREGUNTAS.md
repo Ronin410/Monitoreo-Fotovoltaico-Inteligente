@@ -117,3 +117,12 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 75. **Ingesta horaria.** `ingest.weather` (cron a los 5 minutos de cada hora UTC) encola `ingest.weather_company` por empresa activa; cada una pide las 3 últimas horas cerradas, o el día local completo a las 21:00 de su zona. Solo plantas activas, sin borrar y con ubicación.
 76. **Backfill.** Se encola `weather.backfill` (90 días) al crear una planta y cuando cambian su ubicación, orientación o vuelve a estar activa. El endpoint de pronóstico de Open-Meteo cubre ~3 meses atrás; para más historia habría que usar su endpoint histórico.
 77. **`suncalc` 2.x** cambió de unidades respecto a la 1.x (ahora grados y azimut desde el norte); se usan sus propios tipos.
+
+## F3-T3 — Simulador
+
+78. **Interpretación de los escenarios de `04` §3.**
+    - Las fechas de `soiling`, `string_failure` y `shading` son **locales** (zona de la empresa); `end` de `string_failure` es inclusivo. `offline` usa fechas y horas ISO con zona.
+    - La suciedad se reinicia en la hora en que la lluvia acumulada del día local alcanza `rain_reset_mm`, o en el momento de un evento `cleaning`. Se topó la pérdida en 60 %.
+    - Solo se generan lecturas con sol (POA > 0), como un inversor real. Durante `offline` no hay lecturas, pero el contador diario sigue sumando (se modela como pérdida de comunicación, no apagado): al volver, la ingesta debe manejar el salto del contador (F3-T4).
+    - Dentro de cada hora se usa el mismo POA del clima horario para los cuatro intervalos de 15 min.
+79. **Ruido.** Normal con σ = `noise_pct` %, con semilla `hash(seed, plant_id, ts)`: la misma planta y hora dan siempre la misma lectura.

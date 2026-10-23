@@ -20,6 +20,10 @@ export type PlantForAdapter = {
   lat: number | null;
   lon: number | null;
   simulationProfile: SimulationProfile | null;
+  /** Para el simulador: parámetros del panel y zona horaria de la empresa. */
+  noctC: number;
+  gammaPctPerC: number;
+  timezone: string;
 };
 
 export type ConnectionTestResult = { ok: boolean; message?: string };

@@ -24,4 +24,9 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': 'error',
     },
   },
+  {
+    // En pruebas, `!` afirma que el dato esperado existe; si no existe, la prueba falla igual.
+    files: ['**/*.test.ts', '**/test/**/*.ts'],
+    rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
+  },
 );
