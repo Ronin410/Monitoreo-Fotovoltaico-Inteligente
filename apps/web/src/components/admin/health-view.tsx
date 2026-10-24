@@ -25,6 +25,13 @@ const JOB_LABELS: Record<string, string> = {
   'notifications.send': 'Envío de correos',
   'notifications.daily_summary': 'Resumen diario (todas)',
   'notifications.daily_summary_company': 'Resumen diario de una empresa',
+  'ai.explain_alert': 'Explicación IA de una alerta',
+  'reports.monthly': 'Reportes mensuales (todas)',
+  'reports.monthly_company': 'Reportes mensuales de una empresa',
+  'reports.generate': 'Generar un reporte',
+  'reports.send': 'Enviar un reporte',
+  'telemetry.cleanup': 'Limpieza de lecturas viejas (todas)',
+  'telemetry.cleanup_company': 'Limpieza de lecturas viejas de una empresa',
 };
 
 const STATUS: Record<JobStatus, { label: string; icon: LucideIcon; style: string }> = {

@@ -54,3 +54,15 @@ Rol: Tester/Seguridad (`12` §6). Se completa por tarea; el dictamen final va al
 | F8-H1: `eval:assistant` con el modelo real | Abierto, necesita `ANTHROPIC_API_KEY` |
 
 **F10-T1: aprobada.** Los puntos ⚠️ dependen de la corrida con el modelo real, ya registrada como pendiente.
+
+## F10-T2 — Limpieza de telemetría de más de 13 meses (2026-10-24)
+
+| Caso | Prueba (`apps/worker/test/retention.int.test.ts`) |
+|------|------|
+| Borra lecturas anteriores al mismo día de hace 13 meses (zona de la empresa); conserva desde 00:00 locales de ese día | ✅ "borra las lecturas de más de 13 meses…" |
+| Incluye plantas eliminadas; no toca otra empresa; idempotente | ✅ mismo caso |
+| Las métricas diarias se conservan | ✅ mismo caso |
+| `metrics.recompute` no pisa métricas de días ya limpiados | ✅ "un recálculo no pisa…" (`skipped_before` en `job_runs`) |
+| El orquestador encola a las empresas activas | ✅ |
+
+La fecha de corte es una función pura en `core` (`telemetryRetentionStart`, con fin de mes y bisiestos). El panel de salud del superadmin ahora nombra también los jobs de IA, reportes y limpieza. Pregunta abierta al PO sobre la retención de clima por hora y `job_runs` (PREGUNTAS #196).

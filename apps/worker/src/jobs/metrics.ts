@@ -15,6 +15,7 @@ import {
   rainResetTimes,
   selectNeighbors,
   startOfLocalDay,
+  telemetryRetentionStart,
   type BaselineSource,
   type DayHourInput,
   type DayResult,
@@ -404,10 +405,22 @@ export const metricsDailyCompanyJob = registerJob(metricsDailyCompany, async (pa
  * pasadas confundiría a los usuarios (specs/PREGUNTAS.md #112).
  */
 export const metricsRecomputeJob = registerJob(metricsRecompute, async (payload, ctx) => {
+  // Los días sin lecturas crudas (ya limpiadas tras 13 meses) no se recalculan: se perderían sus
+  // métricas, que se conservan siempre (specs/03).
+  const company = await withTenant(ctx.db, payload.company_id, (tx) =>
+    tx.company.findUniqueOrThrow({ where: { id: payload.company_id } }),
+  );
+  const keepFrom = telemetryRetentionStart(localDate(ctx.now(), company.timezone));
+  const from = payload.from < keepFrom ? keepFrom : payload.from;
   let days = 0;
-  for (let date = payload.from; date <= payload.to; date = addDays(date, 1)) {
+  for (let date = from; date <= payload.to; date = addDays(date, 1)) {
     await computeCompanyDay(ctx, payload.company_id, date);
     days++;
   }
-  return { from: payload.from, to: payload.to, days };
+  return {
+    from: payload.from,
+    to: payload.to,
+    days,
+    ...(from !== payload.from && { skipped_before: keepFrom }),
+  };
 });

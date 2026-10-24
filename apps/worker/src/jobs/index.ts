@@ -14,6 +14,7 @@ import {
   reportsSendJob,
 } from './reports.js';
 import { metricsDailyCompanyJob, metricsDailyJob, metricsRecomputeJob } from './metrics.js';
+import { telemetryCleanupCompanyJob, telemetryCleanupJob } from './retention.js';
 import { ingestTelemetryJob, ingestTelemetryPlantJob } from './telemetry.js';
 import { ingestWeatherCompanyJob, ingestWeatherJob, weatherBackfillJob } from './weather.js';
 
@@ -39,4 +40,6 @@ export const JOBS: RegisteredJob[] = [
   reportsMonthlyCompanyJob,
   reportsGenerateJob,
   reportsSendJob,
+  telemetryCleanupJob,
+  telemetryCleanupCompanyJob,
 ];

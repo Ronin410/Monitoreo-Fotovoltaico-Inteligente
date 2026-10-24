@@ -216,3 +216,24 @@ export const reportsSend = defineJob({
   retryDelaySeconds: 60,
   singletonKey: (p) => `reports.send:${p.report_id}`,
 });
+
+/**
+ * Orquestador mensual de limpieza (specs/03): el día 2 en la madrugada de México encola la
+ * limpieza de lecturas crudas de cada empresa activa.
+ */
+export const telemetryCleanup = defineJob({
+  name: 'telemetry.cleanup',
+  payload: z.object({}),
+  scope: 'platform',
+  retryLimit: 1,
+  schedule: { cron: '45 9 2 * *' },
+});
+
+/** Borra las lecturas de 15 min de más de 13 meses de una empresa (las métricas diarias quedan). */
+export const telemetryCleanupCompany = defineJob({
+  name: 'telemetry.cleanup_company',
+  payload: companyPayload,
+  scope: 'company',
+  expireInSeconds: 60 * 60,
+  singletonKey: (p) => `telemetry.cleanup_company:${p.company_id}`,
+});
