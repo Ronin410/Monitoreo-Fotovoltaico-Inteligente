@@ -81,8 +81,8 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 ### 🎯 Hito DEMO — al terminar la Fase 8 se puede presentar al cliente.
 
 ## Fase 9 — Reportes mensuales
-- [ ] **F9-T1 Cálculo de `facts`.**
-- [ ] **F9-T2 Narrativa IA** con validación y plantilla.
+- [x] **F9-T1 Cálculo de `facts`.** _(2026-10-24)_
+- [x] **F9-T2 Narrativa IA** _(2026-10-24)_ con validación y plantilla.
 - [ ] **F9-T3 PDF** con `@react-pdf/renderer` y `StorageProvider`.
 - [ ] **F9-T4 Job, pantalla de reportes y envío.**
 

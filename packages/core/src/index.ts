@@ -11,3 +11,4 @@ export * from './types.js';
 export * from './performance/index.js';
 export * from './alerts/index.js';
 export * from './notifications/index.js';
+export * from './reports/index.js';

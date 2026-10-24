@@ -10,6 +10,7 @@ import {
 } from '../src/seed/demo.js';
 import { evaluateAlertQuality } from '../src/eval/alerts-eval.js';
 import { CASES, chatAsker, collectFacts, evaluateAssistant } from '../src/eval/assistant-eval.js';
+import { computeReportFacts } from '../src/reports/facts.js';
 import { createWorkerTestContext, type WorkerTestContext } from './helpers.js';
 
 const DAYS = 21;
@@ -490,6 +491,46 @@ describe('pnpm eval:assistant (F8-T4)', () => {
     );
     expect(report.results[0]).toMatchObject({ passed: true, tools: [] });
     expect(provider.requests[0]?.tools).toHaveLength(11);
+  });
+});
+
+describe('cifras del reporte mensual sobre la semilla (F9-T1)', () => {
+  it('coinciden con la base: energía, ahorro con la tarifa, CO₂, días y disponibilidad', async () => {
+    const a = await companyBySlug(DEMO_SLUGS.a);
+    const client = await ctx.owner.client.findFirstOrThrow({
+      where: { companyId: a.id, plants: { some: {} } },
+      include: { plants: true },
+      orderBy: { name: 'asc' },
+    });
+    const facts = await withTenant(ctx.db, a.id, (tx) =>
+      computeReportFacts(tx, a, client.id, '2026-10'),
+    );
+    const sums = await ctx.owner.plantDailyMetric.aggregate({
+      where: {
+        plantId: { in: client.plants.map((p) => p.id) },
+        date: { gte: new Date('2026-10-01T00:00:00Z'), lte: new Date('2026-10-31T00:00:00Z') },
+      },
+      _sum: { energyKwh: true },
+      _count: { _all: true },
+    });
+    const energy = Number(sums._sum.energyKwh);
+    expect(facts.client_name).toBe(client.name);
+    expect(facts.plants).toHaveLength(client.plants.length);
+    expect(facts.energy_kwh).toBeCloseTo(energy, 0);
+    const tariff = client.tariffMxnPerKwh ? Number(client.tariffMxnPerKwh) : 3.5;
+    expect(facts.tariff_mxn_per_kwh).toBe(tariff);
+    expect(facts.savings_mxn).toBeCloseTo(facts.energy_kwh * tariff, 0);
+    expect(facts.co2_avoided_kg).toBeCloseTo(facts.energy_kwh * 0.438, 0);
+    expect(facts.daily_energy.length).toBeGreaterThan(0);
+    expect(facts.daily_energy.reduce((s, d) => s + d.energy_kwh, 0)).toBeCloseTo(energy, 0);
+    // La semilla tiene lecturas en todas las horas con sol, salvo la planta sin datos.
+    for (const p of facts.plants) expect(p.availability_pct).toBeGreaterThan(0);
+    // Septiembre solo tiene 2 días de historia; agosto ninguno.
+    const sept = await withTenant(ctx.db, a.id, (tx) =>
+      computeReportFacts(tx, a, client.id, '2026-09'),
+    );
+    expect(facts.energy_prev_month_kwh).toBeCloseTo(sept.energy_kwh, 0);
+    expect(sept.energy_prev_month_kwh).toBeNull();
   });
 });
 

@@ -12,3 +12,5 @@ export { createAiConfig, type AiConfig } from './config.js';
 export * from './tools/index.js';
 export * from './chat/agent.js';
 export { chatSystemPrompt, TOOL_STATUS } from './prompts/chat.js';
+export { generateNarrative, narrativeProblem, type NarrativeResult } from './narrative/generate.js';
+export { monthName, templateNarrative } from './narrative/template.js';
