@@ -5,7 +5,10 @@ export type UserRole = (typeof USER_ROLES)[number];
 
 export const INVERTER_BRANDS = [
   'simulator',
+  // Marcas que usa la empresa piloto primero (PREGUNTAS #200).
   'goodwe',
+  'growatt',
+  'victron',
   'huawei',
   'fronius',
   'enphase',

@@ -25,7 +25,7 @@ interface InverterAdapter {
 ```
 - Cada adaptador valida con zod la forma de sus credenciales (`credsSchema`) y la respuesta del proveedor.
 - Un registro `adapterRegistry[brand]` devuelve el adaptador.
-- **Adaptadores reales (GoodWe, Huawei, Fronius, Enphase):** se implementan **solo** cuando el PO entregue documentación oficial y credenciales de prueba. Mientras tanto existen como esqueleto que lanza `NotImplementedError`. No se debe adivinar endpoints.
+- **Adaptadores reales (GoodWe, Growatt y Victron Energy, las marcas de la empresa piloto; también Huawei, Fronius y Enphase):** se implementan **solo** cuando el PO entregue documentación oficial y credenciales de prueba. Mientras tanto existen como esqueleto que lanza `NotImplementedError`. No se debe adivinar endpoints.
 
 ### Normalización (en el job, no en el adaptador)
 1. Agrupar lecturas en intervalos de **15 minutos** (`ts` = inicio del intervalo, en UTC).

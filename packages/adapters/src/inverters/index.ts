@@ -4,8 +4,10 @@ import type { InverterAdapter } from './types.js';
 import { enphaseAdapter } from './enphase.js';
 import { froniusAdapter } from './fronius.js';
 import { goodweAdapter } from './goodwe.js';
+import { growattAdapter } from './growatt.js';
 import { huaweiAdapter } from './huawei.js';
 import { unimplementedAdapter } from './unimplemented.js';
+import { victronAdapter } from './victron.js';
 
 export * from './types.js';
 export { createSimulatorAdapter, type SimulatorDataSource } from './simulator.js';
@@ -19,6 +21,8 @@ export function createAdapterRegistry(
   return {
     simulator: createSimulatorAdapter(options.simulator),
     goodwe: goodweAdapter,
+    growatt: growattAdapter,
+    victron: victronAdapter,
     huawei: huaweiAdapter,
     fronius: froniusAdapter,
     enphase: enphaseAdapter,

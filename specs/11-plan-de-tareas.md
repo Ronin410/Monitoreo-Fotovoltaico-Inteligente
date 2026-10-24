@@ -92,4 +92,4 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 - [ ] **F10-T3** Backups verificados y prueba de restauración documentada. _Parcial (2026-10-24): `pnpm db:verify-restore` y procedimiento listos, prueba local aprobada; falta verificar los respaldos de Render y repetir la prueba en staging (depende de F0-T4)._
 - [x] **F10-T4** _(2026-10-24)_ Pruebas de carga: 500 plantas simuladas en una empresa; `ingest.telemetry` termina en menos de 5 minutos y el tablero carga en menos de 2 s.
 - [x] **F10-T5** _(2026-10-24)_ Aviso de privacidad y términos en la plataforma. _Texto en borrador pendiente de revisión legal (PREGUNTAS #199)._
-- [ ] **F10-T6** Primer adaptador real de inversor (marca a definir con el cliente, con documentación oficial).
+- [ ] **F10-T6** Primer adaptador real de inversor (marca a definir con el cliente, con documentación oficial). _Marcas de la empresa: GoodWe, Growatt y Victron (ya en el catálogo, 2026-10-24); falta la documentación oficial y credenciales de prueba._

@@ -1,4 +1,9 @@
-import { ingestTelemetry, ingestTelemetryPlant, type RawReading } from '@pv/adapters';
+import {
+  ingestTelemetry,
+  ingestTelemetryPlant,
+  NotImplementedError,
+  type RawReading,
+} from '@pv/adapters';
 import {
   floorToInterval,
   isWithinSunWindow,
@@ -143,6 +148,11 @@ export const ingestTelemetryPlantJob = registerJob(ingestTelemetryPlant, async (
       until,
     });
   } catch (err) {
+    // Marca sin adaptador todavía (falta la documentación oficial): se omite como una planta sin
+    // credenciales, sin reintentos ni fallas que solo serían ruido (specs/PREGUNTAS.md #200).
+    if (err instanceof NotImplementedError) {
+      return { plant_id: plant.id, skipped: 'adapter_not_implemented' };
+    }
     throw new ProviderError(err);
   }
 

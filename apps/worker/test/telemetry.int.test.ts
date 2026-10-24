@@ -148,7 +148,10 @@ describe('ingest.telemetry_plant con el simulador', () => {
 });
 
 describe('ingest.telemetry_plant con marcas reales', () => {
-  async function realPlant(brand: 'goodwe' | 'huawei' | 'fronius', withCreds = true) {
+  async function realPlant(
+    brand: 'goodwe' | 'huawei' | 'fronius' | 'growatt' | 'victron',
+    withCreds = true,
+  ) {
     const { company, client } = await createCompanyWithClient(ctx.owner);
     const plant = await createPlant(ctx.owner, company.id, client.id);
     await ctx.owner.solarPlant.update({ where: { id: plant.id }, data: { inverterBrand: brand } });
@@ -185,12 +188,24 @@ describe('ingest.telemetry_plant con marcas reales', () => {
   });
 
   it('un error del proveedor falla con provider_error sin su mensaje (para reintentar)', async () => {
-    for (const brand of ['huawei', 'fronius'] as const) {
+    const { company, plant } = await realPlant('huawei');
+    await expect(runPlant(company.id, plant.id)).rejects.toThrow(/^provider_error: /);
+    const [run] = await ctx.owner.jobRun.findMany({ where: { companyId: company.id } });
+    expect(run?.status).toBe('failed');
+    expect(run?.error).toBe('ProviderError: provider_error: Error');
+    expect(JSON.stringify(run)).not.toContain(SECRET);
+    expect(await telemetryOf(plant.id)).toHaveLength(0);
+  });
+
+  it('una marca sin adaptador se omite sin fallar ni reintentar', async () => {
+    for (const brand of ['growatt', 'victron', 'fronius'] as const) {
       const { company, plant } = await realPlant(brand);
-      await expect(runPlant(company.id, plant.id)).rejects.toThrow(/^provider_error: /);
+      expect(await runPlant(company.id, plant.id)).toBe('succeeded');
       const [run] = await ctx.owner.jobRun.findMany({ where: { companyId: company.id } });
-      expect(run?.status).toBe('failed');
-      expect(run?.error).toMatch(/^ProviderError: provider_error: (Error|NotImplementedError)$/);
+      expect(run).toMatchObject({
+        status: 'succeeded',
+        stats: { skipped: 'adapter_not_implemented' },
+      });
       expect(JSON.stringify(run)).not.toContain(SECRET);
       expect(await telemetryOf(plant.id)).toHaveLength(0);
     }

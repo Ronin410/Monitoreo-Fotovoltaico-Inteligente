@@ -11,6 +11,8 @@ export const plantLifecycleSchema = z.enum(['active', 'paused', 'decommissioned'
 
 export const BRAND_LABELS: Record<InverterBrand, string> = {
   goodwe: 'GoodWe',
+  growatt: 'Growatt',
+  victron: 'Victron Energy',
   huawei: 'Huawei',
   fronius: 'Fronius',
   enphase: 'Enphase',

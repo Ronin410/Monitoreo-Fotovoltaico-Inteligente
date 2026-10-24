@@ -297,4 +297,25 @@ describe('alerts.offline_company', () => {
     await runOffline(broken.company.company.id);
     expect(await alertsOf(broken.plant.id)).toHaveLength(0);
   });
+
+  it('una marca sin adaptador (Growatt o Victron hoy) no crea alerta offline', async () => {
+    ctx.setNow(localTime('2026-10-21', 14));
+    const { company, plant } = await plantWithLastReading(localTime('2026-10-21', 8));
+    await ctx.owner.solarPlant.update({
+      where: { id: plant.id },
+      data: { inverterBrand: 'growatt' },
+    });
+    await ctx.owner.jobRun.create({
+      data: {
+        jobName: 'ingest.telemetry_plant',
+        companyId: company.company.id,
+        startedAt: localTime('2026-10-21', 13.75),
+        finishedAt: localTime('2026-10-21', 13.75),
+        status: 'succeeded',
+        stats: { attempt: 0, plant_id: plant.id, skipped: 'adapter_not_implemented' },
+      },
+    });
+    await runOffline(company.company.id);
+    expect(await alertsOf(plant.id)).toHaveLength(0);
+  });
 });

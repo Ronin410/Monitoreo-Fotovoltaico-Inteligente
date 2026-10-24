@@ -59,6 +59,8 @@ enum JobRunStatus {
 enum InverterBrand {
   simulator
   goodwe
+  growatt
+  victron
   huawei
   fronius
   enphase

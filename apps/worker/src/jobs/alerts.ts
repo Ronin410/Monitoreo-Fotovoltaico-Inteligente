@@ -392,10 +392,12 @@ export async function evaluateCompanyOffline(ctx: JobContext, companyId: string)
     const counts = { opened: 0, resolved: 0, connection_problems: 0 };
     for (const plant of plants) {
       const run = lastRun.get(plant.id);
-      // Error de nuestra integración o planta sin credenciales: "problema de conexión", no alerta.
+      // Error de nuestra integración, planta sin credenciales o marca sin adaptador: "problema de
+      // conexión", no alerta.
       const providerError =
         (run?.status === 'failed' && (run.error ?? '').startsWith('ProviderError')) ||
-        run?.skipped === 'no_credentials';
+        run?.skipped === 'no_credentials' ||
+        run?.skipped === 'adapter_not_implemented';
       if (providerError) counts.connection_problems++;
       const existing = openAlerts.find((a) => a.plantId === plant.id);
       const lat = Number(plant.lat);
