@@ -122,3 +122,20 @@ Observaciones:
 | Aviso en los reportes | Pie del PDF (F9-T3) |
 
 **Pendiente (fuera del código):** revisión legal y datos de la persona moral (PREGUNTAS #199). Hasta entonces, las páginas muestran el aviso de borrador.
+
+## Estado de la fase al 2026-10-24
+
+| Tarea | Estado |
+|---|---|
+| F10-T1 Checklist de seguridad | ✅ Aprobada |
+| F10-T2 Limpieza de telemetría | ✅ Aprobada |
+| F10-T3 Respaldos y restauración | ⏳ Parcial: herramienta y prueba local listas; falta Render/staging (F0-T4) |
+| F10-T4 Pruebas de carga | ✅ Aprobada (repetir con el adaptador real) |
+| F10-T5 Aviso de privacidad y términos | ✅ En la plataforma; texto pendiente de revisión legal |
+| F10-T6 Primer adaptador real | ⛔ Bloqueada: falta elegir la marca con el cliente y su documentación oficial (CLAUDE.md: no se inventan APIs de fabricantes) |
+
+**Dictamen provisional:** el código queda listo para producción en seguridad, retención y carga. La fase no se puede cerrar hasta:
+1. desplegar staging (F0-T4) y repetir allí la prueba de restauración;
+2. tener la revisión legal del aviso y los términos;
+3. correr `eval:assistant` con el modelo real (F8-H1);
+4. tener el adaptador real (F10-T6) y repetir la prueba de carga con él.
