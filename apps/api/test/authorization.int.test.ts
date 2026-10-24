@@ -226,20 +226,23 @@ describe('PATCH /api/company/users/:id', () => {
     expect(res.body.error.code).toBe('CANNOT_MODIFY_SELF');
   });
 
-  it('la empresa conserva al menos un administrador activo', async () => {
+  it('un admin desactivado ya no actúa aunque su token no haya vencido', async () => {
     const { company, admin } = await companyWithUsers();
-    // Otro admin, ya desactivado, intenta quitarle el rol al único admin activo.
     const disabledAdmin = await createUser(ctx.owner, {
       companyId: company.id,
       role: 'company_admin',
       status: 'disabled',
     });
+    // Intenta quitarle el rol al único admin activo: se rechaza antes de llegar a la regla
+    // LAST_ADMIN (que queda como defensa en profundidad).
     const res = await request(ctx.app)
       .patch(`/api/company/users/${admin.id}`)
       .set('Authorization', await bearer(disabledAdmin))
       .send({ role: 'operator' });
-    expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('LAST_ADMIN');
+    expect(res.status).toBe(401);
+    expect((await ctx.owner.user.findUnique({ where: { id: admin.id } }))?.role).toBe(
+      'company_admin',
+    );
 
     const second = await createUser(ctx.owner, { companyId: company.id, role: 'company_admin' });
     const ok = await request(ctx.app)

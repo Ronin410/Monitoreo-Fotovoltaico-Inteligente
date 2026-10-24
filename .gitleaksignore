@@ -1,0 +1,7 @@
+# Falsos positivos revisados (F10-T1, specs/REVISION-FASE-10.md). Formato: huella de gitleaks.
+# Clave de un ajuste de la empresa ("min_valid_irradiation_kwh_m2"), no un secreto.
+b28231ff4202c3803efc0ae7495bd67fb53b6133:apps/web/src/lib/settings.ts:generic-api-key:129
+# Referencia a la variable de entorno S3_SECRET_KEY, no su valor.
+f2c22202ca53209af6d8d57a5037bce873378573:packages/adapters/src/storage/index.ts:generic-api-key:18
+# Contraseña ficticia de una prueba de cifrado.
+0a2a6bc4d17143088f646c85feba5fff2e22b9c0:packages/adapters/src/credentials/cipher.test.ts:generic-api-key:6

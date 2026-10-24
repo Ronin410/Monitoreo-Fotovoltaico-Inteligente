@@ -62,3 +62,34 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  # specs/12 §3: sin secretos en el repositorio y dependencias sin vulnerabilidades críticas.
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: 8.24.3
+      GITLEAKS_SHA256: 9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Historial completo: gitleaks revisa cada commit, no solo el último.
+          fetch-depth: 0
+
+      - name: Secretos (gitleaks)
+        run: |
+          curl -sSfL -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tgz" | sha256sum -c -
+          tar xzf gitleaks.tgz gitleaks
+          ./gitleaks git --redact --no-banner --exit-code 1 .
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Dependencias (pnpm audit)
+        run: pnpm audit --audit-level critical

@@ -87,7 +87,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 - [x] **F9-T4 Job, pantalla de reportes y envío.** _(2026-10-24)_
 
 ## Fase 10 — Endurecimiento para producción 🧪
-- [ ] **F10-T1** Checklist de seguridad completo de `12`.
+- [x] **F10-T1** _(2026-10-24)_ Checklist de seguridad completo de `12`.
 - [ ] **F10-T2** Limpieza de telemetría de más de 13 meses.
 - [ ] **F10-T3** Backups verificados y prueba de restauración documentada.
 - [ ] **F10-T4** Pruebas de carga: 500 plantas simuladas en una empresa; `ingest.telemetry` termina en menos de 5 minutos y el tablero carga en menos de 2 s.

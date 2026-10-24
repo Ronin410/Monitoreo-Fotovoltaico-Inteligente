@@ -193,6 +193,34 @@ describe('access token y GET /api/me', () => {
     await ctx.owner.user.update({ where: { id: user.id }, data: { status: 'disabled' } });
     expect((await me(body.access_token)).status).toBe(401);
   });
+
+  it('cada petición revisa usuario, empresa y rol vigentes (PREGUNTAS #23)', async () => {
+    const { company, user } = await activeUser('company_admin');
+    const token = (await login(user.email)).body.access_token as string;
+    const users = () =>
+      request(ctx.app).get('/api/company/users').set('Authorization', `Bearer ${token}`);
+    expect((await users()).status).toBe(200);
+
+    // Bajar de rol aplica en la siguiente petición, sin esperar a que venza el token.
+    await ctx.owner.user.update({ where: { id: user.id }, data: { role: 'operator' } });
+    expect((await users()).status).toBe(403);
+    await ctx.owner.user.update({ where: { id: user.id }, data: { role: 'company_admin' } });
+    expect((await users()).status).toBe(200);
+
+    // Suspender la empresa corta el acceso de inmediato.
+    await ctx.owner.company.update({ where: { id: company.id }, data: { status: 'suspended' } });
+    const suspended = await users();
+    expect(suspended.status).toBe(401);
+    expect(suspended.body.error.code).toBe('UNAUTHENTICATED');
+    await ctx.owner.company.update({ where: { id: company.id }, data: { status: 'active' } });
+    expect((await users()).status).toBe(200);
+
+    // Un usuario borrado tampoco.
+    await ctx.owner.refreshToken.deleteMany({ where: { userId: user.id } });
+    await ctx.owner.auditLog.updateMany({ where: { userId: user.id }, data: { userId: null } });
+    await ctx.owner.user.delete({ where: { id: user.id } });
+    expect((await users()).status).toBe(401);
+  });
 });
 
 describe('POST /api/auth/refresh y /logout', () => {

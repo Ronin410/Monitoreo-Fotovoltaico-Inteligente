@@ -162,7 +162,7 @@ describe('usuarios y roles', () => {
     });
   });
 
-  it('un cambio rechazado no deja registro (misma transacción)', async () => {
+  it('un cambio rechazado no deja registro', async () => {
     const { company, admin } = await companyAdmin();
     const disabledAdmin = await createUser(ctx.owner, {
       companyId: company.id,
@@ -173,7 +173,7 @@ describe('usuarios y roles', () => {
       .patch(`/api/company/users/${admin.id}`)
       .set('Authorization', `Bearer ${await tokenFor(disabledAdmin, ctx.clock.current)}`)
       .send({ role: 'operator' });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(401);
     expect(await auditFor({ entityId: admin.id, action: 'user.updated' })).toEqual([]);
   });
 

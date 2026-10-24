@@ -77,7 +77,7 @@ export function createApp(deps: AppDeps): Express {
     now,
   });
   api.use('/auth', authRouter(auth, now));
-  const authenticated = requireAuth(deps.env.JWT_SECRET, now);
+  const authenticated = requireAuth(deps.env.JWT_SECRET, now, deps.serviceDb);
   api.use(
     '/me',
     authenticated,
