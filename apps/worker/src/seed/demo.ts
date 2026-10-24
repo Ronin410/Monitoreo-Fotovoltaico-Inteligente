@@ -181,6 +181,8 @@ async function createPlants(
         contactName: `${first} ${last}`,
         phone: `667${String(1_000_000 + i * 7919).slice(0, 7)}`,
         email: `cliente${i + 1}@${DEMO_EMAIL_DOMAIN}`,
+        // Uno de cada cinco sin correo de reportes, para ver ese caso en la pantalla.
+        reportEmail: i % 5 === 4 ? null : `cliente${i + 1}@${DEMO_EMAIL_DOMAIN}`,
         address: `Domicilio de demostración ${i + 1}`,
         colonia: colonia.name,
         postalCode: colonia.postalCode,

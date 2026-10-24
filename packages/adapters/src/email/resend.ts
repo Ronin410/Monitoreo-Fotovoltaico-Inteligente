@@ -23,6 +23,13 @@ export class ResendEmailProvider implements EmailProvider {
         subject: message.subject,
         text: message.text,
         ...(message.html ? { html: message.html } : {}),
+        ...(message.attachments?.length && {
+          attachments: message.attachments.map((a) => ({
+            filename: a.filename,
+            content: a.content.toString('base64'),
+            content_type: a.contentType,
+          })),
+        }),
       }),
       signal: AbortSignal.timeout(15_000),
     });

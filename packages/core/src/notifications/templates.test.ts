@@ -166,6 +166,27 @@ describe('ticket asignado y resumen diario', () => {
     ).toBe('Uso de IA al 100 % del presupuesto del mes');
   });
 
+  it('reporte mensual al cliente, sin enlaces a la plataforma', () => {
+    const email = renderEmail(
+      'client_report',
+      {
+        report_id: '00000000-0000-4000-8000-000000000001',
+        period: '2026-09',
+        client_name: 'Abarrotes <El Sol>',
+      },
+      BRAND,
+      APP,
+    );
+    expect(email.subject).toBe(
+      'Reporte de generación solar de septiembre de 2026 — Solar Demo Culiacán',
+    );
+    expect(email.text).toContain('Estimado(a) Abarrotes <El Sol>:');
+    expect(email.text).toContain('adjunto en PDF');
+    expect(email.html).toContain('Abarrotes &lt;El Sol&gt;');
+    expect(email.text).not.toContain(APP);
+    expect(() => renderEmail('client_report', { period: '2026-13' }, BRAND, APP)).toThrow();
+  });
+
   it('escapeHtml cubre los cinco caracteres', () => {
     expect(escapeHtml(`<a href="x">'&'</a>`)).toBe(
       '&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;',

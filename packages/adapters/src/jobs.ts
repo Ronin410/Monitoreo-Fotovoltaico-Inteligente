@@ -167,3 +167,52 @@ export const aiExplainAlert = defineJob({
   retryDelaySeconds: 60,
   singletonKey: (p) => `ai.explain_alert:${p.alert_id}`,
 });
+
+const periodSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+
+/**
+ * Orquestador horario de reportes: el día 1 a las 08:00 locales encola los reportes del mes
+ * anterior de cada empresa (specs/08 §1).
+ */
+export const reportsMonthly = defineJob({
+  name: 'reports.monthly',
+  payload: z.object({}),
+  scope: 'platform',
+  retryLimit: 1,
+  schedule: { cron: '25 * * * *' },
+});
+
+/** Crea los reportes de un mes de una empresa (un cliente con planta activa = un reporte). */
+export const reportsMonthlyCompany = defineJob({
+  name: 'reports.monthly_company',
+  payload: companyPayload.extend({ period: periodSchema }),
+  scope: 'company',
+  singletonKey: (p) => `reports.monthly_company:${p.company_id}:${p.period}`,
+});
+
+/**
+ * Genera un reporte: cifras → narrativa → PDF → storage. `auto_send`: lo envía al terminar
+ * (solo desde el job mensual con `auto_send_client_reports`).
+ */
+export const reportsGenerate = defineJob({
+  name: 'reports.generate',
+  payload: companyPayload.extend({
+    report_id: z.uuid(),
+    auto_send: z.boolean().default(false),
+  }),
+  scope: 'company',
+  retryLimit: 2,
+  retryDelaySeconds: 60,
+  expireInSeconds: 10 * 60,
+  singletonKey: (p) => `reports.generate:${p.report_id}`,
+});
+
+/** Envía un reporte generado al correo de reportes del cliente, con el PDF adjunto. */
+export const reportsSend = defineJob({
+  name: 'reports.send',
+  payload: companyPayload.extend({ report_id: z.uuid() }),
+  scope: 'company',
+  retryLimit: 3,
+  retryDelaySeconds: 60,
+  singletonKey: (p) => `reports.send:${p.report_id}`,
+});

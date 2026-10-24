@@ -4,6 +4,9 @@ import {
   daysBetween,
   localDate,
   parseCompanySettings,
+  periodDays,
+  plantInPeriod,
+  shiftPeriod,
   startOfLocalDay,
   sunHourCoverage,
   type ReportFacts,
@@ -23,18 +26,6 @@ const ALERT_LABELS: Record<string, string> = {
 const num = (v: Prisma.Decimal | null) => (v === null ? null : v.toNumber());
 const dateOf = (d: string) => new Date(`${d}T00:00:00Z`);
 
-/** Primer y último día (YYYY-MM-DD) de un periodo YYYY-MM. */
-export function periodDays(period: string): { first: string; last: string } {
-  const first = `${period}-01`;
-  const next = addDays(first, 32).slice(0, 7);
-  return { first, last: addDays(`${next}-01`, -1) };
-}
-
-const shiftPeriod = (period: string, months: number) => {
-  const [y = 0, m = 1] = period.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1 + months, 1)).toISOString().slice(0, 7);
-};
-
 /** Plantas del cliente que estuvieron activas al menos un día del periodo. */
 export async function reportPlants(
   tx: TenantDb,
@@ -42,16 +33,8 @@ export async function reportPlants(
   period: string,
   timezone: string,
 ) {
-  const { first, last } = periodDays(period);
-  const plants = await tx.solarPlant.findMany({
-    where: {
-      clientId,
-      OR: [{ deletedAt: null }, { deletedAt: { gte: startOfLocalDay(first, timezone) } }],
-      status: { not: 'decommissioned' },
-    },
-    orderBy: { name: 'asc' },
-  });
-  return plants.filter((p) => localDate(p.commissioningDate ?? p.createdAt, timezone) <= last);
+  const plants = await tx.solarPlant.findMany({ where: { clientId }, orderBy: { name: 'asc' } });
+  return plants.filter((p) => plantInPeriod(p, period, timezone));
 }
 
 async function clientEnergy(

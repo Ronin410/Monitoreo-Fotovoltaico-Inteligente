@@ -1,6 +1,7 @@
 import { createAiConfig } from '@pv/ai';
 import {
   createEmailProvider,
+  createStorageProvider,
   createWeatherProvider,
   CredentialCipher,
   createAdapterRegistry,
@@ -37,6 +38,7 @@ try {
     cipher: CredentialCipher.fromEnv(env),
     adapters: (companyId) => createAdapterRegistry({ simulator: dbSimulatorSource(db, companyId) }),
     email: createEmailProvider(env),
+    storage: createStorageProvider(env),
     ai: createAiConfig(env),
     appUrl: env.APP_URL,
     logger,

@@ -57,11 +57,19 @@ export const aiBudgetWarningPayload = z.object({
   budget_tokens: z.number().int(),
 });
 
+/** Reporte mensual al cliente final, con el PDF adjunto (specs/08 §1). */
+export const clientReportPayload = z.object({
+  report_id: z.uuid(),
+  period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  client_name: z.string(),
+});
+
 export const NOTIFICATION_TEMPLATES = {
   alert_opened: alertOpenedPayload,
   ticket_assigned: ticketAssignedPayload,
   daily_summary: dailySummaryPayload,
   ai_budget_warning: aiBudgetWarningPayload,
+  client_report: clientReportPayload,
 } as const;
 export type NotificationTemplate = keyof typeof NOTIFICATION_TEMPLATES;
 export type NotificationPayload<T extends NotificationTemplate> = z.infer<
@@ -304,6 +312,43 @@ function dailySummary(p: NotificationPayload<'daily_summary'>, brand: EmailBrand
   };
 }
 
+const MONTHS = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
+
+function clientReport(p: NotificationPayload<'client_report'>, brand: EmailBrand) {
+  const month = `${MONTHS[Number(p.period.slice(5, 7)) - 1]} de ${p.period.slice(0, 4)}`;
+  return {
+    subject: `Reporte de generación solar de ${month} — ${brand.companyName}`,
+    // Sin botón: el cliente final no tiene acceso a la plataforma.
+    ...layout(
+      brand,
+      `Su reporte de ${month}`,
+      [
+        { p: `Estimado(a) ${p.client_name}:` },
+        {
+          p: `Le compartimos el reporte de generación de su sistema solar de ${month}, con la energía generada, el ahorro estimado y el CO₂ evitado. Lo encontrará adjunto en PDF.`,
+        },
+        {
+          p: `Si tiene dudas sobre su sistema, responda a este correo o contacte a ${brand.companyName}.`,
+        },
+      ],
+      null,
+    ),
+  };
+}
+
 /** Arma el correo; valida el payload (viene de la base). */
 export function renderEmail(
   template: NotificationTemplate,
@@ -320,5 +365,7 @@ export function renderEmail(
       return dailySummary(dailySummaryPayload.parse(payload), brand, appUrl);
     case 'ai_budget_warning':
       return aiBudgetWarning(aiBudgetWarningPayload.parse(payload), brand, appUrl);
+    case 'client_report':
+      return clientReport(clientReportPayload.parse(payload), brand);
   }
 }

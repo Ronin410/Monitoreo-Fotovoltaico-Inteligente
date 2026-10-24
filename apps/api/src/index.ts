@@ -5,6 +5,8 @@ import {
   weatherBackfill,
   notificationsSend,
   aiExplainAlert,
+  reportsGenerate,
+  reportsSend,
 } from '@pv/adapters';
 import { loadEnvOrExit } from '@pv/config';
 import { assertAppRoleIsSafe, createPrismaClient, UnsafeDatabaseRoleError } from '@pv/db';
@@ -33,6 +35,8 @@ const jobs = await JobQueue.start(env.SERVICE_DATABASE_URL, { supervise: false }
 await jobs.ensureQueue(weatherBackfill);
 await jobs.ensureQueue(notificationsSend);
 await jobs.ensureQueue(aiExplainAlert);
+await jobs.ensureQueue(reportsGenerate);
+await jobs.ensureQueue(reportsSend);
 
 const port = env.PORT ?? 4000;
 createApp({

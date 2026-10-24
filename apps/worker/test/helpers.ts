@@ -4,6 +4,7 @@ import {
   CredentialCipher,
   JobQueue,
   MemoryEmailProvider,
+  MemoryStorageProvider,
   SyntheticWeatherProvider,
   type InverterAdapterRegistry,
   type WeatherProvider,
@@ -33,6 +34,7 @@ export async function createWorkerTestContext(
   });
   let now = new Date('2026-10-21T19:00:00Z');
   const email = new MemoryEmailProvider();
+  const storage = new MemoryStorageProvider();
   // Sin respuesta configurada, la IA simulada falla y se usa la plantilla.
   const llm = { current: new MockLLMProvider() };
   const deps: RuntimeDeps = {
@@ -45,6 +47,7 @@ export async function createWorkerTestContext(
       adapters?.(companyId, db) ??
       createAdapterRegistry({ simulator: dbSimulatorSource(db, companyId) }),
     email,
+    storage,
     ai: {
       get provider() {
         return llm.current;
@@ -63,6 +66,7 @@ export async function createWorkerTestContext(
     queue,
     deps,
     email,
+    storage,
     /** Cambia la respuesta de la IA simulada. */
     setLLM: (provider: MockLLMProvider) => {
       llm.current = provider;

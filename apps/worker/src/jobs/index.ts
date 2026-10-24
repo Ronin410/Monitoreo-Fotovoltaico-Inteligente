@@ -7,6 +7,12 @@ import {
   notificationsDailySummaryJob,
   notificationsSendJob,
 } from './notifications.js';
+import {
+  reportsGenerateJob,
+  reportsMonthlyCompanyJob,
+  reportsMonthlyJob,
+  reportsSendJob,
+} from './reports.js';
 import { metricsDailyCompanyJob, metricsDailyJob, metricsRecomputeJob } from './metrics.js';
 import { ingestTelemetryJob, ingestTelemetryPlantJob } from './telemetry.js';
 import { ingestWeatherCompanyJob, ingestWeatherJob, weatherBackfillJob } from './weather.js';
@@ -29,4 +35,8 @@ export const JOBS: RegisteredJob[] = [
   notificationsDailySummaryJob,
   notificationsDailySummaryCompanyJob,
   aiExplainAlertJob,
+  reportsMonthlyJob,
+  reportsMonthlyCompanyJob,
+  reportsGenerateJob,
+  reportsSendJob,
 ];

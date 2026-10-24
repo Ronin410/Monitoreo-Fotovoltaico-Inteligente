@@ -6,7 +6,7 @@ import type { EmailProvider } from './types.js';
 export { MemoryEmailProvider } from './memory.js';
 export { ResendEmailProvider } from './resend.js';
 export { SmtpEmailProvider } from './smtp.js';
-export type { EmailMessage, EmailProvider } from './types.js';
+export type { EmailAttachment, EmailMessage, EmailProvider } from './types.js';
 
 /** Crea el proveedor de correo según EMAIL_PROVIDER (la configuración ya viene validada). */
 export function createEmailProvider(env: Env): EmailProvider {

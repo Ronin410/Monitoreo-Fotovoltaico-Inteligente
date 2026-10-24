@@ -4,6 +4,7 @@ import type {
   InverterAdapterRegistry,
   JobDefinition,
   JobQueue,
+  StorageProvider,
   WeatherProvider,
 } from '@pv/adapters';
 import type { AiConfig } from '@pv/ai';
@@ -28,8 +29,10 @@ export type JobContext = {
   cipher: CredentialCipher;
   /** Adaptadores de inversor para una empresa (el simulador lee sus datos de esa empresa). */
   adapters: (companyId: string) => InverterAdapterRegistry;
-  /** Envío de correo (EMAIL_PROVIDER); solo lo usa notifications.send. */
+  /** Envío de correo (EMAIL_PROVIDER); lo usan notifications.send y reports.send. */
   email: EmailProvider;
+  /** Logos y PDFs de los reportes (STORAGE_PROVIDER). */
+  storage: StorageProvider;
   /** Proveedor y modelos de IA (LLM_PROVIDER). */
   ai: AiConfig;
   /** APP_URL, para los enlaces de los correos. */

@@ -29,6 +29,7 @@ import { errorHandler, notFoundHandler } from './http/errors.js';
 import { meRouter } from './routes/me/routes.js';
 import { plantChartsRouter } from './routes/plants/charts.js';
 import { plantsRouter } from './routes/plants/routes.js';
+import { reportsRouter } from './routes/reports/routes.js';
 import { ticketsRouter } from './routes/tickets/routes.js';
 
 export type AppDeps = {
@@ -104,6 +105,7 @@ export function createApp(deps: AppDeps): Express {
   api.use('/dashboard', authenticated, dashboardRouter(deps.db, now));
   api.use('/alerts', authenticated, alertsRouter(deps.db, deps.jobs, now));
   api.use('/tickets', authenticated, ticketsRouter(deps.db, now, deps.jobs));
+  api.use('/reports', authenticated, reportsRouter(deps.db, deps.storage, deps.jobs, now));
   api.use(
     '/ai',
     authenticated,

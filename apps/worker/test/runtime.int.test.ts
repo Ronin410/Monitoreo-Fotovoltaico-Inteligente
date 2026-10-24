@@ -5,6 +5,7 @@ import {
   defineJob,
   JobQueue,
   MemoryEmailProvider,
+  MemoryStorageProvider,
   SyntheticWeatherProvider,
 } from '@pv/adapters';
 import { createPrismaClient, withTenant, type PrismaClient } from '@pv/db';
@@ -37,6 +38,7 @@ beforeAll(async () => {
     cipher: TEST_CIPHER,
     adapters: () => createAdapterRegistry(),
     email: new MemoryEmailProvider(),
+    storage: new MemoryStorageProvider(),
     ai: { provider: new MockLLMProvider(), chatModel: 'chat', fastModel: 'rapido' },
     appUrl: 'https://app.pv-iot.example',
     logger: pino({ level: 'silent' }),

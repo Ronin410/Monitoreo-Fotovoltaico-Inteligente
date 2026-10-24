@@ -84,7 +84,7 @@ Leyenda de rol de validación: 🧪 = el rol Tester/Seguridad debe revisar al ce
 - [x] **F9-T1 Cálculo de `facts`.** _(2026-10-24)_
 - [x] **F9-T2 Narrativa IA** _(2026-10-24)_ con validación y plantilla.
 - [x] **F9-T3 PDF** _(2026-10-24)_ con `@react-pdf/renderer` y `StorageProvider`.
-- [ ] **F9-T4 Job, pantalla de reportes y envío.**
+- [x] **F9-T4 Job, pantalla de reportes y envío.** _(2026-10-24)_
 
 ## Fase 10 — Endurecimiento para producción 🧪
 - [ ] **F10-T1** Checklist de seguridad completo de `12`.
