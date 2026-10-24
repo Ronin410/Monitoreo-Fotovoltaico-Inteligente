@@ -66,3 +66,25 @@ Rol: Tester/Seguridad (`12` §6). Se completa por tarea; el dictamen final va al
 | El orquestador encola a las empresas activas | ✅ |
 
 La fecha de corte es una función pura en `core` (`telemetryRetentionStart`, con fin de mes y bisiestos). El panel de salud del superadmin ahora nombra también los jobs de IA, reportes y limpieza. Pregunta abierta al PO sobre la retención de clima por hora y `job_runs` (PREGUNTAS #196).
+
+## F10-T3 — Respaldos y prueba de restauración (2026-10-24) — parcial
+
+Herramienta: `pnpm db:verify-restore` (`packages/db/scripts/verify-restore.sh`); procedimiento en `packages/db/README.md` §Respaldos y restauración.
+
+Corrida local sobre la base demo (`pv_iot_seed`, PostgreSQL 16.15, 50 MB):
+
+| Verificación | Resultado |
+|---|---|
+| Respaldo `pg_dump` (custom) | 3.3 MB |
+| Restauración en base nueva | 3 s (prueba completa: 4 s) |
+| Filas por tabla | idénticas: 35 tablas, 206,244 filas (incluye las colas) |
+| Migraciones | 5 de 5 (última `20261022230034_jobs`) |
+| RLS forzado / políticas | 19 tablas / 26 políticas, igual que el origen |
+| Permisos | `pv_app` 74, `pv_service` 115, igual que el origen |
+| Colas | 13 tablas de `pgboss` a nombre de `pv_service` |
+| Aislamiento en la copia, como `pv_app` | 0 filas sin empresa; 29 plantas propias y 0 ajenas con empresa |
+| Protecciones del script | Se niega con un rol sujeto a RLS (`pv_service_login`) y con un destino cuyo nombre no contiene `restore` |
+
+Hallazgo **H1 (media)**: con `FORCE ROW LEVEL SECURITY`, el respaldo lógico necesita un rol superusuario o con `BYPASSRLS` (PREGUNTAS #197). Hay que confirmarlo en Render.
+
+**Pendiente para cerrar la tarea:** verificar en el panel de Render que los respaldos diarios estén activos y repetir la prueba en staging restaurando un respaldo de Render (depende de F0-T4). También guardar `CREDENTIALS_ENC_KEY` fuera de Render y definir el respaldo del bucket S3.

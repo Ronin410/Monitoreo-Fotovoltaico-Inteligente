@@ -18,6 +18,7 @@
     "db:generate": "pnpm --filter @pv/db generate",
     "db:migrate:dev": "pnpm --filter @pv/db migrate:dev",
     "db:seed:demo": "pnpm --filter @pv/worker seed:demo",
+    "db:verify-restore": "bash packages/db/scripts/verify-restore.sh",
     "eval:alerts": "pnpm --filter @pv/worker eval:alerts",
     "eval:assistant": "pnpm --filter @pv/worker eval:assistant",
     "admin:create-superadmin": "pnpm --filter @pv/api admin:create-superadmin",

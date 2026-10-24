@@ -56,6 +56,42 @@ pnpm db:seed:demo
 
 Crea las empresas "Solar Demo Culiacán" (25 plantas con escenarios) y "Demo Mazatlán" (5 plantas) y un superadmin. Luego ejecuta el pipeline real sobre 90 días: clima, telemetría simulada y métricas diarias. Tarda alrededor de 1.5 min. Las contraseñas se generan al azar y solo se imprimen en la consola. Si la demo ya existe no hace nada; para volver a sembrar hay que recrear la base.
 
+## Respaldos y restauración (F10-T3)
+
+Qué hay que respaldar, porque sin cualquiera de estas cuatro piezas la plataforma no se recupera completa:
+
+| Pieza                 | Dónde vive                      | Cómo se respalda                                                                                                             |
+| --------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Base de datos         | Render PostgreSQL (`pv-db`)     | Respaldos diarios de Render (`specs/02`), más un respaldo lógico mensual con `pg_dump` guardado fuera de Render              |
+| `CREDENTIALS_ENC_KEY` | Variables de Render             | Gestor de contraseñas del equipo, fuera de Render. Sin ella, las credenciales de inversor restauradas no se pueden descifrar |
+| Logos y PDFs          | Almacenamiento S3 (`S3_BUCKET`) | Versionado o réplica del bucket, según el proveedor                                                                          |
+| Roles de conexión     | Servidor de base de datos       | Se recrean con el SQL de "Roles de base de datos"; los roles `pv_app` y `pv_service` los crea la migración                   |
+
+### Prueba de restauración
+
+`pnpm db:verify-restore` respalda una base, la restaura en una base nueva y verifica que sean equivalentes y seguras:
+
+- filas por tabla idénticas, también las colas;
+- mismas migraciones;
+- RLS forzado y políticas;
+- permisos de `pv_app` y `pv_service`;
+- tablas de pg-boss a nombre de `pv_service`;
+- aislamiento real: como `pv_app`, sin empresa ve 0 filas, y con una empresa solo las suyas.
+
+```sh
+SOURCE_URL=postgres://<rol con BYPASSRLS>@host/pv_iot \
+ADMIN_URL=postgres://<dueño>@host/postgres \
+TARGET_DB=pv_iot_restore_check \
+BACKUP_FILE=./pv-iot-$(date +%F).dump \
+pnpm db:verify-restore
+```
+
+- `TARGET_DB` debe contener `restore`, para no borrar una base real por error. Se elimina al terminar, salvo con `KEEP_TARGET=1`.
+- La conexión de origen debe ser superusuario o tener `BYPASSRLS`. Las tablas de empresa tienen `FORCE ROW LEVEL SECURITY`, así que el dueño también está sujeto a RLS, y `pg_dump` se niega a respaldarlas con ese rol. El script lo revisa antes de empezar.
+- Para restaurar en producción a partir de un respaldo lógico, se siguen los mismos pasos que el script hasta "Verificaciones": crear la base, crear los roles, `pg_restore --no-owner` y devolver las tablas de `pgboss` a `pv_service`. Después se crean los usuarios de conexión y se apunta `DATABASE_URL`/`SERVICE_DATABASE_URL` a la base nueva.
+
+Se recomienda repetir la prueba cada trimestre y después de cada cambio de versión de PostgreSQL, y anotar el resultado en `specs/REVISION-FASE-10.md`.
+
 ## Colas (pg-boss)
 
 Las colas viven en el esquema `pgboss`, que crea la migración `jobs`. pg-boss se conecta con `SERVICE_DATABASE_URL` como rol `pv_service` (`-c role=pv_service`) e instala ahí sus tablas, a nombre del rol de grupo: se puede rotar el usuario de conexión sin perder las colas. Las colas solo guardan ids y `company_id`.
