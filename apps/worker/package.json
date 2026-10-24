@@ -10,7 +10,8 @@
     "typecheck": "tsc -p .",
     "seed:demo": "tsx src/cli/seed-demo.ts",
     "eval:alerts": "tsx src/cli/eval-alerts.ts",
-    "eval:assistant": "tsx src/cli/eval-assistant.ts"
+    "eval:assistant": "tsx src/cli/eval-assistant.ts",
+    "load:test": "tsx src/cli/load-test.ts"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

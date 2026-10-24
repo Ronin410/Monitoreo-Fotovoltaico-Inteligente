@@ -8,7 +8,8 @@
     "build": "tsup",
     "start": "node dist/index.js",
     "typecheck": "tsc -p .",
-    "admin:create-superadmin": "tsx src/cli/create-superadmin.ts"
+    "admin:create-superadmin": "tsx src/cli/create-superadmin.ts",
+    "load:dashboard": "tsx src/cli/load-dashboard.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",

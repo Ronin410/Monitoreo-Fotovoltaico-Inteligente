@@ -88,3 +88,26 @@ Corrida local sobre la base demo (`pv_iot_seed`, PostgreSQL 16.15, 50 MB):
 Hallazgo **H1 (media)**: con `FORCE ROW LEVEL SECURITY`, el respaldo lógico necesita un rol superusuario o con `BYPASSRLS` (PREGUNTAS #197). Hay que confirmarlo en Render.
 
 **Pendiente para cerrar la tarea:** verificar en el panel de Render que los respaldos diarios estén activos y repetir la prueba en staging restaurando un respaldo de Render (depende de F0-T4). También guardar `CREDENTIALS_ENC_KEY` fuera de Render y definir el respaldo del bucket S3.
+
+## F10-T4 — Pruebas de carga con 500 plantas (2026-10-24)
+
+Comandos (sobre una base cuyo nombre contiene `load`, recién migrada):
+
+```sh
+pnpm --filter @pv/worker load:test        # crea la empresa "Carga 500 plantas" y mide ingest.telemetry
+pnpm --filter @pv/api load:dashboard      # mide las peticiones del tablero con esa empresa
+```
+
+Resultados (PostgreSQL 16 local; corrida desde una base vacía):
+
+| Meta | Resultado |
+|---|---|
+| `ingest.telemetry` de 500 plantas < 5 min | ✅ **51 s**: orquestador más 500 jobs en pg-boss con concurrencia 5; 500/500 correctos, 2,000 intervalos guardados, ~102 ms por planta |
+| Tablero < 2 s (API, peticiones en paralelo como el navegador) | ✅ **306 ms** en frío; p95 de **120 ms** en caliente. Por petición (p95): `/dashboard/*` 78–100 ms, alertas abiertas 98 ms, `/me` 39 ms. Lista de plantas ordenada por PR: 83 ms |
+| Tablero < 2 s (Chromium real, de la navegación a los 500 marcadores dibujados) | ✅ **≤ 0.84 s** escritorio y **≤ 0.66 s** celular (5 cargas cada uno, sin mosaicos externos) |
+
+Supuestos y límites en PREGUNTAS #198: con un proveedor real cuenta su latencia. Se debe repetir con el adaptador de F10-T6.
+
+Observaciones:
+- **O1 (baja):** `pg` avisa *"Calling client.query() when the client is already executing a query is deprecated"*. Viene de las consultas en paralelo (`Promise.all`) dentro de una misma transacción de `withTenant`. Hoy funciona, porque pg las encola, pero `pg@9` lo quitará. Antes de actualizar `pg` a la versión 9 hay que volver secuenciales esas consultas o fijar la versión.
+- **O2 (UX):** con 500 plantas los marcadores del mapa se amontonan a nivel ciudad. Agruparlos (clustering) mejoraría la lectura; se propone para el roadmap.
