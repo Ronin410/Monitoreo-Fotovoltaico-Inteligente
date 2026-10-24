@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { LegalLinks } from './legal-page';
 
 /** Marco de las pantallas de autenticación (sin marca de empresa: aún no se sabe cuál es). */
 export function AuthCard({ title, children }: { title: string; children: ReactNode }) {
@@ -15,6 +16,7 @@ export function AuthCard({ title, children }: { title: string; children: ReactNo
           <h1 className="mb-5 text-xl font-semibold text-slate-900 dark:text-slate-100">{title}</h1>
           {children}
         </div>
+        <LegalLinks className="mt-4 w-full justify-center text-sm" />
       </div>
     </main>
   );

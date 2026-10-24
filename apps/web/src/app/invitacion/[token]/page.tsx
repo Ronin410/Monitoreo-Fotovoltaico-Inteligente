@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { AuthCard } from '@/components/auth-card';
@@ -92,6 +93,17 @@ export default function InvitationPage() {
           autoComplete="new-password"
           required
         />
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          Al crear tu cuenta aceptas los{' '}
+          <Link href="/terminos" className="text-brand-text underline">
+            Términos de uso
+          </Link>{' '}
+          y confirmas que leíste el{' '}
+          <Link href="/privacidad" className="text-brand-text underline">
+            Aviso de privacidad
+          </Link>
+          .
+        </p>
         <Button type="submit" disabled={busy}>
           {busy ? 'Creando tu cuenta…' : 'Crear cuenta'}
         </Button>

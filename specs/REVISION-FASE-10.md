@@ -111,3 +111,14 @@ Supuestos y límites en PREGUNTAS #198: con un proveedor real cuenta su latencia
 Observaciones:
 - **O1 (baja):** `pg` avisa *"Calling client.query() when the client is already executing a query is deprecated"*. Viene de las consultas en paralelo (`Promise.all`) dentro de una misma transacción de `withTenant`. Hoy funciona, porque pg las encola, pero `pg@9` lo quitará. Antes de actualizar `pg` a la versión 9 hay que volver secuenciales esas consultas o fijar la versión.
 - **O2 (UX):** con 500 plantas los marcadores del mapa se amontonan a nivel ciudad. Agruparlos (clustering) mejoraría la lectura; se propone para el roadmap.
+
+## F10-T5 — Aviso de privacidad y términos (2026-10-24)
+
+| Caso | Evidencia |
+|---|---|
+| Páginas públicas `/privacidad` y `/terminos`, sin sesión | Build estático (`○`); revisadas en Chromium a 360 px y en modo oscuro, sin scroll horizontal |
+| Enlaces en login, recuperación y restablecimiento de contraseña, invitación (con leyenda de aceptación) y barra lateral | `AuthCard` y `app-shell`; `legal-page.test.tsx` |
+| El aviso coincide con el comportamiento real (IA sin datos de contacto, retención de 13 meses) | `legal-page.test.tsx` |
+| Aviso en los reportes | Pie del PDF (F9-T3) |
+
+**Pendiente (fuera del código):** revisión legal y datos de la persona moral (PREGUNTAS #199). Hasta entonces, las páginas muestran el aviso de borrador.

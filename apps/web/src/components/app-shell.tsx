@@ -22,6 +22,7 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { LegalLinks } from '@/components/legal-page';
 import { useAuth } from '@/lib/auth';
 import { brandColor, brandText, onBrand } from '@/lib/brand';
 import { navItems, ROLE_LABELS, type NavIcon } from '@/lib/nav';
@@ -176,6 +177,7 @@ export function AppShell({
         <LogOut aria-hidden="true" className="size-5" />
         Cerrar sesión
       </button>
+      <LegalLinks className="px-3 text-xs" />
     </div>
   );
 
