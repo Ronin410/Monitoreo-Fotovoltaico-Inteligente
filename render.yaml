@@ -1,6 +1,10 @@
-# Blueprint de Render (ver specs/01-arquitectura.md §Despliegue).
+# Blueprint de Render (ver specs/01-arquitectura.md §Despliegue y docs/despliegue-render.md).
 # Crear un Blueprint por ambiente (staging y production) apuntando a este archivo.
-# Las variables con `sync: false` se capturan a mano en el panel de Render.
+#
+# Un grupo de variables solo admite valores fijos (`value`) o generados (`generateValue`): las
+# referencias (`fromService`, `fromDatabase`) y las que se capturan a mano (`sync: false`) van en
+# cada servicio. pv-api y pv-worker validan todas las variables al arrancar, por eso ambos llevan
+# los mismos secretos: al crear el Blueprint, Render los pide una vez por servicio.
 
 envVarGroups:
   - name: pv-shared
@@ -9,32 +13,15 @@ envVarGroups:
         value: production
       - key: NEXT_TELEMETRY_DISABLED
         value: '1'
-      # El web reenvía /api a pv-api por la red privada de Render (specs/PREGUNTAS.md #24): el
-      # navegador ve un solo origen y la cookie de refresh es del mismo sitio. En pv-shared,
-      # API_URL debe ser igual a APP_URL (los logos se sirven por ese mismo /api).
-      - key: API_INTERNAL_URL
-        fromService:
-          type: web
-          name: pv-api
-          property: hostport
-      - key: APP_URL
-        sync: false
-      - key: API_URL
-        sync: false
+      # Se generan una vez y los comparten pv-api y pv-worker.
       - key: JWT_SECRET
         generateValue: true
       - key: REFRESH_TOKEN_SECRET
         generateValue: true
-      # 32 bytes en base64 (openssl rand -base64 32). Se captura a mano y se respalda fuera
-      # de Render: si se pierde, las credenciales de inversor guardadas no se pueden descifrar.
-      - key: CREDENTIALS_ENC_KEY
-        sync: false
       - key: CREDENTIALS_KEY_VERSION
         value: '1'
       - key: LLM_PROVIDER
         value: anthropic
-      - key: ANTHROPIC_API_KEY
-        sync: false
       - key: LLM_MODEL_CHAT
         value: claude-sonnet-5-5
       - key: LLM_MODEL_FAST
@@ -43,23 +30,8 @@ envVarGroups:
         value: open-meteo
       - key: EMAIL_PROVIDER
         value: resend
-      - key: EMAIL_FROM
-        sync: false
-      - key: RESEND_API_KEY
-        sync: false
       - key: STORAGE_PROVIDER
         value: s3
-      - key: S3_ENDPOINT
-        sync: false
-      - key: S3_BUCKET
-        sync: false
-      - key: S3_ACCESS_KEY
-        sync: false
-      - key: S3_SECRET_KEY
-        sync: false
-      # true solo en staging/demo.
-      - key: SIMULATOR_ENABLED
-        sync: false
       - key: DEFAULT_TIMEZONE
         value: America/Mazatlan
 
@@ -73,19 +45,46 @@ services:
     startCommand: pnpm --filter @pv/api start
     healthCheckPath: /health
     envVars:
+      - fromGroup: pv-shared
       # Rol dueño: solo para las migraciones del preDeploy.
       - key: MIGRATION_DATABASE_URL
         fromDatabase:
           name: pv-db
           property: connectionString
-      # Usuario miembro de pv_app (sin BYPASSRLS); se crea tras la primera migración
-      # (ver packages/db/README.md) y se captura a mano.
+      # Usuarios de conexión miembros de pv_app y pv_service (sin BYPASSRLS). Se crean después de
+      # la primera migración (docs/despliegue-render.md, paso 3); al crear el Blueprint se deja
+      # un valor provisional.
       - key: DATABASE_URL
         sync: false
-      # Usuario miembro de pv_service (ver packages/db/README.md).
       - key: SERVICE_DATABASE_URL
         sync: false
-      - fromGroup: pv-shared
+      # URL pública de pv-web (https://…). API_URL lleva el mismo valor: el web reenvía /api a
+      # pv-api (specs/PREGUNTAS.md #24) y los logos se sirven por ese /api.
+      - key: APP_URL
+        sync: false
+      - key: API_URL
+        sync: false
+      # 32 bytes en base64 (openssl rand -base64 32), el mismo en pv-api y pv-worker. Se respalda
+      # fuera de Render: si se pierde, las credenciales de inversor no se pueden descifrar.
+      - key: CREDENTIALS_ENC_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      # "true" solo en staging/demo; "false" en producción.
+      - key: SIMULATOR_ENABLED
+        sync: false
 
   - type: worker
     name: pv-worker
@@ -94,13 +93,34 @@ services:
     buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @pv/worker build
     startCommand: pnpm --filter @pv/worker start
     envVars:
-      # Mismo usuario miembro de pv_app que pv-api.
+      - fromGroup: pv-shared
+      # Los mismos valores que en pv-api.
       - key: DATABASE_URL
         sync: false
-      # Usuario miembro de pv_service (ver packages/db/README.md).
       - key: SERVICE_DATABASE_URL
         sync: false
-      - fromGroup: pv-shared
+      - key: APP_URL
+        sync: false
+      - key: API_URL
+        sync: false
+      - key: CREDENTIALS_ENC_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: SIMULATOR_ENABLED
+        sync: false
 
   - type: web
     name: pv-web
@@ -108,15 +128,13 @@ services:
     plan: starter
     buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @pv/web build
     startCommand: pnpm --filter @pv/web start
-    healthCheckPath: /
+    healthCheckPath: /login
     envVars:
       - key: NODE_ENV
         value: production
       - key: NEXT_TELEMETRY_DISABLED
         value: '1'
-      # El web reenvía /api a pv-api por la red privada de Render (specs/PREGUNTAS.md #24): el
-      # navegador ve un solo origen y la cookie de refresh es del mismo sitio. En pv-shared,
-      # API_URL debe ser igual a APP_URL (los logos se sirven por ese mismo /api).
+      # El web reenvía /api a pv-api por la red privada de Render (specs/PREGUNTAS.md #24).
       - key: API_INTERNAL_URL
         fromService:
           type: web
