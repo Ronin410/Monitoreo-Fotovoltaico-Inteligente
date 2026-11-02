@@ -70,6 +70,8 @@ En Render: **New → Blueprint**, elija el repositorio y la rama, y deje `render
 
 `JWT_SECRET` y `REFRESH_TOKEN_SECRET` los genera Render en el grupo `pv-shared`.
 
+**Si Resend todavía no está listo:** use `EMAIL_FROM=PV-IoT <no-reply@example.com>` y `RESEND_API_KEY=pendiente`. La plataforma arranca, pero ningún correo sale. Crear una empresa o invitar a alguien guarda el registro y responde con error al intentar el envío. Hasta poner la llave real, use solo la demo (paso 5) y el superadmin, y no dé de alta empresas reales. Al tener Resend, cambie las dos variables en `pv-api` y `pv-worker`.
+
 ## 2. Primer despliegue (se espera que la API y el worker fallen)
 
 Render crea la base y despliega los servicios.
