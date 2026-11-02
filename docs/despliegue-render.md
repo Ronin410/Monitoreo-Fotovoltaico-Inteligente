@@ -17,9 +17,42 @@ Servicios que crea el Blueprint:
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ANTHROPIC_API_KEY`                                          | Consola de Anthropic                                                                                                                                                                  |
 | `RESEND_API_KEY` y `EMAIL_FROM`                              | Resend, con el dominio del remitente verificado (por ejemplo `PV-IoT <no-reply@sudominio.mx>`)                                                                                        |
-| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Un bucket compatible con S3 (AWS S3, Cloudflare R2, etc.) para logos y PDFs                                                                                                           |
+| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Un bucket de Cloudflare R2 para logos y PDFs: ver "Bucket de almacenamiento" abajo                                                                                                    |
 | `CREDENTIALS_ENC_KEY`                                        | Se genera con `openssl rand -base64 32`. **Guárdela en el gestor de contraseñas del equipo antes de seguir**: sin ella, las credenciales de inversor guardadas no se pueden descifrar |
 | Dos contraseñas para la base                                 | Se generan con `openssl rand -hex 24` (dos veces): una para `pv_app_login` y otra para `pv_service_login`. En hexadecimal no hace falta escaparlas en la URL                          |
+
+### Bucket de almacenamiento (Cloudflare R2)
+
+El adaptador (`packages/adapters/src/storage/s3.ts`) firma con la región `auto` de R2. AWS S3 necesita una región real y hoy no funcionaría sin un cambio de código.
+
+1. En el panel de Cloudflare, abra **R2 Object Storage** y actívelo. Puede pedir un método de pago aunque el uso quede dentro del nivel gratuito.
+2. **Create bucket**:
+   - Nombre: `pv-iot-staging` (y otro `pv-iot-produccion` para producción: un bucket por ambiente).
+   - Location: _Automatic_, o la sugerencia más cercana a la región de Render (Oregón → Western North America).
+   - Déjelo **privado**: sin acceso público ni dominio. La plataforma sirve los logos y los PDFs a través de su API.
+3. **Manage R2 API Tokens → Create API token** (uno por bucket):
+   - Permisos: **Object Read & Write** (la aplicación solo sube, lee y borra objetos).
+   - Alcance: **solo el bucket** de ese ambiente.
+   - Sin vencimiento, o con el que dicte la política del equipo.
+4. Al crearlo, Cloudflare muestra **una sola vez** el _Access Key ID_ y el _Secret Access Key_. Cópielos al gestor de contraseñas.
+5. Copie también el endpoint S3 de su cuenta: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` (aparece en la página del bucket y en la del token).
+
+| Variable        | Valor                                                                      |
+| --------------- | -------------------------------------------------------------------------- |
+| `S3_ENDPOINT`   | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` (sin el nombre del bucket) |
+| `S3_BUCKET`     | `pv-iot-staging`                                                           |
+| `S3_ACCESS_KEY` | _Access Key ID_ del token                                                  |
+| `S3_SECRET_KEY` | _Secret Access Key_ del token                                              |
+
+No hace falta configurar CORS: el navegador nunca habla directo con el bucket.
+
+Para comprobar las llaves, después del paso 2 corra en la Shell de `pv-api`:
+
+```sh
+pnpm storage:check
+```
+
+Sube un archivo de prueba, lo lee, lo compara y lo borra. Si falla, muestra el error sin las llaves.
 
 ## 1. Crear el Blueprint
 
