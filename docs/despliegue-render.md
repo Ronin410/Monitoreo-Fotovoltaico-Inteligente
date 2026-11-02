@@ -117,7 +117,14 @@ En `pv-api`, pestaña **Shell**:
 pnpm admin:create-superadmin admin@sudominio.mx "Nombre Apellido"
 ```
 
-La contraseña se pide por la entrada estándar (mínimo 10 caracteres). Entre a `APP_URL` con ese usuario, cree la empresa en **Empresas** e invite a su primer administrador. La invitación llega por correo (Resend).
+La contraseña se pide por la entrada estándar (mínimo 10 caracteres).
+
+**Sin Shell (desde pgAdmin u otro cliente SQL):** conéctese con **`pv_service_login`**, no con el usuario de Render. La tabla `users` tiene RLS forzado y solo `pv_service` puede insertar en ella; con el dueño sale _"new row violates row-level security policy"_. La contraseña va como hash argon2id: genérelo con el código de la plataforma (`hashPassword` de `@pv/adapters`) en una máquina con el repositorio. Correo en minúsculas:
+
+````sql
+INSERT INTO users (email, name, role, status, company_id, password_hash)
+VALUES ('admin@sudominio.mx', 'Nombre Apellido', 'superadmin', 'active', NULL, '$argon2id$…');
+``` Entre a `APP_URL` con ese usuario, cree la empresa en **Empresas** e invite a su primer administrador. La invitación llega por correo (Resend).
 
 ### Solo staging: datos de demostración
 
@@ -125,7 +132,7 @@ En la Shell de `pv-api`, sobre una base sin datos de demo:
 
 ```sh
 NODE_ENV=development WEATHER_PROVIDER=synthetic pnpm db:seed:demo
-```
+````
 
 Imprime las contraseñas de los usuarios de demo una sola vez; cópielas. **No lo ejecute en producción.**
 
