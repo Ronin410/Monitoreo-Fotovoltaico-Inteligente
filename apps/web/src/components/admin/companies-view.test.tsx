@@ -30,6 +30,7 @@ const api = vi.fn(
       return schema.parse({
         company: company({ id: ID(2), name: 'Nueva' }),
         invitation: { id: ID(3), email: 'admin@nueva.mx', expires_at: '2026-10-30T00:00:00Z' },
+        email_sent: emailSent,
       });
     if (opts?.method === 'PATCH') return schema.parse(company(opts.body as object));
     return schema.parse({ data: [company()], page: 1, page_size: 25, total: 1 });
@@ -40,6 +41,9 @@ vi.mock('@/lib/auth', () => ({ useAuth: () => ({ api }) }));
 beforeEach(() => {
   calls.length = 0;
 });
+
+/** El servidor pudo enviar el correo de invitación. */
+let emailSent = true;
 
 describe('empresas (superadmin)', () => {
   it('muestra plantas y uso de IA; suspende con confirmación', async () => {
@@ -74,5 +78,23 @@ describe('empresas (superadmin)', () => {
       admin_email: 'admin@nueva.mx',
     });
     expect(await screen.findByText(/Se envió la invitación a admin@nueva.mx/)).toBeTruthy();
+  });
+
+  it('si el correo no sale, la empresa queda creada y lo dice', async () => {
+    emailSent = false;
+    try {
+      render(<CompaniesView />);
+      await userEvent.click(await screen.findByRole('button', { name: /Nueva empresa/ }));
+      await userEvent.type(screen.getByLabelText(/^Nombre/), 'Nueva');
+      await userEvent.type(
+        screen.getByLabelText(/Correo del primer administrador/),
+        'admin@nueva.mx',
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Crear e invitar' }));
+      const notice = await screen.findByText(/no se pudo enviar la invitación a admin@nueva.mx/);
+      expect(notice.closest('[role="alert"]')).toBeTruthy();
+    } finally {
+      emailSent = true;
+    }
   });
 });

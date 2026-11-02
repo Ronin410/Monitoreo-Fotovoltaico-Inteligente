@@ -159,6 +159,7 @@ describe('usuarios', () => {
           email: 'nuevo@solar.mx',
           role: 'technician',
           expires_at: '2026-10-30T00:00:00Z',
+          email_sent: true,
         };
       return user(2, body as object);
     };

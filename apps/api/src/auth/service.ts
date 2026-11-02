@@ -88,6 +88,47 @@ function canHaveSession(user: UserWithCompany): boolean {
   return user.company?.status === 'active';
 }
 
+/**
+ * El proveedor de correo rechazó o no recibió un mensaje. Quien llama decide: la recuperación de
+ * contraseña responde igual (no revela si el correo existe) y las invitaciones ya guardadas
+ * responden con `email_sent: false`. El mensaje solo trae el tipo y el código del proveedor.
+ */
+export class EmailDeliveryError extends Error {
+  constructor(cause: unknown) {
+    const e = cause instanceof Error ? cause : new Error(String(cause));
+    super(`${e.name}: ${e.message}`);
+    this.name = 'EmailDeliveryError';
+  }
+}
+
+/** Envía y convierte cualquier falla del proveedor en EmailDeliveryError. */
+export async function deliver(email: EmailProvider, message: Parameters<EmailProvider['send']>[0]) {
+  try {
+    await email.send(message);
+  } catch (err) {
+    throw new EmailDeliveryError(err);
+  }
+}
+
+/**
+ * Ejecuta un envío posterior a la transacción: `true` si salió, `false` si el proveedor falló
+ * (queda en el log, sin el contenido del correo). Otros errores se propagan.
+ */
+export async function sentOrLogged(
+  send: () => Promise<void>,
+  log: { error: (obj: object, msg: string) => void },
+  what: string,
+): Promise<boolean> {
+  try {
+    await send();
+    return true;
+  } catch (err) {
+    if (!(err instanceof EmailDeliveryError)) throw err;
+    log.error({ error: err.message }, `no se pudo enviar el correo de ${what}`);
+    return false;
+  }
+}
+
 export class AuthService {
   constructor(private readonly deps: AuthServiceDeps) {}
 
@@ -230,7 +271,7 @@ export class AuthService {
       },
     });
     const link = `${this.deps.env.APP_URL}/restablecer-contrasena/${token}`;
-    await this.deps.email.send(passwordResetEmail({ to: user.email, name: user.name, link }));
+    await deliver(this.deps.email, passwordResetEmail({ to: user.email, name: user.name, link }));
   }
 
   /** Cambia la contraseña con un token de un solo uso y cierra todas las sesiones. */
@@ -286,7 +327,10 @@ export class AuthService {
         expiresAt: new Date(this.deps.now().getTime() + INVITATION_TTL_MS),
       },
       send: (companyName) =>
-        this.deps.email.send(invitationEmail({ to: email, companyName, role: input.role, link })),
+        deliver(
+          this.deps.email,
+          invitationEmail({ to: email, companyName, role: input.role, link }),
+        ),
     };
   }
 

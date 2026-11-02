@@ -41,7 +41,7 @@ function CreateForm({
   onCreated,
   onCancel,
 }: {
-  onCreated: (msg: string) => void;
+  onCreated: (notice: { tone: 'success' | 'error'; text: string }) => void;
   onCancel: () => void;
 }) {
   const { api } = useAuth();
@@ -74,7 +74,15 @@ function CreateForm({
         },
       });
       onCreated(
-        `Empresa “${created.company.name}” creada. Se envió la invitación a ${created.invitation.email}.`,
+        created.email_sent
+          ? {
+              tone: 'success',
+              text: `Empresa “${created.company.name}” creada. Se envió la invitación a ${created.invitation.email}.`,
+            }
+          : {
+              tone: 'error',
+              text: `Empresa “${created.company.name}” creada, pero no se pudo enviar la invitación a ${created.invitation.email}. Revise la configuración de correo (Resend) en el servidor.`,
+            },
       );
     } catch (err) {
       setErrors(fieldErrors(err));
@@ -117,6 +125,7 @@ function CreateForm({
         <TextInput
           id="ai_monthly_token_budget"
           label="Presupuesto mensual de IA (tokens)"
+          hint="Tokens del modelo, no pesos: 2,000,000 alcanza para un uso normal de un mes."
           inputMode="numeric"
           defaultValue={String(DEFAULT_BUDGET)}
           error={errors.ai_monthly_token_budget}
@@ -243,6 +252,7 @@ function CompanyItem({
           <TextInput
             id={`${prefix}-ai_monthly_token_budget`}
             label="Presupuesto de IA (tokens)"
+            hint="Tokens del modelo, no pesos: 2,000,000 alcanza para un uso normal de un mes."
             inputMode="numeric"
             defaultValue={String(c.ai_monthly_token_budget)}
             error={errors[`${prefix}-ai_monthly_token_budget`]}
@@ -292,7 +302,7 @@ export function CompaniesView() {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const [updated, setUpdated] = useState<Record<string, AdminCompany>>({});
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (status) params.set('status', status);
@@ -314,7 +324,7 @@ export function CompaniesView() {
           )
         }
       />
-      {notice && <Notice tone="success">{notice}</Notice>}
+      {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
       {creating && (
         <CreateForm
           onCancel={() => setCreating(false)}

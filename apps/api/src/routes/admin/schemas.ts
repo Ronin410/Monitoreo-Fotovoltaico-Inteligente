@@ -71,6 +71,8 @@ export const companyCreatedResponse = z.object({
     role: z.literal('company_admin'),
     expires_at: z.date(),
   }),
+  /** false: la empresa se creó pero el correo de invitación no salió. */
+  email_sent: z.boolean(),
 });
 
 const jobRunStatus = z.enum(['running', 'succeeded', 'failed', 'skipped']);

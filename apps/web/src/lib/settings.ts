@@ -41,6 +41,8 @@ export const invitationSchema = z.object({
   role: companyRoleSchema,
   expires_at: z.string(),
 });
+/** Respuesta al invitar: `email_sent` false si la invitación se guardó pero el correo no salió. */
+export const invitationCreated = invitationSchema.extend({ email_sent: z.boolean() });
 export const pendingInvitations = z.object({
   data: z.array(invitationSchema.extend({ created_at: z.string() })),
 });
@@ -228,6 +230,7 @@ export const adminCompaniesPage = page(adminCompanySchema);
 export const companyCreated = z.object({
   company: adminCompanySchema,
   invitation: z.object({ id: z.uuid(), email: z.string(), expires_at: z.string() }),
+  email_sent: z.boolean(),
 });
 
 const jobStatus = z.enum(['running', 'succeeded', 'failed', 'skipped']);

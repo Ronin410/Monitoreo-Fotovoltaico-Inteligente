@@ -3,7 +3,7 @@ import { withTenant, type PrismaClient, type User } from '@pv/db';
 import { Router } from 'express';
 import { changesOf, recordAudit } from '../../audit.js';
 import { companyAuthOf, requirePermission } from '../../auth/authorize.js';
-import { normalizeEmail, type AuthService } from '../../auth/service.js';
+import { normalizeEmail, sentOrLogged, type AuthService } from '../../auth/service.js';
 import { HttpError } from '../../http/errors.js';
 import { pageArgs, paginated } from '../../http/pagination.js';
 import { respond } from '../../http/respond.js';
@@ -145,11 +145,17 @@ export function companyUsersRouter(db: PrismaClient, auth: AuthService, now: () 
       });
       return pending;
     });
-    await invitation.send();
+    const emailSent = await sentOrLogged(invitation.send, req.log, 'invitación');
     respond(
       res,
       invitationCreatedResponse,
-      { id: invitation.id, email, role: body.role, expires_at: invitation.expiresAt },
+      {
+        id: invitation.id,
+        email,
+        role: body.role,
+        expires_at: invitation.expiresAt,
+        email_sent: emailSent,
+      },
       201,
     );
   });

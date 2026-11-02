@@ -32,6 +32,8 @@ export const invitationCreatedResponse = z.object({
   email: z.string(),
   role: companyRoleSchema,
   expires_at: z.date(),
+  /** false: la invitación se guardó pero el proveedor de correo falló (se puede volver a invitar). */
+  email_sent: z.boolean(),
 });
 
 export const pendingInvitationsResponse = z.object({

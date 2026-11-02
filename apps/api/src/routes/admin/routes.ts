@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { changesOf, recordAudit } from '../../audit.js';
 import { requirePermission } from '../../auth/authorize.js';
 import { authOf } from '../../auth/middleware.js';
-import { normalizeEmail, type AuthService } from '../../auth/service.js';
+import { normalizeEmail, sentOrLogged, type AuthService } from '../../auth/service.js';
 import { HttpError } from '../../http/errors.js';
 import { pageArgs, paginated } from '../../http/pagination.js';
 import { respond } from '../../http/respond.js';
@@ -181,8 +181,12 @@ export function adminRouter(serviceDb: PrismaClient, auth: AuthService, now: () 
         }
         throw err;
       });
-    // El correo sale solo después de confirmar la transacción.
-    await created.send(created.company.name);
+    // El correo sale solo después de confirmar la transacción; si falla, la empresa ya existe.
+    const emailSent = await sentOrLogged(
+      () => created.send(created.company.name),
+      req.log,
+      'invitación',
+    );
 
     respond(
       res,
@@ -195,6 +199,7 @@ export function adminRouter(serviceDb: PrismaClient, auth: AuthService, now: () 
           role: 'company_admin',
           expires_at: created.invitation.expiresAt,
         },
+        email_sent: emailSent,
       },
       201,
     );

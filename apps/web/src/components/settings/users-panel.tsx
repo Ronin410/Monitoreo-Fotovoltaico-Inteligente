@@ -12,7 +12,7 @@ import { formatDateTime } from '@/lib/format';
 import {
   companyUserSchema,
   companyUsersPage,
-  invitationSchema,
+  invitationCreated,
   pendingInvitations,
   ROLE_HINTS,
   ROLE_LABELS,
@@ -32,7 +32,11 @@ const card =
 const select =
   'min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-600 dark:bg-slate-900';
 
-function InviteForm({ onInvited }: { onInvited: (email: string) => void }) {
+function InviteForm({
+  onInvited,
+}: {
+  onInvited: (invitation: { email: string; sent: boolean }) => void;
+}) {
   const { api } = useAuth();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
@@ -46,12 +50,12 @@ function InviteForm({ onInvited }: { onInvited: (email: string) => void }) {
     setError(null);
     setErrors({});
     try {
-      const inv = await api('/company/invitations', invitationSchema, {
+      const inv = await api('/company/invitations', invitationCreated, {
         method: 'POST',
         body: { email: String(f.get('email') ?? '').trim(), role: f.get('role') },
       });
       form.reset();
-      onInvited(inv.email);
+      onInvited({ email: inv.email, sent: inv.email_sent });
     } catch (err) {
       setErrors(fieldErrors(err));
       setError(errorMessage(err));
@@ -197,7 +201,7 @@ export function UsersPanel({ timezone }: { timezone: string }) {
   const [page, setPage] = useState(1);
   const users = useApiQuery(`/company/users?page=${page}&page_size=${PAGE_SIZE}`, companyUsersPage);
   const invitations = useApiQuery('/company/invitations', pendingInvitations);
-  const [invited, setInvited] = useState<string | null>(null);
+  const [invited, setInvited] = useState<{ email: string; sent: boolean } | null>(null);
   const [updated, setUpdated] = useState<Record<string, CompanyUser>>({});
 
   return (
@@ -206,16 +210,23 @@ export function UsersPanel({ timezone }: { timezone: string }) {
         Usuarios
       </h2>
       <InviteForm
-        onInvited={(email) => {
-          setInvited(email);
+        onInvited={(invitation) => {
+          setInvited(invitation);
           void invitations.reload();
         }}
       />
-      {invited && (
-        <Notice tone="success">
-          Invitación enviada a {invited}. Tiene 7 días para aceptarla y elegir su contraseña.
-        </Notice>
-      )}
+      {invited &&
+        (invited.sent ? (
+          <Notice tone="success">
+            Invitación enviada a {invited.email}. Tiene 7 días para aceptarla y elegir su
+            contraseña.
+          </Notice>
+        ) : (
+          <Notice tone="error">
+            La invitación a {invited.email} se guardó, pero el correo no salió. Revise la
+            configuración de correo del servidor y vuelva a invitar.
+          </Notice>
+        ))}
       {invitations.data && invitations.data.data.length > 0 && (
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-semibold">Invitaciones pendientes</h3>

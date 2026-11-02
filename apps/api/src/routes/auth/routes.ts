@@ -1,6 +1,11 @@
 import { Router, type CookieOptions, type Request, type Response } from 'express';
 import { FixedWindowRateLimiter } from '../../auth/rate-limit.js';
-import { normalizeEmail, type AuthService, type Session } from '../../auth/service.js';
+import {
+  normalizeEmail,
+  sentOrLogged,
+  type AuthService,
+  type Session,
+} from '../../auth/service.js';
 import { ACCESS_TOKEN_TTL_SECONDS } from '../../auth/tokens.js';
 import { HttpError } from '../../http/errors.js';
 import { respond } from '../../http/respond.js';
@@ -93,7 +98,9 @@ export function authRouter(auth: AuthService, now: () => Date): Router {
   router.post('/forgot-password', async (req, res) => {
     const body = forgotBody.parse(req.body);
     enforceLimits(forgotLimiter, res, [`ip:${req.ip}`, `email:${normalizeEmail(body.email)}`]);
-    await auth.forgotPassword(body.email);
+    // Siempre la misma respuesta (specs/10): si el correo no sale, solo queda en el log; un error
+    // aquí revelaría qué correos tienen cuenta.
+    await sentOrLogged(() => auth.forgotPassword(body.email), req.log, 'recuperación');
     respond(res, forgotResponse, { ok: true });
   });
 
