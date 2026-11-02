@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { hashPassword, type WeatherProvider } from '@pv/adapters';
+import { hashPassword, SyntheticWeatherProvider, type WeatherProvider } from '@pv/adapters';
 import {
   addDays,
   localDate,
@@ -304,28 +304,40 @@ async function scenariosFor(
   }
 }
 
+type FillOptions = {
+  slug: string;
+  plants: DemoPlant[];
+  colonias: Colonia[];
+  clients: number;
+  city: string;
+  days: number;
+  seed: number;
+};
+
 async function seedCompany(
   deps: RuntimeDeps,
-  opts: {
-    name: string;
-    slug: string;
-    plants: DemoPlant[];
-    colonias: Colonia[];
-    clients: number;
-    city: string;
-    users: Parameters<typeof createUsers>[3];
-    days: number;
-    seed: number;
-  },
+  opts: FillOptions & { name: string; users: Parameters<typeof createUsers>[3] },
+) {
+  const company = await deps.serviceDb.company.create({
+    data: { name: opts.name, slug: opts.slug, timezone: TZ },
+  });
+  const credentials = await createUsers(deps, company.id, company.name, opts.users);
+  return { credentials, summary: await fillCompany(deps, company, opts) };
+}
+
+/**
+ * Llena una empresa (ya creada, con sus usuarios) con clientes, plantas simuladas y la historia
+ * de `days` días, ejecutando el pipeline real.
+ */
+async function fillCompany(
+  deps: RuntimeDeps,
+  company: { id: string; settings: unknown },
+  opts: FillOptions,
 ) {
   const now = deps.now();
   const today = localDate(now, TZ);
   const historyStart = addDays(today, -opts.days);
   const rand = seededRandom(`demo:${opts.slug}:${opts.seed}`);
-  const company = await deps.serviceDb.company.create({
-    data: { name: opts.name, slug: opts.slug, timezone: TZ },
-  });
-  const credentials = await createUsers(deps, company.id, company.name, opts.users);
   const rainResetMm = parseCompanySettings(company.settings).thresholds.rain_reset_mm;
   const locations = await clientLocations(
     deps.weather,
@@ -453,10 +465,60 @@ async function seedCompany(
     });
   });
 
-  return {
-    credentials,
-    summary: { slug: opts.slug, plants: plants.length, metricDays: opts.days },
+  return { slug: opts.slug, plants: plants.length, metricDays: opts.days };
+}
+
+export class ExampleDataNotAllowedError extends Error {
+  constructor(reason: string) {
+    super(reason);
+    this.name = 'ExampleDataNotAllowedError';
+  }
+}
+
+/**
+ * Datos de ejemplo en una empresa existente y vacía (staging/demo): 20 clientes y 25 plantas
+ * simuladas de Culiacán con 90 días de historia, alertas, un ticket y usuarios de ejemplo (un
+ * operador y dos técnicos sin contraseña, para que los tickets tengan a quién asignarse). No envía
+ * correos. El clima de la historia es sintético; desde hoy, el worker sigue con el proveedor real.
+ */
+export async function loadExampleData(
+  runtime: RuntimeDeps,
+  companyId: string,
+  opts: { days?: number } = {},
+) {
+  const deps: RuntimeDeps = {
+    ...runtime,
+    weather: new SyntheticWeatherProvider(),
+    suppressNotifications: true,
+    inlineExplanations: true,
   };
+  const company = await deps.serviceDb.company.findUnique({ where: { id: companyId } });
+  if (!company) throw new ExampleDataNotAllowedError('La empresa no existe');
+  const plants = await deps.serviceDb.solarPlant.count({ where: { companyId } });
+  if (plants > 0) throw new ExampleDataNotAllowedError('La empresa ya tiene plantas');
+
+  const mail = (local: string) => `${local}@${company.slug}.${DEMO_EMAIL_DOMAIN}`;
+  for (const u of [
+    { email: mail('operador'), name: 'Operador de ejemplo', role: 'operator' as const },
+    { email: mail('tecnico1'), name: 'Técnico de ejemplo 1', role: 'technician' as const },
+    { email: mail('tecnico2'), name: 'Técnico de ejemplo 2', role: 'technician' as const },
+  ]) {
+    // Sin contraseña: no pueden entrar; existen para asignarles tickets.
+    await deps.serviceDb.user.upsert({
+      where: { email: u.email },
+      create: { companyId, ...u, status: 'active', passwordHash: null },
+      update: {},
+    });
+  }
+  return fillCompany(deps, company, {
+    slug: company.slug,
+    plants: COMPANY_A_PLANTS,
+    colonias: CULIACAN_COLONIAS,
+    clients: 20,
+    city: 'Culiacán',
+    days: opts.days ?? 90,
+    seed: 3,
+  });
 }
 
 /** Siembra la demo. Falla si ya existe (no borra nada). `days` permite historias cortas en pruebas. */

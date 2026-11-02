@@ -23,6 +23,8 @@ import {
   adminCompaniesPage,
   adminCompanySchema,
   companyCreated,
+  exampleDataQueued,
+  invitationResent,
   formatTokens,
   MEXICO_TIMEZONES,
   type AdminCompany,
@@ -150,8 +152,11 @@ function CompanyItem({
   company: AdminCompany;
   onChange: (c: AdminCompany) => void;
 }) {
-  const { api } = useAuth();
+  const { api, state } = useAuth();
+  const simulator = state.status === 'authenticated' && state.features.simulator;
   const [editing, setEditing] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
@@ -172,6 +177,50 @@ function CompanyItem({
     } catch (err) {
       const fields = fieldErrors(err);
       setErrors(Object.fromEntries(Object.entries(fields).map(([k, v]) => [`${prefix}-${k}`, v])));
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resendInvitation(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const email = String(new FormData(e.currentTarget).get(`${prefix}-invite`) ?? '').trim();
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const inv = await api(`/admin/companies/${c.id}/invitations`, invitationResent, {
+        method: 'POST',
+        body: { email },
+      });
+      setInviting(false);
+      setNotice(
+        inv.email_sent
+          ? { tone: 'success', text: `Invitación enviada a ${inv.email}.` }
+          : {
+              tone: 'error',
+              text: `La invitación a ${inv.email} se guardó, pero el correo no salió. Revise la configuración de correo (Resend).`,
+            },
+      );
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadExampleData() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await api(`/admin/companies/${c.id}/example-data`, exampleDataQueued, { method: 'POST' });
+      setNotice({
+        tone: 'success',
+        text: 'Cargando datos de ejemplo: 20 clientes y 25 plantas con 90 días de historia. Tarda unos minutos; después entre como administrador de la empresa para verlos.',
+      });
+    } catch (err) {
       setError(errorMessage(err));
     } finally {
       setBusy(false);
@@ -269,11 +318,50 @@ function CompanyItem({
             Cancelar
           </Button>
         </form>
+      ) : inviting ? (
+        <form
+          className="flex flex-col gap-2 sm:flex-row sm:items-start"
+          onSubmit={(e) => void resendInvitation(e)}
+          noValidate
+        >
+          <TextInput
+            id={`${prefix}-invite`}
+            label="Correo del administrador"
+            type="email"
+            required
+            hint="Se crea una invitación nueva como administrador de la empresa."
+          />
+          <Button type="submit" disabled={busy} className="sm:mt-7">
+            {busy ? 'Enviando…' : 'Enviar invitación'}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="sm:mt-7"
+            onClick={() => setInviting(false)}
+          >
+            Cancelar
+          </Button>
+        </form>
       ) : (
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" onClick={() => setEditing(true)}>
             Plan y presupuesto
           </Button>
+          {c.status === 'active' && (
+            <Button type="button" variant="secondary" onClick={() => setInviting(true)}>
+              Reenviar invitación
+            </Button>
+          )}
+          {simulator && c.status === 'active' && c.plant_count === 0 && (
+            <ConfirmButton
+              label="Cargar datos de ejemplo"
+              confirmLabel="Sí, cargar"
+              question="¿Cargar 20 clientes y 25 plantas simuladas con 90 días de historia?"
+              busy={busy}
+              onConfirm={() => void loadExampleData()}
+            />
+          )}
           {c.status === 'active' ? (
             <ConfirmButton
               label="Suspender"
@@ -294,6 +382,7 @@ function CompanyItem({
           )}
         </div>
       )}
+      {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
     </li>
   );
 }

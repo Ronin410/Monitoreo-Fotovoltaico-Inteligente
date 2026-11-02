@@ -26,6 +26,14 @@ const api = vi.fn(
     opts?: { method?: string; body?: unknown },
   ) => {
     calls.push({ path, method: opts?.method, body: opts?.body });
+    if (path.endsWith('/example-data')) return schema.parse({ queued: true });
+    if (path.endsWith('/invitations'))
+      return schema.parse({
+        id: ID(4),
+        email: (opts?.body as { email: string }).email,
+        expires_at: '2026-10-30T00:00:00Z',
+        email_sent: emailSent,
+      });
     if (opts?.method === 'POST')
       return schema.parse({
         company: company({ id: ID(2), name: 'Nueva' }),
@@ -33,10 +41,19 @@ const api = vi.fn(
         email_sent: emailSent,
       });
     if (opts?.method === 'PATCH') return schema.parse(company(opts.body as object));
-    return schema.parse({ data: [company()], page: 1, page_size: 25, total: 1 });
+    return schema.parse({
+      data: [company({ plant_count: plantCount })],
+      page: 1,
+      page_size: 25,
+      total: 1,
+    });
   },
 );
-vi.mock('@/lib/auth', () => ({ useAuth: () => ({ api }) }));
+vi.mock('@/lib/auth', () => ({
+  useAuth: () => ({ api, state: { status: 'authenticated', features: { simulator: true } } }),
+}));
+/** Plantas de la empresa listada (0 = vacía, se ofrecen datos de ejemplo). */
+let plantCount = 25;
 
 beforeEach(() => {
   calls.length = 0;
@@ -95,6 +112,42 @@ describe('empresas (superadmin)', () => {
       expect(notice.closest('[role="alert"]')).toBeTruthy();
     } finally {
       emailSent = true;
+    }
+  });
+
+  it('reenvía la invitación del primer administrador', async () => {
+    render(<CompaniesView />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Reenviar invitación' }));
+    await userEvent.type(screen.getByLabelText(/Correo del administrador/), 'admin@laempresa.mx');
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar invitación' }));
+    expect(calls.at(-1)).toEqual({
+      path: `/admin/companies/${ID(1)}/invitations`,
+      method: 'POST',
+      body: { email: 'admin@laempresa.mx' },
+    });
+    expect(await screen.findByText('Invitación enviada a admin@laempresa.mx.')).toBeTruthy();
+  });
+
+  it('ofrece datos de ejemplo solo a una empresa vacía, con confirmación', async () => {
+    const { unmount } = render(<CompaniesView />);
+    await screen.findByText('Solar Demo Culiacán');
+    expect(screen.queryByRole('button', { name: 'Cargar datos de ejemplo' })).toBeNull();
+    unmount();
+
+    plantCount = 0;
+    try {
+      render(<CompaniesView />);
+      await userEvent.click(await screen.findByRole('button', { name: 'Cargar datos de ejemplo' }));
+      expect(calls.some((c) => c.path.endsWith('/example-data'))).toBe(false);
+      await userEvent.click(screen.getByRole('button', { name: 'Sí, cargar' }));
+      expect(calls.at(-1)).toEqual({
+        path: `/admin/companies/${ID(1)}/example-data`,
+        method: 'POST',
+        body: undefined,
+      });
+      expect(await screen.findByText(/Cargando datos de ejemplo/)).toBeTruthy();
+    } finally {
+      plantCount = 25;
     }
   });
 });

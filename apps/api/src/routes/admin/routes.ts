@@ -1,3 +1,4 @@
+import { demoExampleData, type JobEnqueuer } from '@pv/adapters';
 import { Prisma, type Company, type PrismaClient } from '@pv/db';
 import { Router } from 'express';
 import { changesOf, recordAudit } from '../../audit.js';
@@ -16,6 +17,9 @@ import {
   createCompanyBody,
   healthResponse,
   patchCompanyBody,
+  exampleDataResponse,
+  invitationResentResponse,
+  resendInvitationBody,
 } from './schemas.js';
 
 // Panel de superadmin (specs/10 §Superadmin, specs/02). Usa la conexión de plataforma
@@ -95,7 +99,12 @@ async function statsFor(
 
 const companyNotFound = () => new HttpError(404, 'NOT_FOUND', 'Empresa no encontrada');
 
-export function adminRouter(serviceDb: PrismaClient, auth: AuthService, now: () => Date): Router {
+export function adminRouter(
+  serviceDb: PrismaClient,
+  auth: AuthService,
+  now: () => Date,
+  options: { jobs: JobEnqueuer; simulatorEnabled: boolean },
+): Router {
   const router = Router();
   // Todo /admin es exclusivo del superadmin.
   router.use(requirePermission('companies:manage'));
@@ -290,6 +299,94 @@ export function adminRouter(serviceDb: PrismaClient, auth: AuthService, now: () 
     });
     const stats = await statsFor(serviceDb, [company], now());
     respond(res, adminCompany, companyDto(company, stats(company.id)));
+  });
+
+  /**
+   * Nueva invitación de company_admin para una empresa (specs/PREGUNTAS.md #202): por ejemplo,
+   * cuando el correo de la primera no salió. La anterior sigue válida hasta que venza.
+   */
+  router.post('/companies/:id/invitations', async (req, res) => {
+    const superadmin = authOf(req);
+    const { id } = idParam.parse(req.params);
+    const email = normalizeEmail(resendInvitationBody.parse(req.body).email);
+    const company = await serviceDb.company.findUnique({ where: { id } });
+    if (!company) throw new HttpError(404, 'NOT_FOUND', 'Empresa no encontrada');
+    if (company.status !== 'active') {
+      throw new HttpError(409, 'COMPANY_SUSPENDED', 'La empresa está suspendida');
+    }
+    if (await serviceDb.user.findUnique({ where: { email } })) {
+      throw new HttpError(409, 'EMAIL_IN_USE', 'Ya existe una cuenta con ese correo');
+    }
+    const pending = auth.newInvitation({
+      companyId: company.id,
+      email,
+      role: 'company_admin',
+      invitedById: superadmin.userId,
+    });
+    const invitation = await serviceDb.$transaction(async (tx) => {
+      const created = await tx.invitation.create({ data: pending.data });
+      await recordAudit(tx, {
+        action: 'user.invited',
+        companyId: company.id,
+        userId: superadmin.userId,
+        entityType: 'invitation',
+        entityId: created.id,
+        metadata: { email, role: 'company_admin', resent: true },
+        ip: req.ip ?? null,
+      });
+      return created;
+    });
+    const emailSent = await sentOrLogged(() => pending.send(company.name), req.log, 'invitación');
+    respond(
+      res,
+      invitationResentResponse,
+      {
+        id: invitation.id,
+        email,
+        role: 'company_admin',
+        expires_at: invitation.expiresAt,
+        email_sent: emailSent,
+      },
+      201,
+    );
+  });
+
+  /**
+   * Datos de ejemplo en una empresa vacía (specs/PREGUNTAS.md #203). Solo con el simulador
+   * habilitado (staging/demo); el worker los carga en unos minutos.
+   */
+  router.post('/companies/:id/example-data', async (req, res) => {
+    const superadmin = authOf(req);
+    const { id } = idParam.parse(req.params);
+    if (!options.simulatorEnabled) {
+      throw new HttpError(
+        403,
+        'EXAMPLE_DATA_DISABLED',
+        'Los datos de ejemplo solo están disponibles en ambientes de prueba',
+      );
+    }
+    const company = await serviceDb.company.findUnique({ where: { id } });
+    if (!company) throw new HttpError(404, 'NOT_FOUND', 'Empresa no encontrada');
+    if (company.status !== 'active') {
+      throw new HttpError(409, 'COMPANY_SUSPENDED', 'La empresa está suspendida');
+    }
+    if ((await serviceDb.solarPlant.count({ where: { companyId: id } })) > 0) {
+      throw new HttpError(
+        409,
+        'COMPANY_NOT_EMPTY',
+        'La empresa ya tiene plantas; los datos de ejemplo solo se cargan en una empresa vacía',
+      );
+    }
+    await recordAudit(serviceDb, {
+      action: 'company.example_data_requested',
+      companyId: id,
+      userId: superadmin.userId,
+      entityType: 'company',
+      entityId: id,
+      ip: req.ip ?? null,
+    });
+    const queued = await options.jobs.enqueue(demoExampleData, { company_id: id });
+    respond(res, exampleDataResponse, { queued: queued !== null }, 202);
   });
 
   return router;

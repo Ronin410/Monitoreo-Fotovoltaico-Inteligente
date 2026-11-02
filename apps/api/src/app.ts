@@ -86,7 +86,14 @@ export function createApp(deps: AppDeps): Express {
   api.use('/company', authenticated, companyUsersRouter(deps.db, auth, now));
   api.use('/company', authenticated, companyProfileRouter(deps.db, deps.storage, deps.env.API_URL));
   api.use('/public/logos', publicLogosRouter(deps.storage));
-  api.use('/admin', authenticated, adminRouter(deps.serviceDb, auth, now));
+  api.use(
+    '/admin',
+    authenticated,
+    adminRouter(deps.serviceDb, auth, now, {
+      jobs: deps.jobs,
+      simulatorEnabled: deps.env.SIMULATOR_ENABLED,
+    }),
+  );
   api.use('/clients', authenticated, clientsRouter(deps.db));
   // Antes que plantsRouter: /plants/:id/today también lo usa el técnico con ticket.
   api.use('/plants', authenticated, plantChartsRouter(deps.db, now));

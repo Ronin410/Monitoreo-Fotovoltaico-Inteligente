@@ -75,6 +75,8 @@ const PARAM_EXEMPT: Record<string, string> = {
   'POST /auth/invitations/:token/accept': 'pública; el token aleatorio es la credencial',
   'GET /public/logos/:companyId/:file': 'pública por diseño (correos y PDFs); nombre aleatorio',
   'PATCH /admin/companies/:id': 'solo superadmin (plataforma); probada en admin.int.test.ts',
+  'POST /admin/companies/:id/invitations': 'solo superadmin; probada en admin-tools.int.test.ts',
+  'POST /admin/companies/:id/example-data': 'solo superadmin; probada en admin-tools.int.test.ts',
 };
 
 /** Listas (GET sin parámetro) que no aplican a un usuario de empresa, con su razón. */

@@ -237,3 +237,16 @@ export const telemetryCleanupCompany = defineJob({
   expireInSeconds: 60 * 60,
   singletonKey: (p) => `telemetry.cleanup_company:${p.company_id}`,
 });
+
+/**
+ * Datos de ejemplo en una empresa vacía (solo staging/demo, lo pide el superadmin): clientes,
+ * plantas simuladas y 90 días de historia con el pipeline real. No se reintenta: no es idempotente.
+ */
+export const demoExampleData = defineJob({
+  name: 'demo.example_data',
+  payload: companyPayload,
+  scope: 'company',
+  retryLimit: 0,
+  expireInSeconds: 2 * 60 * 60,
+  singletonKey: (p) => `demo.example_data:${p.company_id}`,
+});

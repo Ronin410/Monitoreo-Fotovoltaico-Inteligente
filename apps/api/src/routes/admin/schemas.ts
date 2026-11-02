@@ -34,6 +34,19 @@ export const createCompanyBody = z.object({
   admin_email: emailSchema,
 });
 
+/** Nueva invitación al primer administrador (por ejemplo, si el correo no salió). */
+export const resendInvitationBody = z.object({ email: emailSchema });
+
+export const invitationResentResponse = z.object({
+  id: z.uuid(),
+  email: z.string(),
+  role: z.literal('company_admin'),
+  expires_at: z.date(),
+  email_sent: z.boolean(),
+});
+
+export const exampleDataResponse = z.object({ queued: z.boolean() });
+
 export const patchCompanyBody = z
   .object({
     status: z.enum(['active', 'suspended']).optional(),

@@ -32,6 +32,7 @@ const JOB_LABELS: Record<string, string> = {
   'reports.send': 'Enviar un reporte',
   'telemetry.cleanup': 'Limpieza de lecturas viejas (todas)',
   'telemetry.cleanup_company': 'Limpieza de lecturas viejas de una empresa',
+  'demo.example_data': 'Datos de ejemplo de una empresa',
 };
 
 const STATUS: Record<JobStatus, { label: string; icon: LucideIcon; style: string }> = {

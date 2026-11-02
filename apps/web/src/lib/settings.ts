@@ -233,6 +233,14 @@ export const companyCreated = z.object({
   email_sent: z.boolean(),
 });
 
+export const invitationResent = z.object({
+  id: z.uuid(),
+  email: z.string(),
+  expires_at: z.string(),
+  email_sent: z.boolean(),
+});
+export const exampleDataQueued = z.object({ queued: z.boolean() });
+
 const jobStatus = z.enum(['running', 'succeeded', 'failed', 'skipped']);
 export type JobStatus = z.infer<typeof jobStatus>;
 export const healthSchema = z.object({

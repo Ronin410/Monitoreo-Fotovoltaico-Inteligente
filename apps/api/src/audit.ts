@@ -17,6 +17,8 @@ export const AUDIT_ACTIONS = [
   // Empresas (superadmin)
   'company.created',
   'company.updated',
+  // Datos de ejemplo pedidos por el superadmin (solo staging/demo).
+  'company.example_data_requested',
   // Tareas futuras: F2-T3, F2-T4, F2-T2 y F9-T4.
   'plant.credentials_updated',
   'company.settings_updated',

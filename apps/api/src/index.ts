@@ -7,6 +7,7 @@ import {
   aiExplainAlert,
   reportsGenerate,
   reportsSend,
+  demoExampleData,
 } from '@pv/adapters';
 import { loadEnvOrExit } from '@pv/config';
 import { assertAppRoleIsSafe, createPrismaClient, UnsafeDatabaseRoleError } from '@pv/db';
@@ -37,6 +38,7 @@ await jobs.ensureQueue(notificationsSend);
 await jobs.ensureQueue(aiExplainAlert);
 await jobs.ensureQueue(reportsGenerate);
 await jobs.ensureQueue(reportsSend);
+await jobs.ensureQueue(demoExampleData);
 
 const port = env.PORT ?? 4000;
 createApp({
