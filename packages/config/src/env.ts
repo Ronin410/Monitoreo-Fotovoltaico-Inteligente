@@ -22,6 +22,29 @@ const aesKey = requiredString.refine(
   { error: 'debe ser una llave de 32 bytes codificada en base64' },
 );
 
+const previousKeys = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v, ctx) => {
+    const out: Record<number, string> = {};
+    for (const entry of (v ?? '')
+      .split(',')
+      .map((e) => e.trim())
+      .filter(Boolean)) {
+      const m = /^(\d+):([A-Za-z0-9+/]+={0,2})$/.exec(entry);
+      if (!m || Buffer.from(m[2] ?? '', 'base64').length !== 32) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'cada llave debe ser "versión:llave_base64" de 32 bytes, separadas por comas',
+        });
+        return z.NEVER;
+      }
+      out[Number(m[1])] = m[2] as string;
+    }
+    return out;
+  });
+
 const postgresUrl = requiredString.refine((v) => /^postgres(ql)?:\/\//.test(v), {
   error: 'debe ser una URL de PostgreSQL (postgres://…)',
 });
@@ -58,6 +81,11 @@ const envSchema = z
     REFRESH_TOKEN_SECRET: secret,
     CREDENTIALS_ENC_KEY: aesKey,
     CREDENTIALS_KEY_VERSION: z.coerce.number().int().min(1).default(1),
+    /**
+     * Solo durante una rotación (docs/respuesta-incidentes.md): llaves anteriores para descifrar lo
+     * que aún no se vuelve a cifrar, como "versión:llave_base64", separadas por comas.
+     */
+    CREDENTIALS_PREVIOUS_KEYS: previousKeys,
 
     LLM_PROVIDER: z.enum(['anthropic', 'mock']).default('anthropic'),
     ANTHROPIC_API_KEY: optionalString,
@@ -92,6 +120,13 @@ const envSchema = z
         ctx.addIssue({ code: 'custom', path: [key], message: `es obligatoria cuando ${why}` });
       }
     };
+    if (env.CREDENTIALS_KEY_VERSION in env.CREDENTIALS_PREVIOUS_KEYS) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['CREDENTIALS_PREVIOUS_KEYS'],
+        message: 'no puede incluir la versión actual (CREDENTIALS_KEY_VERSION)',
+      });
+    }
     requireWhen(env.LLM_PROVIDER === 'anthropic', 'ANTHROPIC_API_KEY', 'LLM_PROVIDER=anthropic');
     requireWhen(env.EMAIL_PROVIDER === 'resend', 'RESEND_API_KEY', 'EMAIL_PROVIDER=resend');
     requireWhen(env.EMAIL_PROVIDER === 'smtp', 'SMTP_HOST', 'EMAIL_PROVIDER=smtp');

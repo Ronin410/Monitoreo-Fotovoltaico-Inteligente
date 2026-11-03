@@ -43,7 +43,7 @@ Sin esto, un piloto solo muestra datos simulados.
 | 1.8  | Decidir sobre la licencia de `react-leaflet` (validarla o reemplazarla por Leaflet directo)                      | Abogado + Código |   ⬜   |
 | 1.9  | Ambiente de **producción** separado (otro Blueprint, desde `main`, `SIMULATOR_ENABLED=false`)                    | Equipo           |   ⬜   |
 | 1.10 | Monitoreo externo de disponibilidad (aviso si la plataforma se cae) y página de estado                           | Equipo           |   ⬜   |
-| 1.11 | Plan de respuesta a incidentes y política de seguridad escrita (accesos a producción)                            | Equipo + Código  |   ⬜   |
+| 1.11 | Plan de respuesta a incidentes y política de seguridad escrita (accesos a producción)                            | Equipo + Código  |   🟡   |
 | 1.12 | Prueba de penetración externa y corrección de hallazgos                                                          | Externo          |   ⬜   |
 
 ## 2. Variables de entorno: staging contra producción

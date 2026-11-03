@@ -48,11 +48,27 @@ export class CredentialCipher {
     }
   }
 
-  /** A partir de CREDENTIALS_ENC_KEY (base64) y CREDENTIALS_KEY_VERSION. */
-  static fromEnv(env: { CREDENTIALS_ENC_KEY: string; CREDENTIALS_KEY_VERSION: number }) {
+  /**
+   * A partir de CREDENTIALS_ENC_KEY (base64) y CREDENTIALS_KEY_VERSION, más las llaves anteriores
+   * de CREDENTIALS_PREVIOUS_KEYS durante una rotación.
+   */
+  static fromEnv(env: {
+    CREDENTIALS_ENC_KEY: string;
+    CREDENTIALS_KEY_VERSION: number;
+    CREDENTIALS_PREVIOUS_KEYS?: Record<number, string>;
+  }) {
+    const previous = Object.entries(env.CREDENTIALS_PREVIOUS_KEYS ?? {}).map(
+      ([v, k]) => [Number(v), Buffer.from(k, 'base64')] as const,
+    );
     return new CredentialCipher(env.CREDENTIALS_KEY_VERSION, {
+      ...Object.fromEntries(previous),
       [env.CREDENTIALS_KEY_VERSION]: Buffer.from(env.CREDENTIALS_ENC_KEY, 'base64'),
     });
+  }
+
+  /** Versión con la que cifra; lo cifrado con otra se vuelve a cifrar al rotar. */
+  get version(): number {
+    return this.currentVersion;
   }
 
   private static aad(owner: CredentialOwner, keyVersion: number): Buffer {

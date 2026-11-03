@@ -42,6 +42,24 @@ describe('loadEnv', () => {
     expect(env.SMTP_PORT).toBe(1025);
   });
 
+  it('llaves anteriores de credenciales para una rotación', () => {
+    expect(loadEnv(validEnv).CREDENTIALS_PREVIOUS_KEYS).toEqual({});
+    const old = Buffer.alloc(32, 9).toString('base64');
+    const env = loadEnv({
+      ...validEnv,
+      CREDENTIALS_KEY_VERSION: '2',
+      CREDENTIALS_PREVIOUS_KEYS: `1:${old}`,
+    });
+    expect(env.CREDENTIALS_PREVIOUS_KEYS).toEqual({ 1: old });
+    expect(problemsOf({ ...validEnv, CREDENTIALS_PREVIOUS_KEYS: '1:corta' })).toEqual([
+      'CREDENTIALS_PREVIOUS_KEYS',
+    ]);
+    // La versión actual no puede estar también entre las anteriores.
+    expect(problemsOf({ ...validEnv, CREDENTIALS_PREVIOUS_KEYS: `1:${old}` })).toEqual([
+      'CREDENTIALS_PREVIOUS_KEYS',
+    ]);
+  });
+
   it('falla con un mensaje claro que nombra la variable obligatoria faltante', () => {
     const { DATABASE_URL: _omit, ...rest } = validEnv;
     expect(() => loadEnv(rest)).toThrowError(/DATABASE_URL: es obligatoria/);

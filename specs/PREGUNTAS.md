@@ -410,3 +410,7 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Encola el clima de 90 días de cada planta.
 
     **Pregunta:** ¿se necesita también importar credenciales de inversores? No se incluyó a propósito, para no mover contraseñas en archivos de Excel.
+208. **Plan de incidentes y rotación de la llave de credenciales (plan 1.11).** `docs/respuesta-incidentes.md` es un borrador operativo: contactos, niveles, pasos, contención, consultas a `audit_log` y avisos.
+    - `CREDENTIALS_PREVIOUS_KEYS` ("versión:llave", separadas por comas) permite leer lo cifrado con llaves anteriores mientras dura la rotación.
+    - `pnpm credentials:rotate` vuelve a cifrar con la llave actual las credenciales de todas las empresas (también las suspendidas); termina con error si a alguna le falta su llave.
+    - **Pregunta:** el compromiso de aviso a las instaladoras (72 horas propuestas) y quién avisa a los titulares los define el abogado en el contrato de encargo.
