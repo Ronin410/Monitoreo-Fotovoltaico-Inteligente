@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { NotImplementedError, type InverterAdapter } from './types.js';
+import type { InverterAdapter, RawReading } from './types.js';
 
 // Adaptador de Victron Energy (VRM API v2). Implementado SOLO con la documentación oficial
 // (docs/fabricantes/victron-vrm.md, revisada el 2026-11-03):
@@ -9,10 +9,15 @@ import { NotImplementedError, type InverterAdapter } from './types.js';
 // - Respuestas con `success`; errores con `errors` y `error_code`.
 // - Límite: ventana móvil de 200 peticiones (~3 por segundo); al excederlo responde 429 con
 //   `Retry-After` en segundos.
-// La lectura de la serie (`/installations/{idSite}/stats`) todavía no se implementa: la
-// documentación no dice qué códigos trae la producción FV, si cada punto es energía o potencia,
-// ni la unidad de sus timestamps (specs/PREGUNTAS.md #212). `pnpm victron:probe` obtiene esas
-// respuestas con una cuenta real.
+// Serie de producción (`GET /installations/{idSite}/stats`). Lo que la documentación no decía se
+// confirmó con respuestas reales de la instalación demo de VRM (docs/fabricantes/victron-vrm.md §7,
+// specs/PREGUNTAS.md #216):
+// - `start` y `end` van en SEGUNDOS; los timestamps de la respuesta, en MILISEGUNDOS.
+// - Con `interval=15mins`, cada punto empieza en `start + n × 15 min`: su timestamp es el INICIO
+//   del intervalo.
+// - `type=live_feed` trae `total_solar_yield`: ENERGÍA solar del intervalo en kWh (suma exacta de
+//   lo que va a batería, red y consumo). Sin producción no hay punto.
+// - Máximo 31 días por consulta.
 
 export const VRM_BASE_URL = 'https://vrmapi.victronenergy.com/v2';
 
@@ -135,9 +140,57 @@ export const victronAdapter: InverterAdapter = {
       ? { ok: true }
       : { ok: false, message: 'El token no tiene acceso a esa instalación' };
   },
-  async fetchReadings() {
-    throw new NotImplementedError(
-      'Victron: falta confirmar con una cuenta real los códigos y unidades de la serie (specs/PREGUNTAS.md #212)',
-    );
+  async fetchReadings({ creds, since, until }) {
+    const c = victronCredentialsSchema.parse(creds);
+    return fetchSolarYield(new VrmClient(c.access_token), c.id_site, since, until);
   },
 };
+
+const INTERVAL_MS = 15 * 60 * 1000;
+const MAX_WINDOW_MS = 31 * 24 * 60 * 60 * 1000;
+
+/** Una serie de stats: puntos [timestamp ms, promedio, mín?, máx?], o false si no hay datos. */
+const statsSeries = z.union([z.array(z.array(z.number()).min(2)), z.literal(false)]);
+const liveFeedResponse = z.object({
+  success: z.literal(true),
+  // Sin ninguna serie, PHP puede devolver una lista vacía en lugar de un objeto.
+  records: z.union([
+    z.object({ total_solar_yield: statsSeries.optional() }).loose(),
+    z.array(z.never()).length(0),
+  ]),
+});
+
+/**
+ * Energía solar de cada 15 min entre `since` y `until`, como potencia media (kWh × 4 = kW). Se
+ * pide desde el cuarto de hora para que los intervalos de VRM coincidan con los nuestros, y se
+ * descarta el que todavía no termina.
+ */
+export async function fetchSolarYield(
+  client: VrmClient,
+  idSite: number,
+  since: Date,
+  until: Date,
+): Promise<RawReading[]> {
+  const out: RawReading[] = [];
+  let from = Math.floor(since.getTime() / INTERVAL_MS) * INTERVAL_MS;
+  const to = until.getTime();
+  while (from < to) {
+    const chunkEnd = Math.min(to, from + MAX_WINDOW_MS);
+    const res = liveFeedResponse.parse(
+      await client.get(`/installations/${idSite}/stats`, {
+        type: 'live_feed',
+        interval: '15mins',
+        start: Math.floor(from / 1000),
+        end: Math.floor(chunkEnd / 1000),
+      }),
+    );
+    const series = Array.isArray(res.records) ? false : (res.records.total_solar_yield ?? false);
+    for (const [ts, kwh] of series || []) {
+      if (ts === undefined || kwh === undefined) continue;
+      if (ts < from || ts + INTERVAL_MS > chunkEnd) continue; // intervalo incompleto o ajeno
+      out.push({ ts: new Date(ts), powerKw: Math.max(0, kwh) * 4 });
+    }
+    from = chunkEnd;
+  }
+  return out;
+}

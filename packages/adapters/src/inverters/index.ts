@@ -12,6 +12,7 @@ import { victronAdapter } from './victron.js';
 export * from './types.js';
 export { createSimulatorAdapter, type SimulatorDataSource } from './simulator.js';
 export {
+  fetchSolarYield,
   VRM_BASE_URL,
   VrmApiError,
   VrmClient,

@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
 import {
   createAdapterRegistry,
+  fetchSolarYield,
+  VrmClient,
   type InverterAdapter,
   type InverterAdapterRegistry,
 } from '@pv/adapters';
@@ -44,8 +47,30 @@ function testAdapters(companyId: string, db: PrismaClient): InverterAdapterRegis
       throw new Error(`login rechazado: ${(creds as { password: string }).password}`);
     },
   };
-  return { ...base, goodwe, huawei };
+  // Victron real (fetchSolarYield) contra una respuesta grabada de la VRM API.
+  const victron: InverterAdapter = {
+    ...base.victron,
+    fetchReadings: async ({ creds, since, until }) => {
+      const c = creds as { access_token: string; id_site: number };
+      const fetchImpl = (async () =>
+        new Response(JSON.stringify(VRM_LIVE_FEED), { status: 200 })) as unknown as typeof fetch;
+      return fetchSolarYield(new VrmClient(c.access_token, { fetchImpl }), c.id_site, since, until);
+    },
+  };
+  return { ...base, goodwe, huawei, victron };
 }
+
+/** Respuesta real de la VRM API (instalación demo, 6 horas desde FIXTURE_START). */
+const VRM_LIVE_FEED = JSON.parse(
+  readFileSync(
+    new URL(
+      '../../../packages/adapters/src/inverters/fixtures/victron-live-feed.json',
+      import.meta.url,
+    ),
+    'utf8',
+  ),
+) as { records: { total_solar_yield: number[][] } };
+const VRM_FIXTURE_START = 1793728185000;
 
 let ctx: WorkerTestContext;
 beforeAll(async () => {
@@ -149,7 +174,7 @@ describe('ingest.telemetry_plant con el simulador', () => {
 
 describe('ingest.telemetry_plant con marcas reales', () => {
   async function realPlant(
-    brand: 'goodwe' | 'huawei' | 'fronius' | 'growatt' | 'victron',
+    brand: 'goodwe' | 'huawei' | 'fronius' | 'growatt' | 'victron' | 'enphase',
     withCreds = true,
   ) {
     const { company, client } = await createCompanyWithClient(ctx.owner);
@@ -197,8 +222,40 @@ describe('ingest.telemetry_plant con marcas reales', () => {
     expect(await telemetryOf(plant.id)).toHaveLength(0);
   });
 
+  it('Victron: guarda la energía de cada 15 min de una respuesta real de VRM', async () => {
+    const { company, client } = await createCompanyWithClient(ctx.owner);
+    const plant = await createPlant(ctx.owner, company.id, client.id);
+    await ctx.owner.solarPlant.update({
+      where: { id: plant.id },
+      data: { inverterBrand: 'victron', lastReadingAt: new Date(VRM_FIXTURE_START + HOUR) },
+    });
+    await ctx.owner.inverterCredential.create({
+      data: {
+        companyId: company.id,
+        plantId: plant.id,
+        provider: 'victron',
+        ...TEST_CIPHER.encrypt(
+          { access_token: 'token-vrm-de-prueba', id_site: 219742 },
+          { companyId: company.id, plantId: plant.id },
+        ),
+      },
+    });
+    ctx.setNow(new Date(VRM_FIXTURE_START + 6 * HOUR));
+    expect(await runPlant(company.id, plant.id)).toBe('succeeded');
+
+    const rows = await telemetryOf(plant.id);
+    const points = VRM_LIVE_FEED.records.total_solar_yield;
+    expect(rows).toHaveLength(points.length);
+    for (const r of rows) expect(r.ts.getTime() % 900_000).toBe(0);
+    const kwh = rows.reduce((sum, r) => sum + Number(r.energyKwh), 0);
+    expect(kwh).toBeCloseTo(
+      points.reduce((sum, p) => sum + (p[1] ?? 0), 0),
+      2,
+    );
+  });
+
   it('una marca sin adaptador se omite sin fallar ni reintentar', async () => {
-    for (const brand of ['growatt', 'victron', 'fronius'] as const) {
+    for (const brand of ['growatt', 'enphase', 'fronius'] as const) {
       const { company, plant } = await realPlant(brand);
       expect(await runPlant(company.id, plant.id)).toBe('succeeded');
       const [run] = await ctx.owner.jobRun.findMany({ where: { companyId: company.id } });

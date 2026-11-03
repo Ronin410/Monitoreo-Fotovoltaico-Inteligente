@@ -57,7 +57,7 @@ Los puntos 1 y 2 se resuelven con **una cuenta de prueba**: una consulta real a 
   - las credenciales por planta (`access_token` e `id_site`), validadas al guardarlas;
   - **Probar conexión**: `GET /users/me` y que la instalación aparezca en `GET /users/{idUser}/installations`.
   - Se comprobó contra la API real que un token inválido responde `401 invalid_token`, como dice la documentación.
-- **Pendiente:** la lectura de la serie (`fetchReadings`). Mientras tanto la ingesta omite las plantas Victron sin marcar error (`adapter_not_implemented`).
+- **Hecho después (§7):** la lectura de la serie (`fetchReadings`), confirmada con respuestas reales.
 
 ### Diagnóstico con una cuenta real
 
@@ -70,3 +70,23 @@ Los puntos 1 y 2 se resuelven con **una cuenta de prueba**: una consulta real a 
 3. El comando hace solo consultas de lectura documentadas: usuario, instalación, `stats` de `solar_yield`, `live_feed` y `kwh` cada 15 min, `overallstats`, `diagnostics` y `data-attributes`. En `stats` no manda `start` ni `end` (usa el último día por omisión), para no suponer la unidad de las fechas.
 4. Imprime qué series trae cada tipo y guarda las respuestas en `victron-probe-<idSite>-<fecha>.json`, sin el token ni datos personales de la instalación.
 5. Con ese archivo se confirman los códigos y las unidades, se termina `fetchReadings` y las respuestas se graban como ejemplos de prueba. Después, borre el token en VRM.
+
+## 7. Lo que se confirmó con respuestas reales (2026-11-03)
+
+Victron no documenta una cuenta de prueba. Para observar el formato real se usó una vez el acceso demo público de VRM (`POST /v2/auth/loginAsDemo`, que conoce la comunidad), **solo para diagnóstico**. Ese acceso no aparece en la especificación y usa el formato Bearer, que es obsoleto. El producto no lo usa: trabaja con el token de acceso del cliente. Las consultas de datos fueron las documentadas.
+
+| Pregunta del §5              | Respuesta observada                                                                                                                                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Código de la producción FV   | `type=live_feed` trae `total_solar_yield`. `type=solar_yield` lo reparte en `Pb` (a batería), `Pg` (a red) y `Pc` (a consumo). En cada intervalo, `total_solar_yield` es exactamente `Pb + Pg + Pc`. |
+| ¿Energía o potencia?         | **Energía del intervalo en kWh**: la suma de los puntos es igual al total del día (`totals`). La potencia media es kWh × 4.                                                                          |
+| Unidad de las fechas         | Respuesta en **milisegundos**. `start` y `end` se mandan en **segundos** (en milisegundos no devuelve nada).                                                                                         |
+| ¿Inicio o fin del intervalo? | **Inicio**: el primer punto cae exactamente en `start`, y los siguientes cada 900 s.                                                                                                                 |
+| Intervalos sin producción    | No vienen en la serie (la noche no aparece).                                                                                                                                                         |
+| Permisos del usuario demo    | No puede leer `diagnostics` ni `data-attributes` (`forbidden`), así que la temperatura del inversor sigue sin confirmarse.                                                                           |
+
+La respuesta real de 6 horas está grabada como ejemplo de prueba en `packages/adapters/src/inverters/fixtures/victron-live-feed.json`; solo contiene números. La implementación pide desde el cuarto de hora y descarta el intervalo en curso. Se probó de punta a punta contra la API real: 24 horas quedaron en intervalos alineados a cada 15 minutos.
+
+**Falta confirmar con una instalación propia en México:**
+
+- que la hora de los intervalos corresponda a la producción real (las instalaciones demo son de otra zona horaria y sus datos parecen de demostración);
+- la temperatura del inversor.

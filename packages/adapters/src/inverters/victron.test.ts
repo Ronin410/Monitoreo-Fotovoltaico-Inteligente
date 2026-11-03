@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { NotImplementedError } from './types.js';
-import { VrmApiError, VrmClient, victronAdapter, victronCredentialsSchema } from './victron.js';
+import { readFileSync } from 'node:fs';
+import {
+  fetchSolarYield,
+  VrmApiError,
+  VrmClient,
+  victronAdapter,
+  victronCredentialsSchema,
+} from './victron.js';
+
+/** Respuesta real de `stats?type=live_feed&interval=15mins` (instalación demo de VRM, 6 horas). */
+const LIVE_FEED = JSON.parse(
+  readFileSync(new URL('./fixtures/victron-live-feed.json', import.meta.url), 'utf8'),
+) as { records: { total_solar_yield: number[][] } };
+const FIXTURE_START_MS = 1793728185000;
 
 // Respuestas con la forma de la documentación oficial de la VRM API (docs/fabricantes/victron-vrm.md).
 
@@ -89,15 +101,75 @@ describe('adaptador Victron', () => {
     expect(victronCredentialsSchema.safeParse({ access_token: TOKEN }).success).toBe(false);
   });
 
-  it('fetchReadings queda pendiente de confirmar códigos y unidades con una cuenta real', async () => {
-    await expect(
-      victronAdapter.fetchReadings({
-        plant: {} as never,
-        creds: {},
-        since: new Date(),
-        until: new Date(),
-      }),
-    ).rejects.toThrow(NotImplementedError);
+  it('lee la energía solar de cada 15 min de una respuesta real y la entrega como kW medios', async () => {
+    const { fetchImpl, calls } = fakeFetch([{ body: LIVE_FEED }]);
+    const client = new VrmClient(TOKEN, { fetchImpl });
+    const since = new Date(FIXTURE_START_MS);
+    const until = new Date(FIXTURE_START_MS + 6 * 3600_000);
+    const readings = await fetchSolarYield(client, 219742, since, until);
+
+    const points = LIVE_FEED.records.total_solar_yield;
+    expect(readings).toHaveLength(points.length);
+    expect(readings[0]).toEqual({
+      ts: new Date(points[0]?.[0] ?? 0),
+      powerKw: (points[0]?.[1] ?? 0) * 4,
+    });
+    // La energía se conserva: kW × 0.25 h = kWh de VRM.
+    const kwh = readings.reduce((s, r) => s + r.powerKw * 0.25, 0);
+    expect(kwh).toBeCloseTo(
+      points.reduce((s, p) => s + (p[1] ?? 0), 0),
+      10,
+    );
+
+    const url = new URL(calls[0]?.url ?? '');
+    expect(url.pathname).toBe('/v2/installations/219742/stats');
+    expect(url.searchParams.get('type')).toBe('live_feed');
+    expect(url.searchParams.get('interval')).toBe('15mins');
+    // start alineado al cuarto de hora y en segundos.
+    const start = Number(url.searchParams.get('start'));
+    expect(start % 900).toBe(0);
+    expect(start).toBeLessThanOrEqual(FIXTURE_START_MS / 1000);
+    expect(Number(url.searchParams.get('end'))).toBe(until.getTime() / 1000);
+  });
+
+  it('descarta el intervalo en curso y acepta respuestas sin producción', async () => {
+    const t0 = Date.UTC(2026, 10, 3, 18, 0);
+    const { fetchImpl } = fakeFetch([
+      {
+        body: {
+          success: true,
+          records: {
+            total_solar_yield: [
+              [t0, 0.5],
+              [t0 + 900_000, 0.25],
+            ],
+          },
+          totals: {},
+        },
+      },
+      { body: { success: true, records: [], totals: [] } },
+      { body: { success: true, records: { total_solar_yield: false }, totals: {} } },
+    ]);
+    const client = new VrmClient(TOKEN, { fetchImpl });
+    // until a la mitad del segundo intervalo: ese todavía no termina.
+    const readings = await fetchSolarYield(client, 1, new Date(t0), new Date(t0 + 1_350_000));
+    expect(readings).toEqual([{ ts: new Date(t0), powerKw: 2 }]);
+    expect(await fetchSolarYield(client, 1, new Date(t0), new Date(t0 + 3600_000))).toEqual([]);
+    expect(await fetchSolarYield(client, 1, new Date(t0), new Date(t0 + 3600_000))).toEqual([]);
+  });
+
+  it('parte las ventanas largas en tramos de 31 días', async () => {
+    const empty = { body: { success: true, records: [], totals: [] } };
+    const { fetchImpl, calls } = fakeFetch([empty, empty]);
+    const since = new Date(Date.UTC(2026, 8, 1));
+    const until = new Date(since.getTime() + 40 * 86_400_000);
+    await fetchSolarYield(new VrmClient(TOKEN, { fetchImpl }), 1, since, until);
+    expect(calls).toHaveLength(2);
+    const span = (u: string) => {
+      const q = new URL(u).searchParams;
+      return Number(q.get('end')) - Number(q.get('start'));
+    };
+    expect(span(calls[0]?.url ?? '')).toBe(31 * 86_400);
   });
 
   it('testConnection sin credenciales completas responde un fallo genérico', async () => {

@@ -450,3 +450,8 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - El contrato de los adaptadores gana `credentialsSchema` opcional; la API valida con él al guardar.
     - `fetchReadings` sigue pendiente (#212). La ingesta omite esas plantas como `adapter_not_implemented`.
     - Para cerrarlo: correr `pnpm victron:probe --site <idSite>` con un token real y entregar el archivo que genera (no contiene el token).
+216. **Victron: lectura de datos con respuestas reales (2026-11-03).**
+    - El PO no tiene todavía una cuenta Victron. Victron no documenta una cuenta de prueba, así que, solo para diagnóstico, se usó el acceso demo público de VRM (`/auth/loginAsDemo`). No está en la especificación y el producto no lo usa.
+    - Confirmado: `live_feed.total_solar_yield` es kWh por intervalo de 15 min; `start` y `end` van en segundos y la respuesta en milisegundos; el timestamp es el inicio del intervalo; los intervalos sin producción no vienen.
+    - `fetchReadings` entrega kW medios (kWh × 4), sin contador diario ni temperatura. Pide desde el cuarto de hora, descarta el intervalo en curso y parte las ventanas en tramos de 31 días. Respuesta real grabada como ejemplo de prueba.
+    - **Pendiente:** validar con una instalación propia en México (horarios y producción) y la temperatura del inversor. Los intervalos de madrugada o atardecer con producción cero no llegan, y cuentan como faltantes en la completitud del día; con el umbral de 80 % no debería invalidar días normales. Revisarlo con datos reales.
