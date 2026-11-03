@@ -30,6 +30,9 @@ Base: `/api`. JSON. Autenticación con `Authorization: Bearer <access_token>`, s
 | GET | `/company/ai-usage` | admin |
 | GET / POST | `/company/exports` | admin: lista y pide la exportación de todos los datos (ZIP de CSV, job `company.export`) |
 | GET | `/company/exports/:id/download` | admin: solo la última, durante 7 días |
+| GET | `/company/integrations` | admin: estado de las llaves de cada fabricante (nunca su valor) |
+| PUT / DELETE | `/company/integrations/:provider` | admin: guarda (cifradas) o borra las llaves; hoy solo `goodwe` |
+| POST | `/company/integrations/:provider/test` | admin: prueba la conexión; responde éxito o un mensaje genérico |
 
 ## Clientes y plantas
 | Método | Ruta | Rol |

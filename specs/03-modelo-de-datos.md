@@ -109,6 +109,9 @@ job_name, company_id null, started_at, finished_at, status, error, stats jsonb.
 ### `inverter_credentials` 🔒
 plant_id (unique), provider, ciphertext bytea, iv bytea, auth_tag bytea, key_version int, last_test_at, last_test_ok bool.
 
+### `company_integrations` 🔒
+Llaves de un fabricante **a nivel empresa** (decisión del PO, 2026-11-03: GoodWe da acceso a cada instaladora como "usuario de organización"; ver `docs/fabricantes/goodwe-openapi.md`). provider, ciphertext bytea, iv bytea, auth_tag bytea, key_version int, last_test_at, last_test_ok bool. Única por `(company_id, provider)`. El cifrado queda ligado a la empresa y al proveedor; nunca se devuelve por la API.
+
 ## Series de tiempo
 
 ### `telemetry_readings` 🔒

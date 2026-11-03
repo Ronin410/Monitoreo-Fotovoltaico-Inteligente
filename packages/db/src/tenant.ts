@@ -11,6 +11,7 @@ export const TENANT_MODELS = [
   'Client',
   'SolarPlant',
   'InverterCredential',
+  'CompanyIntegration',
   'TelemetryReading',
   'PlantWeatherHourly',
   'PlantDailyMetric',

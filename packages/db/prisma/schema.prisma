@@ -273,6 +273,7 @@ model Company {
   clients             Client[]
   plants              SolarPlant[]
   inverterCredentials InverterCredential[]
+  integrations        CompanyIntegration[]
   telemetryReadings   TelemetryReading[]
   weatherHours        PlantWeatherHourly[]
   dailyMetrics        PlantDailyMetric[]
@@ -518,6 +519,28 @@ model InverterCredential {
 
   @@unique([plantId, companyId])
   @@map("inverter_credentials")
+}
+
+/// Credenciales de una integración de la empresa, no de una planta: por ejemplo el Client ID y
+/// el Client Secret de GoodWe que la instaladora obtiene como "usuario de organización"
+/// (docs/fabricantes/goodwe-openapi.md). Cifradas igual que inverter_credentials.
+model CompanyIntegration {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId  String        @map("company_id") @db.Uuid
+  provider   InverterBrand
+  ciphertext Bytes
+  iv         Bytes
+  authTag    Bytes         @map("auth_tag")
+  keyVersion Int           @map("key_version")
+  lastTestAt DateTime?     @map("last_test_at") @db.Timestamptz
+  lastTestOk Boolean?      @map("last_test_ok")
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, provider])
+  @@map("company_integrations")
 }
 
 // ---------------------------------------------------------------------------

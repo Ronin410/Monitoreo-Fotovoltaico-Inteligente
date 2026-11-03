@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
 import type { Company } from '@/lib/settings';
 import { ExportPanel } from './export-panel';
+import { IntegrationsPanel } from './integrations-panel';
 import { NotificationsSection, NumbersSection } from './settings-section';
 import { UsersPanel } from './users-panel';
 
@@ -262,5 +263,49 @@ describe('exportar datos', () => {
       body: undefined,
     });
     expect(await screen.findByText(/Estamos preparando el archivo/)).toBeTruthy();
+  });
+});
+
+describe('integraciones', () => {
+  it('guarda las llaves de GoodWe sin volver a mostrarlas y prueba la conexión', async () => {
+    let configured = false;
+    reply = (path, body) => {
+      const status = (over: object = {}) => ({
+        provider: 'goodwe',
+        configured,
+        updated_at: configured ? '2026-11-03T18:00:00Z' : null,
+        last_test_at: null,
+        last_test_ok: null,
+        ...over,
+      });
+      if (path === '/company/integrations/goodwe/test')
+        return { ok: true, message: 'Conexión exitosa', tested_at: '2026-11-03T18:05:00Z' };
+      if (path === '/company/integrations/goodwe' && body) {
+        configured = true;
+        return status();
+      }
+      return { data: [status()] };
+    };
+    render(<IntegrationsPanel />);
+    await userEvent.type(await screen.findByLabelText(/Client ID/), 'cliente-123');
+    await userEvent.type(screen.getByLabelText(/Client Secret/), 'Secreto-987');
+    await userEvent.selectOptions(screen.getByLabelText(/Servidor/), 'us');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar llaves' }));
+    expect(calls.find((c) => c.method === 'PUT')).toEqual({
+      path: '/company/integrations/goodwe',
+      method: 'PUT',
+      body: {
+        credentials: { client_id: 'cliente-123', client_secret: 'Secreto-987', region: 'us' },
+      },
+    });
+    expect(await screen.findByText(/Por seguridad no se vuelven a mostrar/)).toBeTruthy();
+    expect(screen.queryByDisplayValue('Secreto-987')).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Probar conexión' }));
+    expect(calls.at(-2)).toMatchObject({
+      path: '/company/integrations/goodwe/test',
+      method: 'POST',
+    });
+    expect(await screen.findByText('Conexión exitosa')).toBeTruthy();
   });
 });

@@ -297,3 +297,28 @@ export function formatBytes(n: number): string {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
+
+// Integraciones de la empresa (docs/fabricantes/goodwe-openapi.md): solo su estado, nunca las llaves.
+export const integrationStatusSchema = z.object({
+  provider: z.string(),
+  configured: z.boolean(),
+  updated_at: z.string().nullable(),
+  last_test_at: z.string().nullable(),
+  last_test_ok: z.boolean().nullable(),
+});
+export type IntegrationStatus = z.infer<typeof integrationStatusSchema>;
+export const integrationsSchema = z.object({ data: z.array(integrationStatusSchema) });
+export const integrationTestSchema = z.object({
+  ok: z.boolean(),
+  message: z.string(),
+  tested_at: z.string(),
+});
+
+/** Servidores de GoodWe; cada cuenta vive en uno (lo indica GoodWe al aprobar el acceso). */
+export const GOODWE_REGIONS = [
+  { value: 'us', label: 'América (us-gateway)' },
+  { value: 'hk', label: 'Internacional (hk-gateway)' },
+  { value: 'eu', label: 'Europa (eu-gateway)' },
+  { value: 'au', label: 'Australia (au-gateway)' },
+  { value: 'cn', label: 'China (gateway.sems.com.cn)' },
+] as const;

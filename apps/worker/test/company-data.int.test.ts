@@ -52,6 +52,16 @@ async function fullCompany(tag: string) {
   await ctx.owner.inverterCredential.create({
     data: { companyId: company.id, plantId: plant.id, provider: 'goodwe', ...enc },
   });
+  await ctx.owner.companyIntegration.create({
+    data: {
+      companyId: company.id,
+      provider: 'goodwe',
+      ...TEST_CIPHER.encrypt(
+        { client_id: `cliente-${tag}`, client_secret: `secreto-goodwe-${tag}`, region: 'us' },
+        { companyId: company.id, integration: 'goodwe' },
+      ),
+    },
+  });
   const base = { companyId: company.id, plantId: plant.id };
   await ctx.owner.telemetryReading.createMany({
     data: [0, 1, 2].map((i) => ({
@@ -172,6 +182,7 @@ async function countsOf(companyId: string) {
     clients: await o.client.count(where),
     plants: await o.solarPlant.count(where),
     credentials: await o.inverterCredential.count(where),
+    integrations: await o.companyIntegration.count(where),
     telemetry: await o.telemetryReading.count(where),
     weather: await o.plantWeatherHourly.count(where),
     metrics: await o.plantDailyMetric.count(where),
@@ -256,6 +267,7 @@ describe('exportación de los datos de una empresa', () => {
       .join('\n');
     for (const secret of [
       'hash-secreto',
+      'secreto-goodwe',
       'clave-portal',
       'inv-a-',
       'rt-a-',

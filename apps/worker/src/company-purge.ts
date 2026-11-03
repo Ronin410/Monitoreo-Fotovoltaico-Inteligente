@@ -94,6 +94,7 @@ async function purgeTenantData(deps: Deps, companyId: string): Promise<Record<st
       add('alerts', (await tx.alert.deleteMany({})).count);
       add('maintenance_tickets', (await tx.maintenanceTicket.deleteMany({})).count);
       add('inverter_credentials', (await tx.inverterCredential.deleteMany({})).count);
+      add('company_integrations', (await tx.companyIntegration.deleteMany({})).count);
       // Métricas que hubieran quedado de plantas creadas durante el borrado.
       add('plant_daily_metrics', (await tx.plantDailyMetric.deleteMany({})).count);
       add('solar_plants', (await tx.solarPlant.deleteMany({})).count);

@@ -33,10 +33,20 @@ describe('rotación de la llave de credenciales', () => {
       });
     }
 
+    // Llaves de GoodWe de la empresa (integración a nivel empresa).
+    const integrationOwner = { companyId: company.id, integration: 'goodwe' };
+    await ctx.owner.companyIntegration.create({
+      data: {
+        companyId: company.id,
+        provider: 'goodwe',
+        ...v1.encrypt({ client_id: 'c', client_secret: 's', region: 'us' }, integrationOwner),
+      },
+    });
+
     // Sin la llave anterior cargada: no puede rotar y lo reporta.
     const v2only = new CredentialCipher(2, { 2: k2 });
     const blocked = await rotateCredentials(ctx.db, ctx.serviceDb, v2only);
-    expect(blocked.missingKey).toBeGreaterThanOrEqual(2);
+    expect(blocked.missingKey).toBeGreaterThanOrEqual(3);
     expect(blocked.rotated).toBe(0);
 
     // Con la anterior: rota todas, también las de la empresa suspendida.
@@ -46,7 +56,7 @@ describe('rotación de la llave de credenciales', () => {
       CREDENTIALS_PREVIOUS_KEYS: { 1: k1.toString('base64') },
     });
     const done = await rotateCredentials(ctx.db, ctx.serviceDb, rotating);
-    expect(done.rotated).toBeGreaterThanOrEqual(2);
+    expect(done.rotated).toBeGreaterThanOrEqual(3);
     const rows = await ctx.owner.inverterCredential.findMany({
       where: { companyId: { in: [company.id, suspended.company.id] } },
     });
@@ -55,6 +65,11 @@ describe('rotación de la llave de credenciales', () => {
     for (const r of rows) {
       expect(v2only.decrypt(r, { companyId: r.companyId, plantId: r.plantId })).toEqual(secret);
     }
+    const integration = await ctx.owner.companyIntegration.findFirstOrThrow({
+      where: { companyId: company.id },
+    });
+    expect(integration.keyVersion).toBe(2);
+    expect(v2only.decrypt(integration, integrationOwner)).toMatchObject({ client_id: 'c' });
     expect((await rotateCredentials(ctx.db, ctx.serviceDb, rotating)).rotated).toBe(0);
   });
 });

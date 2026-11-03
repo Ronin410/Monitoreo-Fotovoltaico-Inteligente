@@ -179,15 +179,16 @@ Resolver con **limpieza** registra un lavado: reinicia la tendencia de suciedad,
 
 ## Configuración (`/settings`) — administrador
 
-| Pestaña              | Qué se configura                                                                                                                                                                                                         |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Empresa**          | Nombre, logo (PNG/JPG/SVG), color de marca, zona horaria.                                                                                                                                                                |
-| **Alertas**          | Los umbrales: suciedad (12 %, 3 días), caída brusca (40 %), horas sin datos (4), lluvia que lava (2 mm), día válido (2.0 kWh/m², 80 % de datos), vecinas (5 km, mínimo 3), evento de zona (60 %). Botón **Restablecer**. |
-| **Valores técnicos** | Valores por omisión para plantas nuevas (NOCT, γ, inclinación, orientación), tarifa por kWh y factor de CO₂.                                                                                                             |
-| **Notificaciones**   | Correos extra que reciben las alertas y el envío automático de reportes el día 1.                                                                                                                                        |
-| **Usuarios**         | Invitar, cambiar rol, desactivar o reactivar.                                                                                                                                                                            |
-| **Uso de IA**        | Tokens del mes por función (chat, explicaciones, reportes) contra el presupuesto.                                                                                                                                        |
-| **Exportar datos**   | Prepara un ZIP con todos los datos de la empresa en hojas CSV que se abren en Excel (sin contraseñas ni credenciales de inversores). Tarda unos minutos; se descarga la última durante 7 días.                           |
+| Pestaña              | Qué se configura                                                                                                                                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Empresa**          | Nombre, logo (PNG/JPG/SVG), color de marca, zona horaria.                                                                                                                                                                 |
+| **Alertas**          | Los umbrales: suciedad (12 %, 3 días), caída brusca (40 %), horas sin datos (4), lluvia que lava (2 mm), día válido (2.0 kWh/m², 80 % de datos), vecinas (5 km, mínimo 3), evento de zona (60 %). Botón **Restablecer**.  |
+| **Valores técnicos** | Valores por omisión para plantas nuevas (NOCT, γ, inclinación, orientación), tarifa por kWh y factor de CO₂.                                                                                                              |
+| **Notificaciones**   | Correos extra que reciben las alertas y el envío automático de reportes el día 1.                                                                                                                                         |
+| **Usuarios**         | Invitar, cambiar rol, desactivar o reactivar.                                                                                                                                                                             |
+| **Uso de IA**        | Tokens del mes por función (chat, explicaciones, reportes) contra el presupuesto.                                                                                                                                         |
+| **Integraciones**    | Llaves de GoodWe de la empresa (Client ID, Client Secret y servidor), que GoodWe entrega a la instaladora al aprobar su acceso. Se guardan cifradas y no se vuelven a mostrar. Botones Probar conexión, Cambiar y Borrar. |
+| **Exportar datos**   | Prepara un ZIP con todos los datos de la empresa en hojas CSV que se abren en Excel (sin contraseñas ni credenciales de inversores). Tarda unos minutos; se descarga la última durante 7 días.                            |
 
 ## Superadmin
 

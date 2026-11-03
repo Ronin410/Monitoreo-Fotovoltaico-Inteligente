@@ -9,6 +9,7 @@ import { useApiQuery } from '@/lib/use-api';
 import { AiUsagePanel } from './ai-usage-panel';
 import { CompanyForm } from './company-form';
 import { ExportPanel } from './export-panel';
+import { IntegrationsPanel } from './integrations-panel';
 import { NotificationsSection, NumbersSection } from './settings-section';
 import { UsersPanel } from './users-panel';
 
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'tecnicos', label: 'Valores técnicos' },
   { id: 'notificaciones', label: 'Notificaciones' },
   { id: 'usuarios', label: 'Usuarios' },
+  { id: 'integraciones', label: 'Integraciones' },
   { id: 'ia', label: 'Uso de IA' },
   { id: 'exportar', label: 'Exportar datos' },
 ] as const;
@@ -66,6 +68,8 @@ export function SettingsView() {
           <NotificationsSection company={company} onSaved={setSaved} />
         ) : tab === 'usuarios' ? (
           <UsersPanel timezone={timezone} />
+        ) : tab === 'integraciones' ? (
+          <IntegrationsPanel />
         ) : tab === 'ia' ? (
           <AiUsagePanel />
         ) : (

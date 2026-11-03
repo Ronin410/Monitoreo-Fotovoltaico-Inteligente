@@ -49,6 +49,34 @@ export async function rotateCredentials(
         });
         result.rotated++;
       }
+      // Llaves de integraciones de la empresa (GoodWe).
+      const integrations = await tx.companyIntegration.findMany({
+        where: { keyVersion: { not: cipher.version } },
+      });
+      for (const row of integrations) {
+        const owner = { companyId, integration: row.provider };
+        let plain: unknown;
+        try {
+          plain = cipher.decrypt(row, owner);
+        } catch (err) {
+          if (err instanceof CredentialDecryptError) {
+            result.missingKey++;
+            continue;
+          }
+          throw err;
+        }
+        const enc = cipher.encrypt(plain, owner);
+        await tx.companyIntegration.update({
+          where: { id: row.id },
+          data: {
+            ciphertext: enc.ciphertext,
+            iv: enc.iv,
+            authTag: enc.authTag,
+            keyVersion: enc.keyVersion,
+          },
+        });
+        result.rotated++;
+      }
     });
   }
   return result;

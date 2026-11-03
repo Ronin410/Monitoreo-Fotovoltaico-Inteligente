@@ -437,3 +437,11 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Solo un token activo por Client ID: el worker debe compartirlo.
     - **Decisión del PO:** ¿cada instaladora solicita acceso como *usuario de organización* con su cuenta SEMS+ (credenciales por empresa, que hoy no existen en PV-IoT), o PV-IoT se registra como *tercero* y cada cliente final autoriza con OAuth?
     - **Pendiente con GoodWe:** límite de peticiones, formato de `Request-Id`, servidor para México, y las contradicciones de unidades y formato listadas en el documento.
+214. **GoodWe: llaves por empresa (decisión del PO, 2026-11-03).** Cada instaladora solicita a GoodWe su acceso como *usuario de organización* y captura en **Configuración → Integraciones** su Client ID, su Client Secret y el servidor.
+    - Tabla `company_integrations`: una fila por empresa y fabricante, cifrada como `inverter_credentials`. El cifrado queda ligado a la empresa y al proveedor.
+    - Las llaves entran en la rotación de la llave de cifrado y en el borrado definitivo, y nunca salen en la exportación.
+    - Rutas `/company/integrations`, solo para company_admin.
+    - "Probar conexión" pide el token (*client credentials*) y la primera página de plantas, como dice la documentación.
+    - Cada planta se ubicará por el número de serie de su inversor (`searchType` 3 de `base-info/plants`), sin credenciales por planta.
+    - La lectura de la serie de potencia sigue pendiente de una cuenta aprobada (#213).
+    - **Riesgo anotado:** GoodWe admite un solo token activo por Client ID. La API (Probar conexión) y el worker son procesos distintos y cada uno pide el suyo; uno puede invalidar el del otro, y el cliente lo renueva una vez ante el error `10002`. Al programar la ingesta conviene un token compartido por empresa.

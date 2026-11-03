@@ -17,6 +17,7 @@ const MODEL_TABLE: Record<(typeof TENANT_MODELS)[number], string> = {
   Client: 'clients',
   SolarPlant: 'solar_plants',
   InverterCredential: 'inverter_credentials',
+  CompanyIntegration: 'company_integrations',
   TelemetryReading: 'telemetry_readings',
   PlantWeatherHourly: 'plant_weather_hourly',
   PlantDailyMetric: 'plant_daily_metrics',

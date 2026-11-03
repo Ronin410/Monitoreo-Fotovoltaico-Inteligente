@@ -17,7 +17,9 @@ export type EncryptedCredentials = {
 
 const bytes = (b: Buffer): Uint8Array<ArrayBuffer> => Uint8Array.from(b);
 
-export type CredentialOwner = { companyId: string; plantId: string };
+/** Dueño del texto cifrado: una planta, o una integración de la empresa (por ejemplo GoodWe). */
+export type CredentialOwner =
+  { companyId: string; plantId: string } | { companyId: string; integration: string };
 
 export class CredentialDecryptError extends Error {
   constructor() {
@@ -72,7 +74,11 @@ export class CredentialCipher {
   }
 
   private static aad(owner: CredentialOwner, keyVersion: number): Buffer {
-    return Buffer.from(`pv-iot:credentials:${owner.companyId}:${owner.plantId}:v${keyVersion}`);
+    return Buffer.from(
+      'plantId' in owner
+        ? `pv-iot:credentials:${owner.companyId}:${owner.plantId}:v${keyVersion}`
+        : `pv-iot:integration:${owner.companyId}:${owner.integration}:v${keyVersion}`,
+    );
   }
 
   encrypt(credentials: unknown, owner: CredentialOwner): EncryptedCredentials {

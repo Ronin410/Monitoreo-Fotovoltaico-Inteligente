@@ -50,6 +50,19 @@ describe('CredentialCipher (AES-256-GCM)', () => {
     ).toThrow(CredentialDecryptError);
   });
 
+  it('las llaves de una integración de la empresa no sirven para otra ni para una planta', () => {
+    const company = { companyId: owner.companyId, integration: 'goodwe' };
+    const enc = cipher.encrypt(secret, company);
+    expect(cipher.decrypt(enc, company)).toEqual(secret);
+    for (const other of [
+      { ...company, integration: 'victron' },
+      { ...company, companyId: '22222222-2222-4222-8222-222222222222' },
+      { companyId: owner.companyId, plantId: 'goodwe' },
+    ]) {
+      expect(() => cipher.decrypt(enc, other)).toThrow(CredentialDecryptError);
+    }
+  });
+
   it('con otra llave no descifra, y el error no revela nada', () => {
     const enc = cipher.encrypt(secret, owner);
     const other = new CredentialCipher(1, { 1: randomBytes(32) });

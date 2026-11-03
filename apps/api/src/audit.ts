@@ -24,6 +24,9 @@ export const AUDIT_ACTIONS = [
   'company.export_downloaded',
   'company.purge_requested',
   'company.purged',
+  // Llaves de integraciones de la empresa (GoodWe); la metadata solo lleva el proveedor.
+  'company.integration_updated',
+  'company.integration_deleted',
   // Tareas futuras: F2-T3, F2-T4, F2-T2 y F9-T4.
   'plant.credentials_updated',
   'company.settings_updated',

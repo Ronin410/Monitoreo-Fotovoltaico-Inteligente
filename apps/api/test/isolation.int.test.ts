@@ -30,6 +30,7 @@ const MOUNTS: Record<string, string> = {
   'auth/routes.ts': '/auth',
   'clients/routes.ts': '/clients',
   'company/export-routes.ts': '/company',
+  'company/integration-routes.ts': '/company',
   'company/profile-routes.ts': '/company',
   'company/routes.ts': '/company',
   'dashboard/routes.ts': '/dashboard',
@@ -79,6 +80,12 @@ const PARAM_EXEMPT: Record<string, string> = {
   'POST /admin/companies/:id/invitations': 'solo superadmin; probada en admin-tools.int.test.ts',
   'POST /admin/companies/:id/example-data': 'solo superadmin; probada en admin-tools.int.test.ts',
   'POST /admin/companies/:id/purge': 'solo superadmin; probada en company-data.int.test.ts',
+  'PUT /company/integrations/:provider':
+    'el parámetro es un catálogo fijo; la fila es la de la empresa de la sesión (integrations.int.test.ts)',
+  'DELETE /company/integrations/:provider':
+    'el parámetro es un catálogo fijo; la fila es la de la empresa de la sesión (integrations.int.test.ts)',
+  'POST /company/integrations/:provider/test':
+    'el parámetro es un catálogo fijo; la fila es la de la empresa de la sesión (integrations.int.test.ts)',
 };
 
 /** Listas (GET sin parámetro) que no aplican a un usuario de empresa, con su razón. */
@@ -287,6 +294,7 @@ const LISTS: Record<string, (b: Tenant) => string> = {
   'GET /company': () => '/company',
   'GET /company/ai-usage': () => '/company/ai-usage',
   'GET /company/exports': () => '/company/exports',
+  'GET /company/integrations': () => '/company/integrations',
   'GET /company/invitations': () => '/company/invitations',
   'GET /company/users': () => '/company/users?page_size=100',
   'GET /dashboard/map': () => '/dashboard/map',
