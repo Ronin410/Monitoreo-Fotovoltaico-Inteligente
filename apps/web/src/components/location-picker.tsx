@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useEffect } from 'react';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { MAP_TILES } from '@/lib/map-tiles';
 
 // Ubicación del cliente en el mapa (specs/09 §Clientes): un clic fija el punto y el marcador se
 // puede arrastrar. Las coordenadas también se pueden escribir a mano en el formulario.
@@ -47,10 +48,7 @@ export default function LocationPicker({
       zoom={point ? 16 : 12}
       className="h-72 w-full rounded-lg"
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <TileLayer attribution={MAP_TILES.attribution} url={MAP_TILES.url} />
       <ClickToPlace onChange={onChange} />
       <FollowPoint point={point} />
       {point && (

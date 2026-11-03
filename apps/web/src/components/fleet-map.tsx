@@ -8,6 +8,7 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import type { MapPlant } from '@/lib/dashboard';
 import { formatNumber } from '@/lib/format';
 import { STATUS, StatusBadge } from './status';
+import { MAP_TILES } from '@/lib/map-tiles';
 
 // Mapa de la flota (specs/09): un marcador por planta con el color y la forma de su estado.
 // Se carga solo en el navegador (Leaflet usa window).
@@ -56,10 +57,7 @@ export default function FleetMap({ plants }: { plants: MapPlant[] }) {
       scrollWheelZoom={false}
       className="h-full w-full rounded-lg"
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <TileLayer attribution={MAP_TILES.attribution} url={MAP_TILES.url} />
       <FitBounds plants={plants} />
       {plants.map((p) => (
         <Marker
