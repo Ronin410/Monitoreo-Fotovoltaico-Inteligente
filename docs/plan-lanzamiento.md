@@ -17,7 +17,7 @@ Plan unificado (2026-11-03) a partir de la revisión de cumplimiento (`docs/cump
 **Ambientes:**
 
 - **Staging** es el ambiente de pruebas y demos: tiene el simulador y los datos de ejemplo, y usa servicios gratuitos (mapas de OpenStreetMap, API gratuita de Open-Meteo).
-- **Producción** es otro Blueprint de Render, desplegado desde `main`, sin simulador y con servicios comerciales. Cambiar de uno a otro es solo cuestión de variables de entorno (ver §2).
+- **Producción** es otro Blueprint de Render (`render.production.yaml`, guía en `docs/produccion-render.md`), desplegado desde `main`, sin simulador y con servicios comerciales. Cambiar de uno a otro es solo cuestión de variables de entorno (ver §2).
 
 ## 0. Bloqueo principal: leer inversores reales
 
@@ -31,20 +31,20 @@ Sin esto, un piloto solo muestra datos simulados.
 
 ## 1. Técnico y seguridad
 
-| #    | Tarea                                                                                                            | Responsable      | Estado |
-| ---- | ---------------------------------------------------------------------------------------------------------------- | ---------------- | :----: |
-| 1.1  | Aislamiento entre empresas en dos capas, con prueba que recorre todas las rutas                                  | Código           |   ✅   |
-| 1.2  | Credenciales cifradas (AES-256-GCM), contraseñas argon2id, sesiones revocables                                   | Código           |   ✅   |
-| 1.3  | La IA nunca recibe teléfonos, correos, domicilios ni credenciales                                                | Código           |   ✅   |
-| 1.4  | Escaneo de secretos y dependencias en CI; auditoría de acciones sensibles                                        | Código           |   ✅   |
-| 1.5  | Respaldos: confirmar los de Render en el plan contratado y repetir la prueba de restauración en staging (F10-T3) | Equipo + Código  |   🟡   |
-| 1.6  | Mapas configurables: OpenStreetMap gratuito en staging, proveedor comercial en producción                        | Código           |   ✅   |
-| 1.7  | Clima: API gratuita de Open-Meteo en staging; plan comercial y `WEATHER_API_KEY` en producción                   | Equipo           |   🟡   |
-| 1.8  | Decidir sobre la licencia de `react-leaflet` (validarla o reemplazarla por Leaflet directo)                      | Abogado + Código |   ⬜   |
-| 1.9  | Ambiente de **producción** separado (otro Blueprint, desde `main`, `SIMULATOR_ENABLED=false`)                    | Equipo           |   ⬜   |
-| 1.10 | Monitoreo externo de disponibilidad (aviso si la plataforma se cae) y página de estado                           | Equipo           |   ⬜   |
-| 1.11 | Plan de respuesta a incidentes y política de seguridad escrita (accesos a producción)                            | Equipo + Código  |   🟡   |
-| 1.12 | Prueba de penetración externa y corrección de hallazgos                                                          | Externo          |   ⬜   |
+| #    | Tarea                                                                                                                                                                       | Responsable      | Estado |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | :----: |
+| 1.1  | Aislamiento entre empresas en dos capas, con prueba que recorre todas las rutas                                                                                             | Código           |   ✅   |
+| 1.2  | Credenciales cifradas (AES-256-GCM), contraseñas argon2id, sesiones revocables                                                                                              | Código           |   ✅   |
+| 1.3  | La IA nunca recibe teléfonos, correos, domicilios ni credenciales                                                                                                           | Código           |   ✅   |
+| 1.4  | Escaneo de secretos y dependencias en CI; auditoría de acciones sensibles                                                                                                   | Código           |   ✅   |
+| 1.5  | Respaldos: confirmar los de Render en el plan contratado y repetir la prueba de restauración en staging (F10-T3)                                                            | Equipo + Código  |   🟡   |
+| 1.6  | Mapas configurables: OpenStreetMap gratuito en staging, proveedor comercial en producción                                                                                   | Código           |   ✅   |
+| 1.7  | Clima: API gratuita de Open-Meteo en staging; plan comercial y `WEATHER_API_KEY` en producción                                                                              | Equipo           |   🟡   |
+| 1.8  | Decidir sobre la licencia de `react-leaflet` (validarla o reemplazarla por Leaflet directo)                                                                                 | Abogado + Código |   ⬜   |
+| 1.9  | Ambiente de **producción** separado (otro Blueprint, desde `main`, `SIMULATOR_ENABLED=false`): `render.production.yaml` y `docs/produccion-render.md` listos; falta crearlo | Equipo + Código  |   🟡   |
+| 1.10 | Monitoreo externo de disponibilidad (aviso si la plataforma se cae) y página de estado                                                                                      | Equipo           |   ⬜   |
+| 1.11 | Plan de respuesta a incidentes y política de seguridad escrita (accesos a producción)                                                                                       | Equipo + Código  |   🟡   |
+| 1.12 | Prueba de penetración externa y corrección de hallazgos                                                                                                                     | Externo          |   ⬜   |
 
 ## 2. Variables de entorno: staging contra producción
 

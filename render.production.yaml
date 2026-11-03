@@ -1,0 +1,169 @@
+# Blueprint de Render para PRODUCCIÓN (ver docs/produccion-render.md).
+# Es igual a render.yaml (staging) con estas diferencias:
+#   - Nombres propios (pv-prod-*), para que convivan con staging en el mismo workspace.
+#   - Despliega desde la rama `main`: a producción solo llega lo que se fusiona ahí.
+#   - SIMULATOR_ENABLED fijo en "false" (sin simulador ni datos de ejemplo).
+#   - Clima y mapas comerciales: WEATHER_API_KEY y NEXT_PUBLIC_MAP_TILE_URL/ATTRIBUTION.
+#   - Base de datos con más espacio.
+# Al cambiar render.yaml, aplique el mismo cambio aquí.
+#
+# Un grupo de variables solo admite valores fijos (`value`) o generados (`generateValue`): las
+# referencias (`fromService`, `fromDatabase`) y las que se capturan a mano (`sync: false`) van en
+# cada servicio.
+
+envVarGroups:
+  - name: pv-prod-shared
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: '1'
+      # Se generan una vez y los comparten pv-prod-api y pv-prod-worker.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: REFRESH_TOKEN_SECRET
+        generateValue: true
+      - key: CREDENTIALS_KEY_VERSION
+        value: '1'
+      - key: LLM_PROVIDER
+        value: anthropic
+      - key: LLM_MODEL_CHAT
+        value: claude-sonnet-5-5
+      - key: LLM_MODEL_FAST
+        value: claude-haiku-5-5
+      - key: WEATHER_PROVIDER
+        value: open-meteo
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: STORAGE_PROVIDER
+        value: s3
+      - key: DEFAULT_TIMEZONE
+        value: America/Mazatlan
+
+services:
+  - type: web
+    name: pv-prod-api
+    runtime: node
+    branch: main
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @pv/api build
+    preDeployCommand: pnpm db:migrate
+    startCommand: pnpm --filter @pv/api start
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: pv-prod-shared
+      # Rol dueño: solo para las migraciones del preDeploy.
+      - key: MIGRATION_DATABASE_URL
+        fromDatabase:
+          name: pv-prod-db
+          property: connectionString
+      # Usuarios de conexión miembros de pv_app y pv_service (sin BYPASSRLS). Se crean después de
+      # la primera migración (docs/despliegue-render.md, paso 3); al crear el Blueprint se deja
+      # un valor provisional.
+      - key: DATABASE_URL
+        sync: false
+      - key: SERVICE_DATABASE_URL
+        sync: false
+      # URL pública de pv-prod-web (https://…). API_URL lleva el mismo valor: el web reenvía /api a
+      # pv-prod-api (specs/PREGUNTAS.md #24) y los logos se sirven por ese /api.
+      - key: APP_URL
+        sync: false
+      - key: API_URL
+        sync: false
+      # 32 bytes en base64 (openssl rand -base64 32), el mismo en pv-prod-api y pv-prod-worker,
+      # distinta de la de staging. Se respalda fuera de Render: si se pierde, las credenciales de
+      # inversor no se pueden descifrar.
+      - key: CREDENTIALS_ENC_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      # Producción: nunca simulador ni datos de ejemplo.
+      - key: SIMULATOR_ENABLED
+        value: 'false'
+      # Llave del plan comercial de Open-Meteo (la API gratuita es solo para uso no comercial).
+      - key: WEATHER_API_KEY
+        sync: false
+
+  - type: worker
+    name: pv-prod-worker
+    runtime: node
+    branch: main
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @pv/worker build
+    startCommand: pnpm --filter @pv/worker start
+    envVars:
+      - fromGroup: pv-prod-shared
+      # Los mismos valores que en pv-prod-api.
+      - key: DATABASE_URL
+        sync: false
+      - key: SERVICE_DATABASE_URL
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: API_URL
+        sync: false
+      - key: CREDENTIALS_ENC_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: SIMULATOR_ENABLED
+        value: 'false'
+      - key: WEATHER_API_KEY
+        sync: false
+
+  - type: web
+    name: pv-prod-web
+    runtime: node
+    branch: main
+    plan: starter
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @pv/web build
+    startCommand: pnpm --filter @pv/web start
+    healthCheckPath: /login
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: '1'
+      # El web reenvía /api a pv-prod-api por la red privada de Render (specs/PREGUNTAS.md #24).
+      - key: API_INTERNAL_URL
+        fromService:
+          type: web
+          name: pv-prod-api
+          property: hostport
+      # Mapas comerciales: se leen al compilar, así que un cambio requiere volver a desplegar.
+      # Ejemplo con MapTiler: https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=<llave>
+      - key: NEXT_PUBLIC_MAP_TILE_URL
+        sync: false
+      - key: NEXT_PUBLIC_MAP_ATTRIBUTION
+        sync: false
+
+databases:
+  - name: pv-prod-db
+    databaseName: pv_iot_prod
+    # Más espacio que staging: la telemetría crece con cada planta (ver docs/costos.md).
+    plan: basic-1gb
+    postgresMajorVersion: '16'

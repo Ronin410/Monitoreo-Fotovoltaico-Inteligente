@@ -1,5 +1,6 @@
 # Blueprint de Render (ver specs/01-arquitectura.md §Despliegue y docs/despliegue-render.md).
-# Crear un Blueprint por ambiente (staging y production) apuntando a este archivo.
+# Este archivo es el de STAGING. Producción usa render.production.yaml (docs/produccion-render.md);
+# al cambiar uno, aplique el mismo cambio en el otro.
 #
 # Un grupo de variables solo admite valores fijos (`value`) o generados (`generateValue`): las
 # referencias (`fromService`, `fromDatabase`) y las que se capturan a mano (`sync: false`) van en

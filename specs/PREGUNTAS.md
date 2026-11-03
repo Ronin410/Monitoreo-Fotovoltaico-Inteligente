@@ -414,3 +414,6 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - `CREDENTIALS_PREVIOUS_KEYS` ("versión:llave", separadas por comas) permite leer lo cifrado con llaves anteriores mientras dura la rotación.
     - `pnpm credentials:rotate` vuelve a cifrar con la llave actual las credenciales de todas las empresas (también las suspendidas); termina con error si a alguna le falta su llave.
     - **Pregunta:** el compromiso de aviso a las instaladoras (72 horas propuestas) y quién avisa a los titulares los define el abogado en el contrato de encargo.
+209. **Producción separada (plan 1.9).** `render.production.yaml` es una copia de `render.yaml` con nombres `pv-prod-*` (conviven en el mismo workspace), rama `main`, `SIMULATOR_ENABLED` fijo en `false`, `WEATHER_API_KEY` y los mosaicos comerciales, y una base `basic-1gb`. La guía es `docs/produccion-render.md`.
+    - Los dos archivos se mantienen a mano; una diferencia no deseada entre ellos no la detecta CI.
+    - **Pregunta:** el tamaño de la base de producción se ajusta con la hoja de costos (`docs/costos.md`).
