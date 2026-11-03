@@ -12,6 +12,7 @@
     "eval:alerts": "tsx src/cli/eval-alerts.ts",
     "eval:assistant": "tsx src/cli/eval-assistant.ts",
     "load:test": "tsx src/cli/load-test.ts",
+    "costs:report": "tsx src/cli/costs-report.ts",
     "credentials:rotate": "tsx src/cli/rotate-credentials.ts"
   },
   "devDependencies": {

@@ -1,0 +1,19 @@
+{
+  "reviewed_at": "2026-11-03",
+  "models": {
+    "claude-sonnet-5-5": { "input_per_mtok": 2, "output_per_mtok": 10 },
+    "claude-haiku-5-5": { "input_per_mtok": 0.1, "output_per_mtok": 0.5 }
+  },
+  "fixed_monthly": {
+    "render_pv_api": 0,
+    "render_pv_worker": 0,
+    "render_pv_web": 0,
+    "render_pv_db": 0,
+    "open_meteo_comercial": 0,
+    "mapas_comerciales": 0,
+    "resend_plan": 0,
+    "dominio_y_otros": 0
+  },
+  "email_per_1000": 0,
+  "storage_per_gb_month": 0
+}

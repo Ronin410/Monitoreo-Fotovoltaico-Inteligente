@@ -85,7 +85,7 @@ Sin esto, un piloto solo muestra datos simulados.
 
 | #   | Tarea                                                                                                                                                                                                                 | Responsable     | Estado |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | :----: |
-| 5.1 | Costo mensual por empresa: Render, tokens de IA, clima, mapas y correo, con el consumo medido en staging                                                                                                              | Equipo + Código |   ⬜   |
+| 5.1 | Costo mensual por empresa: Render, tokens de IA, clima, mapas y correo, con el consumo medido en staging: `pnpm costs:report` y `docs/costos.md` listos; falta llenar precios y medir                                 | Equipo + Código |   🟡   |
 | 5.2 | Precio por número de plantas (o por kW gestionados), mensual y anual                                                                                                                                                  | Equipo          |   ⬜   |
 | 5.3 | Planes: **Básico** (monitoreo, alertas con explicación) y **Pro** (más asistente IA y reportes mensuales automáticos). Hoy el campo "plan" es solo texto: hay que programar qué habilita cada plan, con su spec antes | Equipo + Código |   ⬜   |
 
