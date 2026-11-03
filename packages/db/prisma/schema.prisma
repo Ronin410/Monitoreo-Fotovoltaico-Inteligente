@@ -289,18 +289,21 @@ model Company {
 }
 
 model User {
-  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// null solo para superadmin.
-  companyId    String?    @map("company_id") @db.Uuid
+  companyId       String?    @map("company_id") @db.Uuid
   /// Siempre en minúsculas (CHECK en la migración).
-  email        String     @unique
-  passwordHash String?    @map("password_hash")
-  name         String
-  role         UserRole
-  status       UserStatus @default(invited)
-  lastLoginAt  DateTime?  @map("last_login_at") @db.Timestamptz
-  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  email           String     @unique
+  passwordHash    String?    @map("password_hash")
+  name            String
+  role            UserRole
+  status          UserStatus @default(invited)
+  lastLoginAt     DateTime?  @map("last_login_at") @db.Timestamptz
+  /// Versión de los términos y el aviso de privacidad que aceptó (LEGAL_VERSION) y cuándo.
+  termsVersion    String?    @map("terms_version")
+  termsAcceptedAt DateTime?  @map("terms_accepted_at") @db.Timestamptz
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   company             Company?             @relation(fields: [companyId], references: [id])
   refreshTokens       RefreshToken[]

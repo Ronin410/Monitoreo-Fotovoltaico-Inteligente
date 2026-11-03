@@ -101,7 +101,7 @@ describe('POST /api/admin/companies', () => {
 
     const accept = await request(ctx.app)
       .post(`/api/auth/invitations/${token}/accept`)
-      .send({ name: 'Dueña', password: 'contraseña-duena-1' });
+      .send({ name: 'Dueña', password: 'contraseña-duena-1', accept_terms: true });
     expect(accept.status).toBe(200);
     expect(accept.body.user).toMatchObject({
       role: 'company_admin',

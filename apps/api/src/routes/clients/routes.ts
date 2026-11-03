@@ -55,7 +55,8 @@ function clientDto(c: ClientWithCount): z.input<typeof clientResponse> {
  * Body (snake_case) → campos de Prisma. Los ausentes quedan `undefined` y Prisma no los toca,
  * así sirve para crear y para el PATCH parcial.
  */
-function toData(b: Partial<z.output<typeof createClientBody>>) {
+/** Campos del cliente en la base (también los usa la importación masiva). */
+export function clientData(b: Partial<z.output<typeof createClientBody>>) {
   return {
     name: b.name,
     contactName: b.contact_name,
@@ -118,7 +119,7 @@ export function clientsRouter(db: PrismaClient): Router {
     const client = await withTenant(db, companyId, (tx) =>
       tx.client.create({
         data: {
-          ...toData(body),
+          ...clientData(body),
           // Obligatorios al crear (el body ya los validó).
           name: body.name,
           address: body.address,
@@ -151,7 +152,7 @@ export function clientsRouter(db: PrismaClient): Router {
     const client = await withTenant(db, companyId, async (tx) => {
       const { count } = await tx.client.updateMany({
         where: { id, deletedAt: null },
-        data: toData(body),
+        data: clientData(body),
       });
       if (count === 0) throw clientNotFound();
       return tx.client.findUniqueOrThrow({ where: { id }, include: withPlantCount });

@@ -34,6 +34,9 @@ Para dar de alta a una persona: **Configuración → Usuarios → Invitar** (le 
 - **Recuperar contraseña**: manda un enlace de un solo uso, válido por 1 hora. Siempre responde lo mismo, exista o no el correo.
 - **Invitación** (`/invitacion/…`): la persona invitada escribe su nombre y elige su contraseña. La invitación vence en 7 días.
 - **Aviso de privacidad** y **Términos de uso**: enlazados al pie de estas pantallas y en la barra lateral.
+  - Se aceptan al crear la cuenta.
+  - Quien ya tenía cuenta los acepta la primera vez que entra después de que cambien de versión.
+  - Queda registrada la versión, la fecha y la IP.
 
 ## Tablero (`/`) — administrador y operador
 
@@ -52,6 +55,15 @@ El resumen de la flota al abrir la plataforma.
 | **Mejores y peores**         | Las 5 plantas con mejor y peor PR de los últimos 30 días.                                                                                  |
 
 ## Plantas (`/plants`)
+
+**Importar desde Excel** (`/plants/import`): para dar de alta muchos clientes y plantas a la vez.
+
+1. Descargue la plantilla. Cada renglón es una planta con los datos de su cliente.
+2. Llénela en Excel y guárdela como **CSV UTF-8**.
+3. Use **Revisar archivo**: no guarda nada y señala cada problema con su renglón y columna.
+4. Use **Importar**: guarda todo junto, o nada si hay algún error.
+
+Los clientes que ya existen (mismo nombre) no se modifican; la planta se les agrega. Una planta con el mismo nombre que otra del mismo cliente se reporta como repetida.
 
 **Lista:** búsqueda y filtros (estado, código postal, colonia, marca), ordenar por nombre o por métricas (PR de 7 días, desviación, días para lavado).
 

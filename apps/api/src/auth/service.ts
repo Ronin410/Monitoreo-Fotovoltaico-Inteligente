@@ -1,3 +1,4 @@
+import { LEGAL_VERSION } from '@pv/core';
 import type { EmailProvider } from '@pv/adapters';
 import type { Env } from '@pv/config';
 import type { PrismaClient, TenantDb, UserRole } from '@pv/db';
@@ -401,8 +402,19 @@ export class AuthService {
           role: invitation.role,
           status: 'active',
           passwordHash,
+          termsVersion: LEGAL_VERSION,
+          termsAcceptedAt: now,
         },
         include: { company: { select: { status: true } } },
+      });
+      await recordAudit(tx, {
+        action: 'legal.accepted',
+        companyId: invitation.companyId,
+        userId: created.id,
+        entityType: 'user',
+        entityId: created.id,
+        metadata: { version: LEGAL_VERSION },
+        ip,
       });
       await recordAudit(tx, {
         action: 'user.invitation_accepted',

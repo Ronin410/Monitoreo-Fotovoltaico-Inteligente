@@ -1,3 +1,5 @@
+import { LEGAL_VERSION } from '@pv/core';
+
 // Aviso de privacidad y términos de uso (specs/02 §Datos personales, F10-T5).
 // ⚠️ BORRADOR: estructura conforme a la LFPDPPP, pendiente de revisión legal (PREGUNTAS #199). Los
 // textos entre corchetes los completa el equipo; no se publican en producción sin esa revisión.
@@ -16,7 +18,7 @@ export const LEGAL_DRAFT = true;
 
 export const PRIVACY_NOTICE: LegalDocument = {
   title: 'Aviso de privacidad',
-  version: '0.1 (borrador)',
+  version: `${LEGAL_VERSION} (borrador)`,
   updated: '2026-10-24',
   intro:
     'PV-IoT es una plataforma de monitoreo de sistemas solares que usan empresas instaladoras. Este aviso explica qué datos personales se tratan en la plataforma, para qué y cómo ejercer sus derechos.',
@@ -106,7 +108,7 @@ export const PRIVACY_NOTICE: LegalDocument = {
 
 export const TERMS: LegalDocument = {
   title: 'Términos de uso',
-  version: '0.1 (borrador)',
+  version: `${LEGAL_VERSION} (borrador)`,
   updated: '2026-10-24',
   intro:
     'Estos términos regulan el uso de la plataforma PV-IoT por parte de las empresas instaladoras y de sus usuarios.',

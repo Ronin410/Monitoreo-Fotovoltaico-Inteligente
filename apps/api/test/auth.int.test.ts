@@ -1,3 +1,4 @@
+import { LEGAL_VERSION } from '@pv/core';
 import request from 'supertest';
 import { withTenant } from '@pv/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -146,6 +147,7 @@ describe('access token y GET /api/me', () => {
       },
       // SIMULATOR_ENABLED=true en el ambiente de pruebas.
       features: { simulator: true },
+      legal: { version: LEGAL_VERSION, accepted: false },
     });
   });
 
@@ -382,7 +384,7 @@ describe('invitaciones', () => {
 
     const accept = await request(ctx.app)
       .post(`/api/auth/invitations/${token}/accept`)
-      .send({ name: 'Técnico Nuevo', password: 'contraseña-tecnico-1' });
+      .send({ name: 'Técnico Nuevo', password: 'contraseña-tecnico-1', accept_terms: true });
     expect(accept.status).toBe(200);
     expect(accept.body.user).toMatchObject({ email, role: 'technician', company_id: company.id });
     expect(refreshCookie(accept.headers['set-cookie'])).toBeDefined();
@@ -392,7 +394,7 @@ describe('invitaciones', () => {
 
     const reuse = await request(ctx.app)
       .post(`/api/auth/invitations/${token}/accept`)
-      .send({ name: 'Otra vez', password: 'contraseña-tecnico-2' });
+      .send({ name: 'Otra vez', password: 'contraseña-tecnico-2', accept_terms: true });
     expect(reuse.status).toBe(404);
     expect((await request(ctx.app).get(`/api/auth/invitations/${token}`)).status).toBe(404);
   });
@@ -411,7 +413,7 @@ describe('invitaciones', () => {
     });
     const res = await request(ctx.app)
       .post(`/api/auth/invitations/${token}/accept`)
-      .send({ name: 'Nuevo', password: 'contraseña-nueva-12' });
+      .send({ name: 'Nuevo', password: 'contraseña-nueva-12', accept_terms: true });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('EMAIL_IN_USE');
   });

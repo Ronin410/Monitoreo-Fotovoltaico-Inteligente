@@ -33,6 +33,10 @@ export default function InvitationPage() {
       setError('Las contraseñas no coinciden.');
       return;
     }
+    if (form.get('accept_terms') !== 'on') {
+      setError('Para crear tu cuenta debes aceptar los términos de uso y el aviso de privacidad.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -41,7 +45,11 @@ export default function InvitationPage() {
         sessionResponse,
         {
           method: 'POST',
-          body: { name: String(form.get('name') ?? ''), password },
+          body: {
+            name: String(form.get('name') ?? ''),
+            password,
+            accept_terms: form.get('accept_terms') === 'on',
+          },
           noRetry: true,
         },
       );
@@ -93,17 +101,20 @@ export default function InvitationPage() {
           autoComplete="new-password"
           required
         />
-        <p className="text-sm text-slate-600 dark:text-slate-400">
-          Al crear tu cuenta aceptas los{' '}
-          <Link href="/terminos" className="text-brand-text underline">
-            Términos de uso
-          </Link>{' '}
-          y confirmas que leíste el{' '}
-          <Link href="/privacidad" className="text-brand-text underline">
-            Aviso de privacidad
-          </Link>
-          .
-        </p>
+        <label className="flex items-start gap-3 text-sm text-slate-700 dark:text-slate-300">
+          <input name="accept_terms" type="checkbox" required className="mt-0.5 size-5 shrink-0" />
+          <span>
+            Acepto los{' '}
+            <Link href="/terminos" target="_blank" className="text-brand-text underline">
+              Términos de uso
+            </Link>{' '}
+            y leí el{' '}
+            <Link href="/privacidad" target="_blank" className="text-brand-text underline">
+              Aviso de privacidad
+            </Link>
+            .
+          </span>
+        </label>
         <Button type="submit" disabled={busy}>
           {busy ? 'Creando tu cuenta…' : 'Crear cuenta'}
         </Button>

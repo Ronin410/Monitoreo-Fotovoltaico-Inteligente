@@ -32,6 +32,10 @@ export const meResponse = z.object({
     })
     .nullable(),
   features: z.object({ simulator: z.boolean() }).default({ simulator: false }),
+  /** Versión vigente de los términos y si el usuario ya la aceptó (docs/plan-lanzamiento.md 3.5). */
+  legal: z
+    .object({ version: z.string(), accepted: z.boolean() })
+    .default({ version: '', accepted: true }),
 });
 export type Me = z.infer<typeof meResponse>;
 

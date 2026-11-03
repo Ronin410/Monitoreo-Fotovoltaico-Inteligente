@@ -65,7 +65,7 @@ Sin esto, un piloto solo muestra datos simulados.
 | 3.2  | Términos de uso (personas) y contrato SaaS (empresa instaladora)                                                                                             | Abogado          | 🟡 borrador |
 | 3.3  | **Contrato de encargo** (DPA) con cada instaladora                                                                                                           | Abogado          |     ⬜      |
 | 3.4  | Plantilla de aviso de privacidad para que las instaladoras informen a sus clientes                                                                           | Abogado          |     ⬜      |
-| 3.5  | Registrar la **aceptación de los términos** por persona (versión, fecha, IP)                                                                                 | Código           |     ⬜      |
+| 3.5  | Registrar la **aceptación de los términos** por persona (versión, fecha, IP)                                                                                 | Código           |     ✅      |
 | 3.6  | Aceptar los DPA de Render, Cloudflare, Resend y Anthropic, y publicar la lista de subencargados                                                              | Equipo           |     ⬜      |
 | 3.7  | **Exportar** los datos de una empresa y **borrado definitivo** al terminar el contrato                                                                       | Código           |     ⬜      |
 | 3.8  | Nivel de servicio: empezar con un **objetivo** de disponibilidad sin penalizaciones; prometer un 99.5 % con compensación solo con infraestructura redundante | Equipo + Abogado |     ⬜      |
@@ -96,7 +96,7 @@ Sin esto, un piloto solo muestra datos simulados.
 | 6.1 | Demos en **staging** con "Cargar datos de ejemplo" (no existe en producción, a propósito)                                         | Equipo          |   ✅   |
 | 6.2 | Resend con dominio verificado (alertas, invitaciones, reportes)                                                                   | Equipo          |   🟡   |
 | 6.3 | Evaluación del asistente con la llave real de Anthropic (`pnpm eval:assistant`)                                                   | Equipo + Código |   ⬜   |
-| 6.4 | **Importación masiva** de clientes y plantas (CSV), indispensable para instaladoras con muchas plantas                            | Código          |   ⬜   |
+| 6.4 | **Importación masiva** de clientes y plantas (CSV), indispensable para instaladoras con muchas plantas                            | Código          |   ✅   |
 | 6.5 | Proceso de alta de un cliente nuevo: quién captura las plantas y las credenciales, y en cuánto tiempo                             | Equipo          |   ⬜   |
 | 6.6 | Piloto con 1 o 2 instaladoras de la región, durante un mes, a cambio de retroalimentación                                         | Equipo          |   ⬜   |
 | 6.7 | Página comercial con beneficios y enlaces al aviso de privacidad y a los términos, sin mencionar certificaciones que no se tengan | Equipo          |   ⬜   |

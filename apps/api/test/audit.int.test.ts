@@ -136,7 +136,7 @@ describe('usuarios y roles', () => {
     const token = /invitacion\/(\S+)/.exec(ctx.email.lastTo(email)?.text ?? '')?.[1];
     const accept = await request(ctx.app)
       .post(`/api/auth/invitations/${token}/accept`)
-      .send({ name: 'Nuevo', password: 'contraseña-nuevo-1' });
+      .send({ name: 'Nuevo', password: 'contraseña-nuevo-1', accept_terms: true });
     const newUserId: string = accept.body.user.id;
     const [accepted] = await auditFor({ entityId: newUserId, action: 'user.invitation_accepted' });
     expect(accepted).toMatchObject({

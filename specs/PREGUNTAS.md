@@ -399,3 +399,14 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
 
     Se reporta el promedio y la **mediana**, porque un ticket olvidado varios días distorsiona el promedio. Los tickets anteriores al cambio no tienen inicio y no cuentan en el tiempo de trabajo. Los datos de ejemplo incluyen 5 tickets ya resueltos con sus tiempos. **Pregunta:** ¿se necesita también una meta (SLA) por prioridad, por ejemplo resolver una alta en 24 h, con aviso si se vence?
 205. **Ayudas en pantalla y documentación.** Ícono ⓘ con una explicación corta en el tablero, la planta y sus gráficas, la alerta, los tiempos de tickets y los reportes. Los textos viven en `apps/web/src/lib/help.ts` y coinciden con `docs/glosario.md`. Guías nuevas: `docs/arquitectura.md`, `docs/glosario.md` y `docs/pantallas.md` (con roles y cómo llenar los formularios).
+206. **Aceptación de términos (plan 3.5).** `LEGAL_VERSION` en `core` es la versión vigente. Al aceptar una invitación es obligatorio marcar la casilla. Quien no ha aceptado la versión vigente ve una pantalla para aceptarla antes de usar la plataforma: usuarios creados por SQL, anteriores al cambio, o cuando cambie la versión. Se guarda `users.terms_version` y `terms_accepted_at`, y el historial con IP en la auditoría (`legal.accepted`). La API no bloquea otras rutas a quien no ha aceptado, solo la interfaz; si el abogado lo pide, se bloquea también la API.
+207. **Importación masiva (plan 6.4).** `POST /plants/import` recibe el CSV como texto (hasta 2 MB y 2,000 renglones):
+    - Cada renglón es una planta con los datos de su cliente.
+    - Los clientes se agrupan por nombre, sin importar mayúsculas ni acentos. Un cliente que ya existe no se modifica.
+    - Se valida con los mismos esquemas que los formularios.
+    - `dry_run` solo revisa; sin él guarda todo en una transacción, o nada si hay errores.
+    - Acepta archivos de Excel en español: `;`, coma decimal, fechas día/mes/año y codificación Windows-1252.
+    - Las plantas simuladas reciben un perfil normal.
+    - Encola el clima de 90 días de cada planta.
+
+    **Pregunta:** ¿se necesita también importar credenciales de inversores? No se incluyó a propósito, para no mover contraseñas en archivos de Excel.

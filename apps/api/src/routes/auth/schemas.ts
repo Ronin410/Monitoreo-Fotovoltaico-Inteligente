@@ -12,6 +12,10 @@ export const resetBody = z.object({
 export const acceptBody = z.object({
   name: z.string().trim().min(1).max(120),
   password: passwordSchema,
+  /** Aceptación de los términos de uso y el aviso de privacidad vigentes (LEGAL_VERSION). */
+  accept_terms: z.literal(true, {
+    error: 'Para crear tu cuenta debes aceptar los términos de uso y el aviso de privacidad',
+  }),
 });
 export const tokenParam = z.object({ token: z.string().min(1).max(200) });
 

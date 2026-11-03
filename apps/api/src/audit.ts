@@ -24,6 +24,8 @@ export const AUDIT_ACTIONS = [
   'company.settings_updated',
   'plant.deleted',
   'report.sent',
+  // Aceptación de términos y aviso de privacidad (versión en metadata).
+  'legal.accepted',
   // IA: cada "Regenerar explicación" (límite de 3 por alerta al día, specs/07 §3).
   'alert.explanation_regenerated',
 ] as const;

@@ -14,8 +14,8 @@ import {
   type SolarPlant,
   type TenantDb,
 } from '@pv/db';
-import { Router } from 'express';
-import type { z } from 'zod';
+import express, { Router } from 'express';
+import { z } from 'zod';
 import { recordAudit } from '../../audit.js';
 import { companyAuthOf, requirePermission } from '../../auth/authorize.js';
 import { FixedWindowRateLimiter } from '../../auth/rate-limit.js';
@@ -24,6 +24,8 @@ import { HttpError } from '../../http/errors.js';
 import { pageArgs, paginated } from '../../http/pagination.js';
 import { respond } from '../../http/respond.js';
 import { idParam } from '../shared-schemas.js';
+import { clientData } from '../clients/routes.js';
+import { nameKey, planImport } from './import.js';
 import {
   createPlantBody,
   credentialsStatus,
@@ -37,6 +39,7 @@ import {
   plantsQuery,
   plantsResponse,
   putCredentialsBody,
+  importResponse,
 } from './schemas.js';
 import {
   compareByMetric,
@@ -311,6 +314,123 @@ export function plantsRouter(db: PrismaClient, options: PlantsRouterOptions): Ro
     });
     respond(res, plantsResponse, paginated(rows, query, total));
   });
+
+  /**
+   * Importación masiva desde CSV (docs/plan-lanzamiento.md 6.4). `dry_run=true` solo revisa y
+   * devuelve los errores por renglón; sin él, guarda todo en una transacción si no hay errores.
+   * El cuerpo es el texto del CSV (Content-Type: text/csv), de hasta 2 MB.
+   */
+  router.post(
+    '/import',
+    express.text({ type: ['text/csv', 'text/plain'], limit: '2mb' }),
+    async (req, res) => {
+      const { companyId } = companyAuthOf(req);
+      const dryRun = z.enum(['true', 'false']).default('false').parse(req.query.dry_run) === 'true';
+      if (typeof req.body !== 'string' || req.body.trim() === '') {
+        throw badRequest('EMPTY_FILE', 'Envíe el contenido del archivo CSV (text/csv)');
+      }
+      const csv = req.body;
+      const result = await withTenant(
+        db,
+        companyId,
+        async (tx) => {
+          const clients = await tx.client.findMany({
+            where: { deletedAt: null },
+            select: {
+              id: true,
+              name: true,
+              plants: { where: { deletedAt: null }, select: { name: true } },
+            },
+          });
+          const existingClients = new Map(clients.map((c) => [nameKey(c.name), c.id]));
+          const existingPlants = new Map(
+            clients.map((c) => [nameKey(c.name), new Set(c.plants.map((p) => nameKey(p.name)))]),
+          );
+          const plan = planImport(csv, existingClients, existingPlants, {
+            simulatorEnabled: options.simulatorEnabled,
+          });
+          const newClients = plan.clients.filter((c) => c.data !== null);
+          const summary = {
+            rows: plan.rows,
+            clients_new: newClients.length,
+            clients_existing: plan.clients.filter((c) => existingClients.has(c.key)).length,
+            plants_new: plan.plants.length,
+            errors: plan.errors,
+            ignored_columns: plan.ignoredColumns,
+          };
+          if (dryRun || plan.errors.length > 0)
+            return { ...summary, imported: false, plantIds: [] };
+
+          const company = await tx.company.findUniqueOrThrow({ where: { id: companyId } });
+          const defaults = parseCompanySettings(company.settings).defaults;
+          const ids = new Map(existingClients);
+          for (const c of newClients) {
+            if (!c.data) continue;
+            const created = await tx.client.create({
+              data: {
+                ...clientData(c.data),
+                name: c.data.name,
+                address: c.data.address,
+                colonia: c.data.colonia,
+                postalCode: c.data.postal_code,
+                lat: c.data.lat,
+                lon: c.data.lon,
+                companyId,
+              },
+            });
+            ids.set(c.key, created.id);
+          }
+          // Ubicación de clientes que ya existían, para las plantas sin coordenadas propias.
+          const located = await tx.client.findMany({
+            where: { id: { in: [...ids.values()] } },
+            select: { id: true, lat: true, lon: true, postalCode: true, colonia: true },
+          });
+          const where = new Map(located.map((c) => [c.id, c]));
+          const plantIds: string[] = [];
+          for (const [i, p] of plan.plants.entries()) {
+            const clientId = ids.get(p.clientKey) as string;
+            const client = where.get(clientId);
+            const body = p.data;
+            const plant = await tx.solarPlant.create({
+              data: {
+                ...toData(body),
+                companyId,
+                clientId,
+                name: body.name,
+                capacityKwp: body.capacity_kwp,
+                inverterBrand: body.inverter_brand,
+                tiltDeg: body.tilt_deg ?? defaults.tilt_deg,
+                azimuthDeg: body.azimuth_deg ?? defaults.azimuth_deg,
+                noctC: body.noct_c ?? defaults.noct_c,
+                gammaPctPerC: body.gamma_pct_per_c ?? defaults.gamma_pct_per_c,
+                lat: body.lat ?? client?.lat,
+                lon: body.lon ?? client?.lon,
+                postalCode: body.postal_code ?? client?.postalCode ?? '00000',
+                colonia: body.colonia ?? client?.colonia ?? '',
+                // El simulador necesita un perfil; uno normal, sin escenarios.
+                ...(body.inverter_brand === 'simulator' && {
+                  simulationProfile: {
+                    seed: Math.floor(Math.random() * 2 ** 31) + i,
+                    system_efficiency: 0.86,
+                    ac_limit_kw: Number((body.capacity_kwp * 0.95).toFixed(2)),
+                    noise_pct: 2,
+                    scenarios: [],
+                  },
+                }),
+              },
+              select: { id: true },
+            });
+            plantIds.push(plant.id);
+          }
+          return { ...summary, imported: true, plantIds };
+        },
+        { timeout: 120_000 },
+      );
+      const { plantIds, ...body } = result;
+      for (const id of plantIds) await requestWeatherBackfill(req.log, companyId, id);
+      respond(res, importResponse, body, body.imported ? 201 : 200);
+    },
+  );
 
   router.post('/', async (req, res) => {
     const { companyId } = companyAuthOf(req);

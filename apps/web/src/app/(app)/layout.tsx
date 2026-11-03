@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
+import { AcceptTerms } from '@/components/accept-terms';
 import { AppShell } from '@/components/app-shell';
 import { Notice, Spinner } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
@@ -37,7 +38,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const allowed = canVisit(state.user.role, pathname);
   return (
     <AppShell user={state.user} company={state.company}>
-      {allowed ? (
+      {!state.legal.accepted ? (
+        <AcceptTerms version={state.legal.version} />
+      ) : allowed ? (
         children
       ) : pathname === '/' ? (
         <Spinner />

@@ -184,3 +184,18 @@ export const eventResponse = z.object({
 });
 
 export const eventsResponse = paginatedSchema(eventResponse);
+
+// Importación masiva (docs/plan-lanzamiento.md 6.4).
+export const importResponse = z.object({
+  /** Renglones de datos del archivo. */
+  rows: z.number().int(),
+  clients_new: z.number().int(),
+  clients_existing: z.number().int(),
+  plants_new: z.number().int(),
+  /** true si se guardó (sin errores y sin dry_run). */
+  imported: z.boolean(),
+  errors: z.array(
+    z.object({ row: z.number().int(), column: z.string().nullable(), message: z.string() }),
+  ),
+  ignored_columns: z.array(z.string()),
+});

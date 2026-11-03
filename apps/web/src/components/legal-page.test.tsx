@@ -29,7 +29,7 @@ describe('aviso de privacidad y términos (F10-T5)', () => {
   it('los términos se muestran con su versión', () => {
     render(<LegalPage doc={TERMS} />);
     expect(screen.getByRole('heading', { level: 1, name: 'Términos de uso' })).toBeTruthy();
-    expect(screen.getByText(/Versión 0\.1/)).toBeTruthy();
+    expect(screen.getByText(/Versión 2026-11-03/)).toBeTruthy();
   });
 
   it('las pantallas de acceso enlazan ambos documentos', () => {

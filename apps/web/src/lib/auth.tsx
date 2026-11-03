@@ -19,7 +19,13 @@ import { meResponse, sessionResponse, type Me, type SessionResponse } from './sc
 export type AuthState =
   | { status: 'loading' }
   | { status: 'anonymous' }
-  | { status: 'authenticated'; user: Me['user']; company: Me['company']; features: Me['features'] };
+  | {
+      status: 'authenticated';
+      user: Me['user'];
+      company: Me['company'];
+      features: Me['features'];
+      legal: Me['legal'];
+    };
 
 export type AuthContextValue = {
   state: AuthState;
@@ -111,6 +117,7 @@ export function AuthProvider({
       user: me.user,
       company: me.company,
       features: me.features,
+      legal: me.legal,
     });
   }, [api]);
 

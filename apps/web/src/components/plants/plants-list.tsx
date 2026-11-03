@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Filter, filterControl } from '@/components/filter';
 import { LinkButton, PageHeader } from '@/components/page-header';
@@ -67,9 +67,14 @@ export function PlantsList() {
         title="Plantas"
         subtitle={data ? `${data.total} plantas` : undefined}
         actions={
-          <LinkButton href="/plants/new">
-            <Plus aria-hidden="true" className="size-4" /> Nueva planta
-          </LinkButton>
+          <>
+            <LinkButton href="/plants/import" variant="secondary">
+              <Upload aria-hidden="true" className="size-4" /> Importar desde Excel
+            </LinkButton>
+            <LinkButton href="/plants/new">
+              <Plus aria-hidden="true" className="size-4" /> Nueva planta
+            </LinkButton>
+          </>
         }
       />
       <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">

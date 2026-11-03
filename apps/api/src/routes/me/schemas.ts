@@ -15,4 +15,8 @@ export const meResponse = z.object({
     .nullable(),
   /** Funciones del ambiente que cambian la interfaz (SIMULATOR_ENABLED: staging o demo). */
   features: z.object({ simulator: z.boolean() }),
+  /** Términos y aviso de privacidad: versión vigente y si este usuario ya la aceptó. */
+  legal: z.object({ version: z.string(), accepted: z.boolean() }),
 });
+
+export const acceptTermsBody = z.object({ version: z.string().min(1).max(40) });
