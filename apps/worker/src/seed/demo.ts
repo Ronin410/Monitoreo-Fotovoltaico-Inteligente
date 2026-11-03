@@ -465,6 +465,83 @@ async function fillCompany(
     });
   });
 
+  // 7. Tickets ya resueltos en las semanas pasadas, con sus tiempos de espera y de trabajo, para
+  // que el resumen de tiempos de atención tenga historia (specs/PREGUNTAS.md #204). Sin limpieza:
+  // no cambian la tendencia de suciedad de la historia calculada.
+  await withTenant(deps.db, company.id, async (tx) => {
+    const technicians = await tx.user.findMany({
+      where: { role: 'technician', status: 'active' },
+      orderBy: { email: 'asc' },
+    });
+    if (technicians.length === 0) return;
+    const past = [
+      {
+        daysAgo: 52,
+        waitH: 20,
+        workMin: 95,
+        type: 'inspection' as const,
+        title: 'Revisión de inversor',
+      },
+      {
+        daysAgo: 38,
+        waitH: 6,
+        workMin: 150,
+        type: 'repair' as const,
+        title: 'Cambio de conector MC4',
+      },
+      {
+        daysAgo: 24,
+        waitH: 30,
+        workMin: 70,
+        type: 'inspection' as const,
+        title: 'Revisión de cableado',
+      },
+      {
+        daysAgo: 12,
+        waitH: 3,
+        workMin: 210,
+        type: 'repair' as const,
+        title: 'Reemplazo de fusible de string',
+      },
+      {
+        daysAgo: 5,
+        waitH: 18,
+        workMin: 55,
+        type: 'other' as const,
+        title: 'Visita de seguimiento',
+      },
+    ].filter((t) => t.daysAgo < opts.days);
+    const names = await tx.solarPlant.findMany({
+      where: { id: { in: plants.map((p) => p.id) } },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    for (const [i, t] of past.entries()) {
+      const plant = names[(i * 5 + 2) % names.length];
+      if (!plant) continue;
+      const createdAt = new Date(
+        startOfLocalDay(addDays(today, -t.daysAgo), TZ).getTime() + 9 * HOUR_MS,
+      );
+      const startedAt = new Date(createdAt.getTime() + t.waitH * HOUR_MS);
+      const resolvedAt = new Date(startedAt.getTime() + t.workMin * 60_000);
+      await tx.maintenanceTicket.create({
+        data: {
+          companyId: company.id,
+          plantId: plant.id,
+          type: t.type,
+          priority: 'normal',
+          status: 'resolved',
+          title: `${t.title} — ${plant.name}`,
+          assignedToId: technicians[i % technicians.length]?.id ?? null,
+          createdAt,
+          startedAt,
+          resolvedAt,
+          resolutionNotes: 'Trabajo terminado; la planta quedó operando normal.',
+        },
+      });
+    }
+  });
+
   return { slug: opts.slug, plants: plants.length, metricDays: opts.days };
 }
 

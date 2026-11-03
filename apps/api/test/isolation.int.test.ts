@@ -278,6 +278,7 @@ const LISTS: Record<string, (b: Tenant) => string> = {
   'GET /reports': () => '/reports?period=2026-09',
   'GET /tickets': () => '/tickets?page_size=100',
   'GET /tickets/assignees': () => '/tickets/assignees',
+  'GET /tickets/stats': () => '/tickets/stats',
 };
 
 let A: Tenant;

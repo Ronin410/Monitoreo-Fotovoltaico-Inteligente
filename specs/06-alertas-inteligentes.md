@@ -68,6 +68,12 @@ Esta evidencia es lo que se le pasa a la IA para generar la explicación (ver `0
   - La descripción incluye el resumen de la explicación IA si ya existe.
 - También se pueden crear manualmente desde la planta.
 - El técnico ve sus tickets en el celular, cambia el estado, agrega notas y marca `cleaning_performed`.
+- **Tiempos de atención** (pedido del PO, 2026-11-03): la primera vez que el ticket pasa a `in_progress` ("Iniciar") se guarda `started_at`.
+  - **Tiempo de trabajo** = `resolved_at − started_at`.
+  - **Espera** = `started_at − created_at`.
+  - **Total** = `resolved_at − created_at`.
+
+  El operador ve el promedio y la mediana de los resueltos en 7, 30 o 90 días, también por responsable. Un ticket resuelto sin haberse iniciado no tiene tiempo de trabajo (no se inventa un cero).
 - Al resolver un ticket con `cleaning_performed = true` se crea un `plant_event` de tipo `cleaning` (con fecha `resolved_at`). Eso reinicia la tendencia de suciedad y sirve para auto-resolver la alerta.
 - Resolver un ticket ligado a una alerta **no** la resuelve automáticamente, salvo que la regla de resolución se cumpla. Así se comprueba con datos que el problema se corrigió.
 

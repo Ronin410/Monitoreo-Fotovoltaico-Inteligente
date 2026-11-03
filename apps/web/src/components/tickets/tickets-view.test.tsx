@@ -14,6 +14,7 @@ const ticket = (over: Partial<Ticket> = {}): Ticket => ({
   title: 'Lavado de paneles — Comercial Centro',
   description: 'Posible suciedad. Rinde 15.2 % por debajo de su normal.',
   scheduled_for: '2026-10-24',
+  started_at: null,
   resolved_at: null,
   resolution_notes: null,
   cleaning_performed: false,
@@ -51,6 +52,23 @@ const api = vi.fn(
     opts?: { method?: string; body?: unknown },
   ) => {
     calls.push({ path, method: opts?.method, body: opts?.body });
+    if (path.startsWith('/tickets/stats'))
+      return schema.parse({
+        days: 30,
+        resolved: 4,
+        in_progress: 1,
+        work: { count: 3, avg_minutes: 135, median_minutes: 120 },
+        wait: { count: 3, avg_minutes: 600, median_minutes: 360 },
+        total: { count: 4, avg_minutes: 780, median_minutes: 500 },
+        by_assignee: [
+          {
+            id: ID(9),
+            name: 'Técnico Uno',
+            resolved: 4,
+            work: { count: 3, avg_minutes: 135, median_minutes: 120 },
+          },
+        ],
+      });
     if (path === '/tickets/assignees')
       return schema.parse({ data: [{ id: ID(9), name: 'Técnico Uno', role: 'technician' }] });
     if (opts?.method === 'PATCH') {
@@ -154,5 +172,43 @@ describe('vista del operador', () => {
       within(screen.getByRole('region', { name: /En curso/ })).getByText('Ninguno.'),
     ).toBeTruthy();
     expect(calls.at(-1)?.path).toBe('/tickets?open=true&page_size=100');
+  });
+});
+
+describe('tiempos de atención (specs/PREGUNTAS.md #204)', () => {
+  beforeEach(() => {
+    role = 'operator';
+  });
+
+  it('el operador ve el resumen de tiempos y el tiempo de trabajo de cada ticket', async () => {
+    tickets = [
+      ticket({
+        id: ID(20),
+        status: 'resolved',
+        title: 'Ticket resuelto',
+        started_at: '2026-10-23T15:00:00Z',
+        resolved_at: '2026-10-23T17:15:00Z',
+      }),
+    ];
+    render(<TicketsView />);
+    expect(await screen.findByText('Tiempos de atención')).toBeTruthy();
+    // Promedio del resumen y de la tabla por responsable.
+    expect((await screen.findAllByText('2 h 15 min')).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/mediana 2 h · 3 con inicio registrado/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: '¿Qué es "Tiempo de trabajo"?' })).toBeTruthy();
+    expect(
+      within(screen.getByRole('table', { name: /Por responsable/ })).getByText('Técnico Uno'),
+    ).toBeTruthy();
+  });
+
+  it('el tooltip explica el dato al enfocarlo y se cierra con Escape', async () => {
+    render(<TicketsView />);
+    const tip = await screen.findByRole('button', { name: '¿Qué es "Tiempo de trabajo"?' });
+    await userEvent.hover(tip);
+    expect(screen.getByRole('tooltip').textContent).toMatch(
+      /desde que el técnico presionó "Iniciar"/,
+    );
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('tooltip')).toBeNull();
   });
 });

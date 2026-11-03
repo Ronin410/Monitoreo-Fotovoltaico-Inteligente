@@ -17,15 +17,30 @@ import { useApiQuery } from '@/lib/use-api';
 import { PerformanceCharts } from './charts/performance-charts';
 import { TodayChart } from './charts/today-chart';
 import { CredentialsPanel } from './credentials-panel';
+import { InfoTip } from '@/components/info-tip';
+import type { HelpKey } from '@/lib/help';
 import { EventsPanel } from './events-panel';
 import { PlantActivity } from './plant-activity';
 
 const CONFIDENCE = { low: 'baja', medium: 'media', high: 'alta' } as const;
 
-function Stat({ label, value, detail }: { label: string; value: ReactNode; detail?: ReactNode }) {
+function Stat({
+  label,
+  value,
+  detail,
+  help,
+}: {
+  label: string;
+  value: ReactNode;
+  detail?: ReactNode;
+  help?: HelpKey;
+}) {
   return (
     <div className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-      <span className="text-sm text-slate-600 dark:text-slate-400">{label}</span>
+      <span className="flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400">
+        {label}
+        {help && <InfoTip help={help} label={label} />}
+      </span>
       <span className="text-xl font-semibold tabular-nums">{value}</span>
       {detail && <span className="text-xs text-slate-600 dark:text-slate-400">{detail}</span>}
     </div>
@@ -159,6 +174,7 @@ export function PlantDetail({ id }: { id: string }) {
         >
           <Stat
             label="Estado"
+            help="plant.status"
             value={<StatusBadge status={m.status} />}
             detail={
               m.last_metric_date
@@ -168,6 +184,7 @@ export function PlantDetail({ id }: { id: string }) {
           />
           <Stat
             label="Potencia actual"
+            help="plant.power"
             value={p.last_power_kw === null ? '—' : `${formatNumber(p.last_power_kw, 1)} kW`}
             detail={
               p.last_reading_at
@@ -175,9 +192,14 @@ export function PlantDetail({ id }: { id: string }) {
                 : 'Sin lecturas'
             }
           />
-          <Stat label="Energía de hoy" value={today ? `${today.value} ${today.unit}` : '—'} />
+          <Stat
+            label="Energía de hoy"
+            help="plant.energyToday"
+            value={today ? `${today.value} ${today.unit}` : '—'}
+          />
           <Stat
             label="PR corregido · 7 días"
+            help="plant.pr7d"
             value={m.pr_temp_7d === null ? '—' : formatPct(m.pr_temp_7d)}
             detail={
               m.deviation_pct === null
@@ -187,6 +209,7 @@ export function PlantDetail({ id }: { id: string }) {
           />
           <Stat
             label="Próximo lavado"
+            help="plant.nextCleaning"
             value={
               m.days_to_cleaning === null
                 ? '—'

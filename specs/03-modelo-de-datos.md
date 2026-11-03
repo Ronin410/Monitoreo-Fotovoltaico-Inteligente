@@ -183,7 +183,7 @@ Un evento `cleaning` o `rain_cleaning` **reinicia** la ventana de cálculo de su
 Regla: **máximo una alerta abierta por (plant_id, type)**; índice único parcial `WHERE status IN ('open','acknowledged')`.
 
 ### `maintenance_tickets` 🔒
-plant_id, alert_id null, type (`cleaning`, `inspection`, `repair`, `other`), status (`pending`, `scheduled`, `in_progress`, `resolved`, `cancelled`), priority (`low`, `normal`, `high`), title, description, assigned_to (user_id null), scheduled_for date null, resolved_at, resolution_notes, cleaning_performed bool, created_by.
+plant_id, alert_id null, type (`cleaning`, `inspection`, `repair`, `other`), status (`pending`, `scheduled`, `in_progress`, `resolved`, `cancelled`), priority (`low`, `normal`, `high`), title, description, assigned_to (user_id null), scheduled_for date null, started_at (primer paso a `in_progress`, null), resolved_at, resolution_notes, cleaning_performed bool, created_by.
 
 ### `notifications` 🔒
 channel (`email`), recipient, subject, template, payload jsonb, status (`queued`, `sent`, `failed`), related_type, related_id, sent_at, error.

@@ -132,11 +132,18 @@ describe('pnpm db:seed:demo', () => {
 
   it('la falla de string con alerta tiene un ticket abierto asignado a un técnico', async () => {
     const a = await companyBySlug(DEMO_SLUGS.a);
-    const tickets = await ctx.owner.maintenanceTicket.findMany({
+    const all = await ctx.owner.maintenanceTicket.findMany({
       where: { companyId: a.id },
       include: { alert: true, assignedTo: true },
     });
+    const tickets = all.filter((t) => t.status !== 'resolved');
     expect(tickets).toHaveLength(1);
+    // Historia de tickets resueltos con sus tiempos (specs/PREGUNTAS.md #204).
+    for (const t of all.filter((x) => x.status === 'resolved')) {
+      expect(t.startedAt!.getTime()).toBeGreaterThan(t.createdAt.getTime());
+      expect(t.resolvedAt!.getTime()).toBeGreaterThan(t.startedAt!.getTime());
+      expect(t.assignedTo?.role).toBe('technician');
+    }
     expect(tickets[0]).toMatchObject({
       type: 'inspection',
       status: 'scheduled',

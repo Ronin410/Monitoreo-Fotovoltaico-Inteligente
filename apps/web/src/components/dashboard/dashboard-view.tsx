@@ -5,10 +5,12 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { FormEvent, ReactNode } from 'react';
+import { InfoTip } from '@/components/info-tip';
 import { SeverityBadge, STATUS, StatusBadge } from '@/components/status';
 import { Button, Notice } from '@/components/ui';
 import { ALERT_TYPE_LABELS, type PlantStatus } from '@/lib/dashboard';
 import { formatDate, formatDateTime, formatEnergy, formatNumber, formatPct } from '@/lib/format';
+import type { HelpKey } from '@/lib/help';
 import { useDashboard, type DashboardData } from './use-dashboard';
 
 const FleetMap = dynamic(() => import('@/components/fleet-map'), {
@@ -29,15 +31,20 @@ function Card({
   title,
   children,
   action,
+  help,
 }: {
   title: string;
   children: ReactNode;
   action?: ReactNode;
+  help?: HelpKey;
 }) {
   return (
     <section className="flex min-w-0 flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold">{title}</h2>
+        <h2 className="flex items-center gap-1 text-base font-semibold">
+          {title}
+          {help && <InfoTip help={help} label={title} />}
+        </h2>
         {action}
       </div>
       {children}
@@ -50,15 +57,20 @@ function Kpi({
   value,
   unit,
   detail,
+  help,
 }: {
   label: string;
   value: string;
   unit?: string;
   detail?: ReactNode;
+  help?: HelpKey;
 }) {
   return (
     <div className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-      <span className="text-sm text-slate-600 dark:text-slate-400">{label}</span>
+      <span className="flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400">
+        {label}
+        {help && <InfoTip help={help} label={label} />}
+      </span>
       <span className="text-2xl font-semibold tabular-nums">
         {value}
         {unit && (
@@ -194,29 +206,34 @@ function Dashboard({ data }: { data: DashboardData }) {
       >
         <Kpi
           label="Plantas activas"
+          help="dashboard.activePlants"
           value={formatNumber(summary.plants.active)}
           detail={`${formatNumber(summary.plants.capacity_kwp, 1)} kWp · ${formatNumber(summary.plants.clients)} clientes`}
         />
         <Kpi
           label="Energía de hoy"
+          help="dashboard.energyToday"
           value={today.value}
           unit={today.unit}
           detail="Hasta la última lectura"
         />
         <Kpi
           label="Energía del mes"
+          help="dashboard.energyMonth"
           value={month.value}
           unit={month.unit}
           detail={`Desde el 1 de ${formatDate(summary.date, { month: 'long' })}`}
         />
         <Kpi
           label="PR corregido · 7 días"
+          help="dashboard.pr7d"
           value={summary.pr_temp_7d === null ? '—' : formatNumber(summary.pr_temp_7d * 100, 1)}
           unit={summary.pr_temp_7d === null ? undefined : '%'}
           detail="Promedio de días válidos"
         />
         <Kpi
           label="Alertas abiertas"
+          help="dashboard.openAlerts"
           value={formatNumber(critical + warning + info)}
           detail={
             <span className="flex flex-wrap gap-1">
@@ -233,7 +250,7 @@ function Dashboard({ data }: { data: DashboardData }) {
 
       <div className="flex flex-wrap gap-5">
         <div className="min-w-0 flex-[999_1_560px]">
-          <Card title="Mapa de plantas" action={<Legend counts={counts} />}>
+          <Card title="Mapa de plantas" help="dashboard.map" action={<Legend counts={counts} />}>
             <div
               className="h-[420px]"
               role="region"
@@ -246,6 +263,7 @@ function Dashboard({ data }: { data: DashboardData }) {
         <div className="min-w-0 flex-[1_1_320px]">
           <Card
             title="Requieren atención"
+            help="dashboard.attention"
             action={
               <Link href="/alerts" className="text-sm font-medium text-brand-text hover:underline">
                 Ver alertas
@@ -286,7 +304,7 @@ function Dashboard({ data }: { data: DashboardData }) {
 
       <div className="flex flex-wrap gap-5">
         <div className="min-w-0 flex-[1_1_360px]">
-          <Card title="Próximos lavados">
+          <Card title="Próximos lavados" help="dashboard.cleanings">
             <p className="text-sm text-slate-600 dark:text-slate-400">
               Plantas que cruzarán el umbral de suciedad en los próximos {cleanings.days} días.
             </p>
@@ -342,7 +360,10 @@ function Dashboard({ data }: { data: DashboardData }) {
           </Card>
         </div>
         <div className="min-w-0 flex-[2_1_520px]">
-          <Card title={`Mejores y peores · PR corregido de ${ranking.days} días`}>
+          <Card
+            title={`Mejores y peores · PR corregido de ${ranking.days} días`}
+            help="dashboard.ranking"
+          >
             <div className="flex flex-wrap gap-6">
               <Ranking title="Mejores 5" rows={ranking.best} tone="good" />
               <Ranking title="Peores 5" rows={ranking.worst} tone="bad" />

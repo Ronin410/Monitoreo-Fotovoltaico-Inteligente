@@ -105,6 +105,8 @@ export const ticketResponse = z.object({
   title: z.string(),
   description: z.string().nullable(),
   scheduled_for: z.string().nullable(),
+  /** Primera vez que pasó a "En curso"; con resolved_at da el tiempo de trabajo. */
+  started_at: z.date().nullable(),
   resolved_at: z.date().nullable(),
   resolution_notes: z.string().nullable(),
   cleaning_performed: z.boolean(),
@@ -124,6 +126,39 @@ export const assigneesResponse = z.object({
       id: z.uuid(),
       name: z.string(),
       role: z.enum(['company_admin', 'operator', 'technician']),
+    }),
+  ),
+});
+
+// Tiempos de atención (specs/PREGUNTAS.md #204).
+export const ticketStatsQuery = z.object({
+  days: z.coerce.number().int().min(1).max(365).default(30),
+});
+
+const durationStatsSchema = z.object({
+  count: z.number().int(),
+  avg_minutes: z.number().nullable(),
+  median_minutes: z.number().nullable(),
+});
+
+export const ticketStatsResponse = z.object({
+  days: z.number().int(),
+  /** Tickets resueltos en el periodo. */
+  resolved: z.number().int(),
+  /** Abiertos ahora mismo en "En curso". */
+  in_progress: z.number().int(),
+  /** De iniciado a resuelto. */
+  work: durationStatsSchema,
+  /** De creado a iniciado. */
+  wait: durationStatsSchema,
+  /** De creado a resuelto. */
+  total: durationStatsSchema,
+  by_assignee: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string(),
+      resolved: z.number().int(),
+      work: durationStatsSchema,
     }),
   ),
 });

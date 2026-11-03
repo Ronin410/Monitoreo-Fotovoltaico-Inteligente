@@ -1,5 +1,7 @@
 'use client';
 
+import { InfoTip } from '@/components/info-tip';
+import type { HelpKey } from '@/lib/help';
 import { can } from '@pv/core';
 import { Check, RefreshCw, Sparkles, Wrench } from 'lucide-react';
 import Link from 'next/link';
@@ -78,11 +80,15 @@ function Explanation({ alert, stale }: { alert: Alert; stale: boolean }) {
           <p className="text-base">{parsed.data.resumen}</p>
           <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
             <div>
-              <dt className="text-xs text-slate-500 dark:text-slate-400">Causa probable</dt>
+              <dt className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                Causa probable <InfoTip help="alert.cause" label="Causa probable" />
+              </dt>
               <dd className="font-medium">{parsed.data.causa_probable}</dd>
             </div>
             <div>
-              <dt className="text-xs text-slate-500 dark:text-slate-400">Confianza</dt>
+              <dt className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                Confianza <InfoTip help="alert.confidence" label="Confianza" />
+              </dt>
               <dd className="font-medium">{CONFIDENCE[parsed.data.confianza]}</dd>
             </div>
             {parsed.data.otras_causas.length > 0 && (
@@ -116,10 +122,23 @@ function Explanation({ alert, stale }: { alert: Alert; stale: boolean }) {
   );
 }
 
-function Fact({ label, value, detail }: { label: string; value: ReactNode; detail?: ReactNode }) {
+function Fact({
+  label,
+  value,
+  detail,
+  help,
+}: {
+  label: string;
+  value: ReactNode;
+  detail?: ReactNode;
+  help?: HelpKey;
+}) {
   return (
     <div className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-      <span className="text-sm text-slate-600 dark:text-slate-400">{label}</span>
+      <span className="flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400">
+        {label}
+        {help && <InfoTip help={help} label={label} />}
+      </span>
       <span className="text-xl font-semibold tabular-nums">{value}</span>
       {detail && <span className="text-xs text-slate-600 dark:text-slate-400">{detail}</span>}
     </div>
@@ -140,11 +159,13 @@ function Facts({ alert, timezone }: { alert: Alert; timezone: string }) {
         <>
           <Fact
             label="Última lectura"
+            help="alert.lastReading"
             value={e?.last_reading_at ? formatDateTime(e.last_reading_at, timezone) : 'Nunca'}
           />
           {e?.sun_hours_without_data !== undefined && (
             <Fact
               label="Horas de sol sin datos"
+              help="alert.sunHoursWithoutData"
               value={formatNumber(e.sun_hours_without_data, 1)}
             />
           )}
@@ -154,6 +175,7 @@ function Facts({ alert, timezone }: { alert: Alert; timezone: string }) {
           {typeof deviation === 'number' && (
             <Fact
               label="Debajo de su normal"
+              help="alert.belowNormal"
               value={`${formatNumber(deviation, 1)} %`}
               detail={
                 e?.baseline?.value
@@ -165,6 +187,7 @@ function Facts({ alert, timezone }: { alert: Alert; timezone: string }) {
           {e?.trend?.days_since_reset !== null && e?.trend?.days_since_reset !== undefined && (
             <Fact
               label="Días desde el último lavado"
+              help="alert.daysSinceCleaning"
               value={e.trend.days_since_reset}
               detail={
                 e.trend.last_reset?.type === 'rain_cleaning' ? 'Lavado por lluvia' : undefined
@@ -174,6 +197,7 @@ function Facts({ alert, timezone }: { alert: Alert; timezone: string }) {
           {e?.neighbors?.neighbor_index !== null && e?.neighbors?.neighbor_index !== undefined && (
             <Fact
               label="Frente a sus vecinas"
+              help="alert.neighbors"
               value={`${formatNumber(e.neighbors.neighbor_index * 100, 0)} %`}
               detail={`de lo que rinden ${e.neighbors.count ?? 0} plantas cercanas (100 % = igual)`}
             />
@@ -182,6 +206,7 @@ function Facts({ alert, timezone }: { alert: Alert; timezone: string }) {
       )}
       <Fact
         label="Pérdida estimada"
+        help="alert.estimatedLoss"
         value={loss ? `${formatNumber(loss.kwh_per_day, 1)} kWh/día` : '—'}
         detail={
           loss

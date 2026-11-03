@@ -16,12 +16,14 @@ import {
   PRIORITY_LABELS,
   TICKET_STATUS_LABELS,
   TICKET_TYPE_LABELS,
+  ticketTimeLabel,
   ticketsPage,
   type Ticket,
   type TicketStatus,
 } from '@/lib/operations';
 import { useApiQuery } from '@/lib/use-api';
 import { TicketActions } from './ticket-actions';
+import { TicketStatsPanel } from './ticket-stats';
 
 // Tickets (specs/09 §Tickets): el operador ve lista o tablero por estado; el técnico, en el
 // celular, tarjetas grandes con sus tickets abiertos.
@@ -188,6 +190,7 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
       <span className="text-xs text-slate-600 dark:text-slate-400">
         {ticket.assigned_to ? ticket.assigned_to.name : 'Sin asignar'}
         {when(ticket) ? ` · ${when(ticket)}` : ''}
+        {ticketTimeLabel(ticket, new Date()) ? ` · ${ticketTimeLabel(ticket, new Date())}` : ''}
       </span>
     </li>
   );
@@ -285,6 +288,7 @@ function ManagerTickets() {
         />
       </div>
 
+      <TicketStatsPanel />
       {error ? (
         <Notice tone="error">{error.message}</Notice>
       ) : loading && !data ? (
@@ -368,6 +372,11 @@ function ManagerTickets() {
                     <td className="px-4 py-3 whitespace-nowrap">{when(t) ?? '—'}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {TICKET_STATUS_LABELS[t.status]}
+                      {ticketTimeLabel(t, new Date()) && (
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          {ticketTimeLabel(t, new Date())}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

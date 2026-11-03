@@ -4,6 +4,7 @@ import { CircleCheck, Clock, FileText, Mail, OctagonAlert, X } from 'lucide-reac
 import { useEffect, useState } from 'react';
 import { ConfirmButton } from '@/components/confirm-button';
 import { Filter } from '@/components/filter';
+import { InfoTip } from '@/components/info-tip';
 import { PageHeader } from '@/components/page-header';
 import { Button, Notice, Spinner } from '@/components/ui';
 import { ApiError } from '@/lib/api';
@@ -218,7 +219,12 @@ export function ReportsView() {
     <div className="mx-auto flex max-w-6xl flex-col gap-5">
       <PageHeader
         title="Reportes"
-        subtitle="Reporte mensual en PDF para cada cliente, con la marca de su empresa."
+        subtitle={
+          <span className="inline-flex flex-wrap items-center gap-1">
+            Reporte mensual en PDF para cada cliente, con la marca de su empresa.
+            <InfoTip help="reports.status" label="Estados del reporte" />
+          </span>
+        }
         actions={
           data?.can_generate && (
             <>
@@ -291,6 +297,7 @@ export function ReportsView() {
                     {r?.status === 'generated' && r.narrative_source === 'template' && (
                       <span className="text-xs text-slate-600 dark:text-slate-400">
                         texto de plantilla
+                        <InfoTip help="reports.narrative" label="Texto del reporte" />
                       </span>
                     )}
                   </div>

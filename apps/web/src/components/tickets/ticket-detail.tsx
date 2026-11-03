@@ -1,6 +1,6 @@
 'use client';
 
-import { can } from '@pv/core';
+import { can, formatDuration } from '@pv/core';
 import { MapPin, Pencil, Phone } from 'lucide-react';
 import Link from 'next/link';
 import { useState, type FormEvent, type ReactNode } from 'react';
@@ -26,6 +26,7 @@ import {
   TICKET_STATUS_LABELS,
   TICKET_TYPE_LABELS,
   ticketSchema,
+  ticketTimes,
   type Ticket,
 } from '@/lib/operations';
 import { useApiQuery } from '@/lib/use-api';
@@ -154,6 +155,7 @@ export function TicketDetail({ id }: { id: string }) {
   if (!t) return <Spinner />;
   const c = t.plant.client;
   const isOpen = OPEN_TICKET_STATUSES.includes(t.status);
+  const times = ticketTimes(t, new Date());
   const onChange = (next: Ticket) => {
     setUpdated(next);
     setEditing(false);
@@ -250,6 +252,21 @@ export function TicketDetail({ id }: { id: string }) {
           <Item label="Creado">
             {`${formatDateTime(t.created_at, timezone)}${t.created_by ? ` por ${t.created_by.name}` : ''}`}
           </Item>
+          <Item label="Iniciado">
+            {t.started_at ? formatDateTime(t.started_at, timezone) : null}
+          </Item>
+          <Item label={t.status === 'resolved' ? 'Tiempo de trabajo' : 'En curso desde hace'}>
+            {times.workMinutes !== null
+              ? formatDuration(times.workMinutes)
+              : times.elapsedMinutes !== null
+                ? formatDuration(times.elapsedMinutes)
+                : null}
+          </Item>
+          {t.status === 'resolved' && times.totalMinutes !== null && (
+            <Item label="Tiempo total (desde que se creó)">
+              {formatDuration(times.totalMinutes)}
+            </Item>
+          )}
         </dl>
         {t.alert && (
           <div className="flex flex-wrap items-center gap-2 text-sm">

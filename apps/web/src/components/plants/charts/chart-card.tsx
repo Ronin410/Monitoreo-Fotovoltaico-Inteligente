@@ -1,3 +1,5 @@
+import { InfoTip } from '@/components/info-tip';
+import type { HelpKey } from '@/lib/help';
 import type { ReactNode } from 'react';
 
 /** Tarjeta de gráfica: título, controles y una tabla con los mismos datos (accesibilidad). */
@@ -7,8 +9,10 @@ export function ChartCard({
   controls,
   table,
   children,
+  help,
 }: {
   title: string;
+  help?: HelpKey;
   description?: ReactNode;
   controls?: ReactNode;
   table?: ReactNode;
@@ -18,7 +22,10 @@ export function ChartCard({
     <section className="flex min-w-0 flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-900">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-1">
-          <h2 className="text-base font-semibold">{title}</h2>
+          <h2 className="flex items-center gap-1 text-base font-semibold">
+            {title}
+            {help && <InfoTip help={help} label={title} />}
+          </h2>
           {description && (
             <p className="text-sm text-slate-600 dark:text-slate-400">{description}</p>
           )}

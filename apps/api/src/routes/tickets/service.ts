@@ -44,6 +44,7 @@ export function ticketDto(t: TicketWithRelations): z.input<typeof ticketResponse
     title: t.title,
     description: t.description,
     scheduled_for: t.scheduledFor ? t.scheduledFor.toISOString().slice(0, 10) : null,
+    started_at: t.startedAt,
     resolved_at: t.resolvedAt,
     resolution_notes: t.resolutionNotes,
     cleaning_performed: t.cleaningPerformed,

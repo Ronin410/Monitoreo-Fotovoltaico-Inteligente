@@ -682,6 +682,8 @@ model MaintenanceTicket {
   description       String?
   assignedToId      String?        @map("assigned_to") @db.Uuid
   scheduledFor      DateTime?      @map("scheduled_for") @db.Date
+  /// Primera vez que pasó a in_progress ("Iniciar"); con resolved_at da el tiempo de trabajo.
+  startedAt         DateTime?      @map("started_at") @db.Timestamptz
   resolvedAt        DateTime?      @map("resolved_at") @db.Timestamptz
   resolutionNotes   String?        @map("resolution_notes")
   cleaningPerformed Boolean        @default(false) @map("cleaning_performed")
@@ -698,6 +700,7 @@ model MaintenanceTicket {
   events     PlantEvent[]
 
   @@index([companyId, status])
+  @@index([companyId, resolvedAt])
   @@index([assignedToId, status])
   @@index([plantId])
   @@map("maintenance_tickets")

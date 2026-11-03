@@ -38,6 +38,7 @@ export function TodayChart({ plantId }: { plantId: string }) {
   return (
     <ChartCard
       title="Hoy: potencia real y esperada"
+      help="plant.todayChart"
       description={`La esperada sale del clima de la hora y del rendimiento normal de la planta (PR ${formatNumber(data.baseline_pr * 100, 1)} %).`}
       table={
         points.length > 0 && (

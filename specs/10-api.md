@@ -60,6 +60,7 @@ Base: `/api`. JSON. Autenticación con `Authorization: Bearer <access_token>`, s
 | POST | `/alerts/:id/regenerate-explanation` | operator |
 | POST | `/alerts/:id/ticket` | operator |
 | GET / POST | `/tickets` | operator (technician: solo los suyos) |
+| GET | `/tickets/stats?days=30` | operator: tiempos de atención (espera, trabajo y total; por responsable) |
 | GET / PATCH | `/tickets/:id` | operator, technician asignado |
 
 ## Asistente IA

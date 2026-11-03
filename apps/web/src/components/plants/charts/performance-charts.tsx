@@ -76,6 +76,7 @@ function PerformanceChart({
   return (
     <ChartCard
       title="Rendimiento diario (PR corregido)"
+      help="plant.prChart"
       description={`Solo días válidos. Si la línea azul baja del umbral (${formatNumber(data.soiling_deviation_pct, 0)} % bajo su normal) conviene revisar o lavar.`}
       controls={<RangeSelector value={range} onChange={setRange} />}
       table={
@@ -214,7 +215,7 @@ function CleaningPrediction({ data }: { data: DailyMetrics }) {
     .find((d) => d.days_to_cleaning !== null || d.soiling_slope_pct_per_day !== null);
   const lastReset = [...data.events].reverse()[0];
   return (
-    <ChartCard title="Predicción de lavado">
+    <ChartCard title="Predicción de lavado" help="plant.soilingChart">
       {!last ? (
         <p className="text-sm text-slate-600 dark:text-slate-400">
           Aún no hay suficientes días válidos desde el último lavado o lluvia para estimar una
@@ -268,6 +269,7 @@ function NeighborsChart({ data }: { data: DailyMetrics }) {
   return (
     <ChartCard
       title="Comparación con vecinas"
+      help="plant.neighborsChart"
       description="1.0 = rinde igual que las plantas cercanas de tu empresa; abajo de 0.8 rinde claramente menos."
       table={
         withData.length > 0 && (

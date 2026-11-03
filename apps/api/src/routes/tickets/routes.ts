@@ -1,5 +1,5 @@
 import type { JobEnqueuer } from '@pv/adapters';
-import { can } from '@pv/core';
+import { can, durationStats, ticketDurations, type DurationStats } from '@pv/core';
 import { withTenant, type Prisma, type PrismaClient } from '@pv/db';
 import { Router } from 'express';
 import { companyAuthOf, requirePermission } from '../../auth/authorize.js';
@@ -14,6 +14,8 @@ import {
   assigneesResponse,
   ticketResponse,
   ticketsQuery,
+  ticketStatsQuery,
+  ticketStatsResponse,
   ticketsResponse,
 } from './schemas.js';
 import {
@@ -112,6 +114,60 @@ export function ticketsRouter(db: PrismaClient, now: () => Date, jobs: JobEnqueu
     respond(res, assigneesResponse, { data });
   });
 
+  /**
+   * Tiempos de atención de los tickets resueltos en los últimos `days` días: espera, trabajo
+   * (de "Iniciar" a "Resolver") y total, también por responsable (specs/PREGUNTAS.md #204).
+   */
+  router.get('/stats', requirePermission('alerts:manage'), async (req, res) => {
+    const auth = companyAuthOf(req);
+    const { days } = ticketStatsQuery.parse(req.query);
+    const end = now();
+    const since = new Date(end.getTime() - days * 86_400_000);
+    const [resolved, inProgress] = await withTenant(db, auth.companyId, (tx) =>
+      Promise.all([
+        tx.maintenanceTicket.findMany({
+          where: { status: 'resolved', resolvedAt: { gte: since } },
+          select: {
+            createdAt: true,
+            startedAt: true,
+            resolvedAt: true,
+            assignedTo: { select: { id: true, name: true } },
+          },
+        }),
+        tx.maintenanceTicket.count({ where: { status: 'in_progress' } }),
+      ]),
+    );
+    const rows = resolved.map((t) => ({ ...t, d: ticketDurations(t, end) }));
+    const dto = (s: DurationStats) => ({
+      count: s.count,
+      avg_minutes: s.avgMinutes,
+      median_minutes: s.medianMinutes,
+    });
+    const people = new Map<string, { id: string; name: string; work: (number | null)[] }>();
+    for (const r of rows) {
+      if (!r.assignedTo) continue;
+      const p = people.get(r.assignedTo.id) ?? { ...r.assignedTo, work: [] };
+      p.work.push(r.d.workMinutes);
+      people.set(p.id, p);
+    }
+    respond(res, ticketStatsResponse, {
+      days,
+      resolved: rows.length,
+      in_progress: inProgress,
+      work: dto(durationStats(rows.map((r) => r.d.workMinutes))),
+      wait: dto(durationStats(rows.map((r) => r.d.waitMinutes))),
+      total: dto(durationStats(rows.map((r) => r.d.totalMinutes))),
+      by_assignee: [...people.values()]
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          resolved: p.work.length,
+          work: dto(durationStats(p.work)),
+        }))
+        .sort((a, b) => b.resolved - a.resolved || a.name.localeCompare(b.name, 'es')),
+    });
+  });
+
   router.get('/:id', async (req, res) => {
     const auth = companyAuthOf(req);
     const { id } = idParam.parse(req.params);
@@ -147,6 +203,8 @@ export function ticketsRouter(db: PrismaClient, now: () => Date, jobs: JobEnqueu
 
       const resolving = body.status === 'resolved';
       const resolvedAt = resolving ? now() : undefined;
+      // "Iniciar": la primera vez que pasa a En curso se guarda el inicio del trabajo.
+      const startedAt = body.status === 'in_progress' && !current.startedAt ? now() : undefined;
       const cleaningPerformed = body.cleaning_performed ?? current.cleaningPerformed;
       await tx.maintenanceTicket.update({
         where: { id },
@@ -163,6 +221,7 @@ export function ticketsRouter(db: PrismaClient, now: () => Date, jobs: JobEnqueu
             body.scheduled_for === undefined
               ? undefined
               : body.scheduled_for && new Date(`${body.scheduled_for}T00:00:00Z`),
+          startedAt,
           resolvedAt,
         },
       });

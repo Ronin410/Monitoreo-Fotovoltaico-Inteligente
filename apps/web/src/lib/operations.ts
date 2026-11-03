@@ -1,3 +1,4 @@
+import { formatDuration, ticketDurations } from '@pv/core';
 import { z } from 'zod';
 import { alertSeveritySchema, alertTypeSchema } from './dashboard';
 
@@ -119,6 +120,8 @@ export const ticketSchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
   scheduled_for: z.string().nullable(),
+  /** Primera vez que pasó a "En curso" (specs/PREGUNTAS.md #204). */
+  started_at: z.string().nullable().default(null),
   resolved_at: z.string().nullable(),
   resolution_notes: z.string().nullable(),
   cleaning_performed: z.boolean(),
@@ -153,6 +156,48 @@ export const ticketSchema = z.object({
   updated_at: z.string(),
 });
 export type Ticket = z.infer<typeof ticketSchema>;
+
+/** Tiempos del ticket con los mismos cálculos que la API (@pv/core). */
+export function ticketTimes(t: Ticket, now: Date) {
+  return ticketDurations(
+    {
+      createdAt: new Date(t.created_at),
+      startedAt: t.started_at ? new Date(t.started_at) : null,
+      resolvedAt: t.resolved_at ? new Date(t.resolved_at) : null,
+    },
+    now,
+  );
+}
+
+/** Texto corto para listas: "Trabajo: 2 h 15 min" o "En curso: 40 min". */
+export function ticketTimeLabel(t: Ticket, now: Date): string | null {
+  const d = ticketTimes(t, now);
+  if (t.status === 'resolved') {
+    return d.workMinutes !== null ? `Trabajo: ${formatDuration(d.workMinutes)}` : null;
+  }
+  if (t.status === 'in_progress' && d.elapsedMinutes !== null) {
+    return `En curso: ${formatDuration(d.elapsedMinutes)}`;
+  }
+  return null;
+}
+
+const durationStatsSchema = z.object({
+  count: z.number(),
+  avg_minutes: z.number().nullable(),
+  median_minutes: z.number().nullable(),
+});
+export const ticketStatsSchema = z.object({
+  days: z.number(),
+  resolved: z.number(),
+  in_progress: z.number(),
+  work: durationStatsSchema,
+  wait: durationStatsSchema,
+  total: durationStatsSchema,
+  by_assignee: z.array(
+    z.object({ id: z.uuid(), name: z.string(), resolved: z.number(), work: durationStatsSchema }),
+  ),
+});
+export type TicketStats = z.infer<typeof ticketStatsSchema>;
 export const ticketsPage = page(ticketSchema);
 
 export const assigneesResponse = z.object({
