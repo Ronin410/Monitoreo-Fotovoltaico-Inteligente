@@ -66,3 +66,37 @@ export function parseLooseNumber(raw: string | undefined): number | null {
   const n = Number(normalized);
   return Number.isFinite(n) ? n : Number.NaN;
 }
+
+/** Valor de una celda al exportar: fechas en ISO 8601 (UTC), JSON como texto, nulos vacíos. */
+export function csvValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
+    return String(value);
+  }
+  // Decimal de Prisma y similares: su texto exacto, sin pasar por número.
+  if (typeof value === 'object' && 'toFixed' in value && typeof value.toString === 'function') {
+    return value.toString();
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * Un renglón CSV (separado por comas, fin de línea CRLF). Entrecomilla lo que lleva comas,
+ * comillas o saltos de línea. Un texto que Excel tomaría como fórmula (empieza con =, +, -, @,
+ * tabulador o retorno) se antepone con un apóstrofo, salvo que sea un número.
+ */
+export function csvRow(values: unknown[]): string {
+  return (
+    values
+      .map((v) => {
+        let s = csvValue(v);
+        if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s) && !/^[-+]?\d+(\.\d+)?$/.test(s)) {
+          s = `'${s}`;
+        }
+        return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      })
+      .join(',') + '\r\n'
+  );
+}

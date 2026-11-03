@@ -29,6 +29,7 @@ const MOUNTS: Record<string, string> = {
   'alerts/routes.ts': '/alerts',
   'auth/routes.ts': '/auth',
   'clients/routes.ts': '/clients',
+  'company/export-routes.ts': '/company',
   'company/profile-routes.ts': '/company',
   'company/routes.ts': '/company',
   'dashboard/routes.ts': '/dashboard',
@@ -77,6 +78,7 @@ const PARAM_EXEMPT: Record<string, string> = {
   'PATCH /admin/companies/:id': 'solo superadmin (plataforma); probada en admin.int.test.ts',
   'POST /admin/companies/:id/invitations': 'solo superadmin; probada en admin-tools.int.test.ts',
   'POST /admin/companies/:id/example-data': 'solo superadmin; probada en admin-tools.int.test.ts',
+  'POST /admin/companies/:id/purge': 'solo superadmin; probada en company-data.int.test.ts',
 };
 
 /** Listas (GET sin parámetro) que no aplican a un usuario de empresa, con su razón. */
@@ -167,10 +169,22 @@ async function tenant(tag: string) {
       expiresAt: new Date('2027-01-01T00:00:00Z'),
     },
   });
+  const exportKey = `exports/${company.id}/${ID(2)}.zip`;
+  await ctx.storage.put(exportKey, Buffer.from(`PK ${tag}`), 'application/zip');
+  const exportRun = await ctx.owner.jobRun.create({
+    data: {
+      companyId: company.id,
+      jobName: 'company.export',
+      status: 'succeeded',
+      finishedAt: ctx.clock.current,
+      stats: { storage_key: exportKey, size_bytes: 10, files: {} },
+    },
+  });
   return {
     company,
     admin,
     operator,
+    exportRun,
     client,
     plant,
     alert,
@@ -194,6 +208,7 @@ async function tenant(tag: string) {
       report.id,
       conversation.id,
       invitation.id,
+      exportRun.id,
       admin.email,
       `invitado-${tag}@example.com`,
       `cliente-${tag}@example.com`,
@@ -208,6 +223,10 @@ type Tenant = Awaited<ReturnType<typeof tenant>>;
 type CrossCase = { route: string; path: (b: Tenant) => string; body?: object };
 
 const CROSS: CrossCase[] = [
+  {
+    route: 'GET /company/exports/:id/download',
+    path: (b) => `/company/exports/${b.exportRun.id}/download`,
+  },
   { route: 'DELETE /ai/conversations/:id', path: (b) => `/ai/conversations/${b.conversation.id}` },
   { route: 'GET /ai/conversations/:id', path: (b) => `/ai/conversations/${b.conversation.id}` },
   { route: 'GET /alerts/:id', path: (b) => `/alerts/${b.alert.id}` },
@@ -267,6 +286,7 @@ const LISTS: Record<string, (b: Tenant) => string> = {
   'GET /clients': () => '/clients?page_size=100',
   'GET /company': () => '/company',
   'GET /company/ai-usage': () => '/company/ai-usage',
+  'GET /company/exports': () => '/company/exports',
   'GET /company/invitations': () => '/company/invitations',
   'GET /company/users': () => '/company/users?page_size=100',
   'GET /dashboard/map': () => '/dashboard/map',

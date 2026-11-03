@@ -24,6 +24,7 @@ import {
   adminCompanySchema,
   companyCreated,
   exampleDataQueued,
+  purgeQueued,
   invitationResent,
   formatTokens,
   MEXICO_TIMEZONES,
@@ -156,6 +157,7 @@ function CompanyItem({
   const simulator = state.status === 'authenticated' && state.features.simulator;
   const [editing, setEditing] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [purging, setPurging] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -219,6 +221,29 @@ function CompanyItem({
       setNotice({
         tone: 'success',
         text: 'Cargando datos de ejemplo: 20 clientes y 25 plantas con 90 días de historia. Tarda unos minutos; después entre como administrador de la empresa para verlos.',
+      });
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function purge(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const slug = String(new FormData(e.currentTarget).get(`${prefix}-purge`) ?? '').trim();
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await api(`/admin/companies/${c.id}/purge`, purgeQueued, {
+        method: 'POST',
+        body: { confirm_slug: slug },
+      });
+      setPurging(false);
+      setNotice({
+        tone: 'success',
+        text: 'Borrando la empresa y todos sus datos. Tarda unos minutos; después desaparece de la lista.',
       });
     } catch (err) {
       setError(errorMessage(err));
@@ -318,6 +343,43 @@ function CompanyItem({
             Cancelar
           </Button>
         </form>
+      ) : purging ? (
+        <form
+          className="flex flex-col gap-3 rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/40"
+          onSubmit={(e) => void purge(e)}
+          noValidate
+        >
+          <p className="text-sm text-red-900 dark:text-red-200">
+            <strong>Esto no se puede deshacer.</strong> Se borran la empresa, sus usuarios,
+            clientes, plantas, lecturas, alertas, tickets, reportes, archivos y auditoría.{' '}
+            {c.last_export_at
+              ? `Su administrador exportó sus datos el ${formatDate(c.last_export_at.slice(0, 10), { day: 'numeric', month: 'long', year: 'numeric' })}.`
+              : 'Su administrador nunca exportó sus datos: pídale que lo haga antes (Configuración → Exportar datos), reactivando la empresa si hace falta.'}
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+            <TextInput
+              id={`${prefix}-purge`}
+              label={`Escriba el identificador "${c.slug}" para confirmar`}
+              autoComplete="off"
+              required
+            />
+            <Button
+              type="submit"
+              disabled={busy}
+              className="bg-red-700 hover:bg-red-800 sm:mt-7 dark:bg-red-700"
+            >
+              {busy ? 'Borrando…' : 'Borrar definitivamente'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="sm:mt-7"
+              onClick={() => setPurging(false)}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </form>
       ) : inviting ? (
         <form
           className="flex flex-col gap-2 sm:flex-row sm:items-start"
@@ -378,6 +440,11 @@ function CompanyItem({
               onClick={() => void patch({ status: 'active' })}
             >
               Reactivar
+            </Button>
+          )}
+          {c.status === 'suspended' && (
+            <Button type="button" variant="ghost" onClick={() => setPurging(true)}>
+              Borrar definitivamente
             </Button>
           )}
         </div>

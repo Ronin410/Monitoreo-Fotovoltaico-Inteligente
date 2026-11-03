@@ -16,6 +16,7 @@ const company = (over: object = {}) => ({
   created_at: '2026-09-01T00:00:00Z',
   plant_count: 25,
   ai_tokens_this_month: 1_700_000,
+  last_export_at: null,
   ...over,
 });
 const calls: { path: string; method?: string; body?: unknown }[] = [];
@@ -26,7 +27,8 @@ const api = vi.fn(
     opts?: { method?: string; body?: unknown },
   ) => {
     calls.push({ path, method: opts?.method, body: opts?.body });
-    if (path.endsWith('/example-data')) return schema.parse({ queued: true });
+    if (path.endsWith('/example-data') || path.endsWith('/purge'))
+      return schema.parse({ queued: true });
     if (path.endsWith('/invitations'))
       return schema.parse({
         id: ID(4),
@@ -63,6 +65,25 @@ beforeEach(() => {
 let emailSent = true;
 
 describe('empresas (superadmin)', () => {
+  it('borra definitivamente una empresa suspendida, confirmando con su identificador', async () => {
+    render(<CompaniesView />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Suspender' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sí, suspender' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Borrar definitivamente' }));
+    expect(screen.getByText(/nunca exportó sus datos/)).toBeTruthy();
+    await userEvent.type(
+      screen.getByLabelText(/Escriba el identificador "solar-demo-culiacan"/),
+      'solar-demo-culiacan',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Borrar definitivamente' }));
+    expect(calls.at(-1)).toEqual({
+      path: `/admin/companies/${ID(1)}/purge`,
+      method: 'POST',
+      body: { confirm_slug: 'solar-demo-culiacan' },
+    });
+    expect(await screen.findByText(/Borrando la empresa y todos sus datos/)).toBeTruthy();
+  });
+
   it('muestra plantas y uso de IA; suspende con confirmación', async () => {
     render(<CompaniesView />);
     expect(await screen.findByText('Solar Demo Culiacán')).toBeTruthy();

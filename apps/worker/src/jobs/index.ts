@@ -1,5 +1,6 @@
 import type { RegisteredJob } from '../runtime.js';
 import { aiExplainAlertJob } from './ai.js';
+import { companyExportJob, companyPurgeJob } from './company.js';
 import { demoExampleDataJob } from './demo.js';
 import { alertsEvaluateJob, alertsOfflineCompanyJob, alertsOfflineJob } from './alerts.js';
 import { heartbeatJob } from './heartbeat.js';
@@ -44,4 +45,6 @@ export const JOBS: RegisteredJob[] = [
   telemetryCleanupJob,
   telemetryCleanupCompanyJob,
   demoExampleDataJob,
+  companyExportJob,
+  companyPurgeJob,
 ];

@@ -187,6 +187,7 @@ Resolver con **limpieza** registra un lavado: reinicia la tendencia de suciedad,
 | **Notificaciones**   | Correos extra que reciben las alertas y el envío automático de reportes el día 1.                                                                                                                                        |
 | **Usuarios**         | Invitar, cambiar rol, desactivar o reactivar.                                                                                                                                                                            |
 | **Uso de IA**        | Tokens del mes por función (chat, explicaciones, reportes) contra el presupuesto.                                                                                                                                        |
+| **Exportar datos**   | Prepara un ZIP con todos los datos de la empresa en hojas CSV que se abren en Excel (sin contraseñas ni credenciales de inversores). Tarda unos minutos; se descarga la última durante 7 días.                           |
 
 ## Superadmin
 
@@ -196,4 +197,5 @@ Resolver con **limpieza** registra un lavado: reinicia la tendencia de suciedad,
   - **Reenviar invitación**.
   - **Cargar datos de ejemplo** (solo en pruebas y con la empresa vacía).
   - **Suspender / Reactivar**.
+  - **Borrar definitivamente** (solo una empresa suspendida): borra la empresa y todos sus datos y archivos, sin vuelta atrás. Se confirma escribiendo su identificador y avisa si su administrador nunca exportó sus datos.
 - **Salud del sistema** (`/admin/health`): última ejecución de cada proceso automático (lectura de inversores, clima, cálculos, alertas, correos, reportes) y fallas de las últimas 24 horas.

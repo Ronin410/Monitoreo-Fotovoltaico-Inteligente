@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeHeader, parseCsv, parseLooseNumber } from './csv.js';
+import { csvRow, normalizeHeader, parseCsv, parseLooseNumber } from './csv.js';
 
 describe('CSV de importación', () => {
   it('lee comas, comillas, comillas dobles y saltos de línea dentro de comillas', () => {
@@ -37,5 +37,31 @@ describe('CSV de importación', () => {
     expect(parseLooseNumber(' ')).toBeNull();
     expect(parseLooseNumber(undefined)).toBeNull();
     expect(parseLooseNumber('seis')).toBeNaN();
+  });
+});
+
+describe('csvRow (exportación)', () => {
+  it('entrecomilla comas, comillas y saltos de línea', () => {
+    expect(csvRow(['a,b', 'di "hola"', 'línea\nnueva', 'simple'])).toBe(
+      '"a,b","di ""hola""","línea\nnueva",simple\r\n',
+    );
+  });
+
+  it('da formato a fechas, nulos, números, booleanos, decimales y JSON', () => {
+    const decimal = { toFixed: () => '', toString: () => '12.3400' };
+    expect(
+      csvRow([new Date('2026-11-03T12:00:00Z'), null, undefined, 4.5, 7n, true, decimal, { a: 1 }]),
+    ).toBe('2026-11-03T12:00:00.000Z,,,4.5,7,true,12.3400,"{""a"":1}"\r\n');
+  });
+
+  it('neutraliza textos que Excel ejecutaría como fórmula, sin tocar números', () => {
+    expect(csvRow(['=HYPERLINK("x")', '+52 667', '@SUM', '-5', -5, '-3.5'])).toBe(
+      `"'=HYPERLINK(""x"")",'+52 667,'@SUM,-5,-5,-3.5\r\n`,
+    );
+  });
+
+  it('se vuelve a leer igual con parseCsv', () => {
+    const text = `${csvRow(['nombre', 'notas'])}${csvRow(['Planta 1', 'con "comillas", y coma'])}`;
+    expect(parseCsv(text).rows).toEqual([['Planta 1', 'con "comillas", y coma']]);
   });
 });

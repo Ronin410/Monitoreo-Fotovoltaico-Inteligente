@@ -28,6 +28,8 @@ Base: `/api`. JSON. Autenticación con `Authorization: Bearer <access_token>`, s
 | POST | `/company/invitations` | admin |
 | PATCH | `/company/users/:id` | admin (rol, estado) |
 | GET | `/company/ai-usage` | admin |
+| GET / POST | `/company/exports` | admin: lista y pide la exportación de todos los datos (ZIP de CSV, job `company.export`) |
+| GET | `/company/exports/:id/download` | admin: solo la última, durante 7 días |
 
 ## Clientes y plantas
 | Método | Ruta | Rol |
@@ -87,6 +89,7 @@ Base: `/api`. JSON. Autenticación con `Authorization: Bearer <access_token>`, s
 |--------|------|-------------|
 | GET / POST | `/admin/companies` | listar y crear empresas |
 | PATCH | `/admin/companies/:id` | estado, plan, presupuesto de IA |
+| POST | `/admin/companies/:id/purge` | borrado definitivo de una empresa suspendida; `confirm_slug` debe coincidir (job `company.purge`) |
 | GET | `/admin/health` | job_runs, errores de integración |
 
 ## Otros

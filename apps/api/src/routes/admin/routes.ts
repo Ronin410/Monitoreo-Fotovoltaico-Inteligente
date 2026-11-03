@@ -1,4 +1,4 @@
-import { demoExampleData, type JobEnqueuer } from '@pv/adapters';
+import { companyExport, companyPurge, demoExampleData, type JobEnqueuer } from '@pv/adapters';
 import { Prisma, type Company, type PrismaClient } from '@pv/db';
 import { Router } from 'express';
 import { changesOf, recordAudit } from '../../audit.js';
@@ -19,6 +19,8 @@ import {
   patchCompanyBody,
   exampleDataResponse,
   invitationResentResponse,
+  purgeCompanyBody,
+  purgeCompanyResponse,
   resendInvitationBody,
 } from './schemas.js';
 
@@ -45,7 +47,7 @@ function periodIn(now: Date, timeZone: string): string {
   return `${parts.year}-${parts.month}`;
 }
 
-type CompanyStats = { plantCount: number; aiTokensThisMonth: number };
+type CompanyStats = { plantCount: number; aiTokensThisMonth: number; lastExportAt: Date | null };
 
 function companyDto(c: Company, stats: CompanyStats) {
   return {
@@ -60,6 +62,7 @@ function companyDto(c: Company, stats: CompanyStats) {
     created_at: c.createdAt,
     plant_count: stats.plantCount,
     ai_tokens_this_month: stats.aiTokensThisMonth,
+    last_export_at: stats.lastExportAt,
   };
 }
 
@@ -70,7 +73,7 @@ async function statsFor(
 ): Promise<(companyId: string) => CompanyStats> {
   const ids = companies.map((c) => c.id);
   const periods = new Map(companies.map((c) => [c.id, periodIn(now, c.timezone)]));
-  const [plants, usage] = await Promise.all([
+  const [plants, usage, exports] = await Promise.all([
     serviceDb.solarPlant.groupBy({
       by: ['companyId'],
       where: { companyId: { in: ids }, deletedAt: null },
@@ -81,7 +84,13 @@ async function statsFor(
       where: { companyId: { in: ids }, period: { in: [...new Set(periods.values())] } },
       _sum: { inputTokens: true, outputTokens: true },
     }),
+    serviceDb.jobRun.groupBy({
+      by: ['companyId'],
+      where: { companyId: { in: ids }, jobName: companyExport.name, status: 'succeeded' },
+      _max: { finishedAt: true },
+    }),
   ]);
+  const lastExport = new Map(exports.map((e) => [e.companyId, e._max.finishedAt]));
   const plantCounts = new Map(plants.map((p) => [p.companyId, p._count._all]));
   const tokens = new Map(
     usage
@@ -94,6 +103,7 @@ async function statsFor(
   return (id: string) => ({
     plantCount: plantCounts.get(id) ?? 0,
     aiTokensThisMonth: tokens.get(id) ?? 0,
+    lastExportAt: lastExport.get(id) ?? null,
   });
 }
 
@@ -201,7 +211,11 @@ export function adminRouter(
       res,
       companyCreatedResponse,
       {
-        company: companyDto(created.company, { plantCount: 0, aiTokensThisMonth: 0 }),
+        company: companyDto(created.company, {
+          plantCount: 0,
+          aiTokensThisMonth: 0,
+          lastExportAt: null,
+        }),
         invitation: {
           id: created.invitation.id,
           email: adminEmail,
@@ -387,6 +401,49 @@ export function adminRouter(
     });
     const queued = await options.jobs.enqueue(demoExampleData, { company_id: id });
     respond(res, exampleDataResponse, { queued: queued !== null }, 202);
+  });
+
+  /**
+   * Borrado definitivo de una empresa al terminar el contrato (docs/plan-lanzamiento.md 3.7).
+   * Solo si está suspendida y se confirma con su slug. El worker borra todo (job company.purge) y
+   * deja un registro de plataforma; antes conviene que su administrador haya descargado la
+   * exportación de sus datos.
+   */
+  router.post('/companies/:id/purge', async (req, res) => {
+    const superadmin = authOf(req);
+    const { id } = idParam.parse(req.params);
+    const body = purgeCompanyBody.parse(req.body);
+    const company = await serviceDb.company.findUnique({ where: { id } });
+    if (!company) throw companyNotFound();
+    if (company.status !== 'suspended') {
+      throw new HttpError(
+        409,
+        'COMPANY_NOT_SUSPENDED',
+        'Suspenda la empresa antes de borrarla definitivamente',
+      );
+    }
+    if (body.confirm_slug !== company.slug) {
+      throw new HttpError(
+        400,
+        'CONFIRMATION_MISMATCH',
+        'El identificador escrito no coincide con el de la empresa',
+      );
+    }
+    // Registro de plataforma: los de la empresa se borran con ella.
+    await recordAudit(serviceDb, {
+      action: 'company.purge_requested',
+      companyId: null,
+      userId: superadmin.userId,
+      entityType: 'company',
+      entityId: id,
+      metadata: { name: company.name, slug: company.slug },
+      ip: req.ip ?? null,
+    });
+    const queued = await options.jobs.enqueue(companyPurge, {
+      company_id: id,
+      requested_by: superadmin.userId,
+    });
+    respond(res, purgeCompanyResponse, { queued: queued !== null }, 202);
   });
 
   return router;

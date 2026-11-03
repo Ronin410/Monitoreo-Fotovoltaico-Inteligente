@@ -118,8 +118,8 @@ Los proveedores principales (Render, Cloudflare, Anthropic) publican sus propias
 
 **Primeros 3 a 6 meses**
 
-8. Plan de respuesta a incidentes y política de seguridad escrita, incluido el control de accesos a producción.
-9. Funciones de **exportar datos** (cliente y empresa) y **borrado definitivo** al terminar el contrato; **registro de aceptación** de términos con versión y fecha.
+8. Plan de respuesta a incidentes y política de seguridad escrita, incluido el control de accesos a producción. _Borrador en `docs/respuesta-incidentes.md`._
+9. Funciones de **exportar datos** (cliente y empresa) y **borrado definitivo** al terminar el contrato; **registro de aceptación** de términos con versión y fecha. _Hechas: la empresa completa y la aceptación de términos (ver §10.1). Falta exportar un solo cliente._
 10. Definir SLA y soporte, y publicar una página de estado.
 11. Prueba de penetración externa y corrección de hallazgos.
 12. Repetir en staging la prueba de restauración de respaldos (pendiente F10-T3).
@@ -127,6 +127,16 @@ Los proveedores principales (Render, Cloudflare, Anthropic) publican sus propias
 **Cuando crezca**
 
 13. ISO/IEC 27001 (y 27701) si los clientes lo piden; SOC 2 si se vende en EE.UU.
+
+### 10.1 Fin del contrato con una instaladora
+
+1. **Exportar.** El administrador de la empresa, en **Configuración → Exportar datos**, prepara un ZIP con todos sus datos en hojas CSV y lo descarga (disponible 7 días). No incluye contraseñas ni credenciales de inversores.
+2. **Suspender.** El superadmin, en **Empresas**, suspende la empresa: nadie puede entrar y sus procesos se detienen. Los datos siguen guardados.
+3. **Esperar el plazo** que diga el contrato (por ejemplo 30 días), por si la empresa necesita algo más. Si lo pide, se reactiva para que exporte otra vez.
+4. **Borrar definitivamente.** El superadmin, en la empresa suspendida, usa **Borrar definitivamente** y escribe su identificador. Se borran la empresa, sus usuarios, datos, archivos y auditoría. Queda solo un registro de plataforma con el nombre, la fecha y los conteos, como constancia del borrado.
+5. **Respaldos.** Los respaldos de la base que ya existían conservan esos datos hasta que vencen según el plan de Render; el contrato debe decirlo.
+
+Pendientes del abogado: el plazo entre suspender y borrar, si la auditoría debe conservarse más tiempo, y el texto de la constancia de borrado para la instaladora.
 
 ## 11. Preguntas para el abogado y el contador
 

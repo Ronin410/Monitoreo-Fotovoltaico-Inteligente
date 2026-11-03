@@ -23,6 +23,7 @@ import { authRouter } from './routes/auth/routes.js';
 import { clientsRouter } from './routes/clients/routes.js';
 import { dashboardRouter } from './routes/dashboard/routes.js';
 import { AuthService } from './auth/service.js';
+import { companyExportRouter } from './routes/company/export-routes.js';
 import { companyProfileRouter, publicLogosRouter } from './routes/company/profile-routes.js';
 import { companyUsersRouter } from './routes/company/routes.js';
 import { errorHandler, notFoundHandler } from './http/errors.js';
@@ -85,6 +86,7 @@ export function createApp(deps: AppDeps): Express {
   );
   api.use('/company', authenticated, companyUsersRouter(deps.db, auth, now));
   api.use('/company', authenticated, companyProfileRouter(deps.db, deps.storage, deps.env.API_URL));
+  api.use('/company', authenticated, companyExportRouter(deps.db, deps.storage, deps.jobs, now));
   api.use('/public/logos', publicLogosRouter(deps.storage));
   api.use(
     '/admin',

@@ -250,3 +250,42 @@ export const demoExampleData = defineJob({
   expireInSeconds: 2 * 60 * 60,
   singletonKey: (p) => `demo.example_data:${p.company_id}`,
 });
+
+/**
+ * Exportación de todos los datos de una empresa en un ZIP de archivos CSV (lo pide su
+ * administrador; docs/plan-lanzamiento.md 3.7). La llave del archivo queda en job_runs.stats.
+ */
+/** Lo que company.export guarda en job_runs.stats; la API lo lee para la descarga. */
+export const companyExportStats = z.object({
+  storage_key: z.string(),
+  size_bytes: z.number().int(),
+  files: z.record(z.string(), z.number().int()),
+});
+export type CompanyExportStats = z.infer<typeof companyExportStats>;
+
+/** Días que la última exportación se puede descargar. */
+export const EXPORT_DOWNLOAD_DAYS = 7;
+
+export const companyExport = defineJob({
+  name: 'company.export',
+  payload: companyPayload,
+  scope: 'company',
+  retryLimit: 1,
+  expireInSeconds: 60 * 60,
+  singletonKey: (p) => `company.export:${p.company_id}`,
+});
+
+/**
+ * Borrado definitivo de una empresa **suspendida** (lo pide el superadmin). Es de plataforma: la
+ * empresa deja de existir y su propio registro en job_runs se borraría con ella. Cada paso es
+ * idempotente, así que un reintento continúa donde se quedó.
+ */
+export const companyPurge = defineJob({
+  name: 'company.purge',
+  payload: z.object({ company_id: z.uuid(), requested_by: z.uuid() }),
+  scope: 'platform',
+  retryLimit: 2,
+  retryDelaySeconds: 60,
+  expireInSeconds: 2 * 60 * 60,
+  singletonKey: (p) => `company.purge:${p.company_id}`,
+});

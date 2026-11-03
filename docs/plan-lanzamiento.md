@@ -67,7 +67,7 @@ Sin esto, un piloto solo muestra datos simulados.
 | 3.4  | Plantilla de aviso de privacidad para que las instaladoras informen a sus clientes                                                                           | Abogado          |     ⬜      |
 | 3.5  | Registrar la **aceptación de los términos** por persona (versión, fecha, IP)                                                                                 | Código           |     ✅      |
 | 3.6  | Aceptar los DPA de Render, Cloudflare, Resend y Anthropic, y publicar la lista de subencargados                                                              | Equipo           |     ⬜      |
-| 3.7  | **Exportar** los datos de una empresa y **borrado definitivo** al terminar el contrato                                                                       | Código           |     ⬜      |
+| 3.7  | **Exportar** los datos de una empresa y **borrado definitivo** al terminar el contrato (`docs/cumplimiento-saas.md` §10.1)                                   | Código           |     ✅      |
 | 3.8  | Nivel de servicio: empezar con un **objetivo** de disponibilidad sin penalizaciones; prometer un 99.5 % con compensación solo con infraestructura redundante | Equipo + Abogado |     ⬜      |
 | 3.9  | Acuerdo de piloto por escrito (gratuito, tiempo limitado, incluye el contrato de encargo)                                                                    | Abogado          |     ⬜      |
 | 3.10 | Registro de la marca "PV-IoT" en el IMPI                                                                                                                     | Abogado          |     ⬜      |

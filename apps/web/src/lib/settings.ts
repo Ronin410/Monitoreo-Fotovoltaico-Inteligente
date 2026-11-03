@@ -224,6 +224,7 @@ export const adminCompanySchema = z.object({
   created_at: z.string(),
   plant_count: z.number(),
   ai_tokens_this_month: z.number(),
+  last_export_at: z.string().nullable(),
 });
 export type AdminCompany = z.infer<typeof adminCompanySchema>;
 export const adminCompaniesPage = page(adminCompanySchema);
@@ -240,6 +241,7 @@ export const invitationResent = z.object({
   email_sent: z.boolean(),
 });
 export const exampleDataQueued = z.object({ queued: z.boolean() });
+export const purgeQueued = z.object({ queued: z.boolean() });
 
 const jobStatus = z.enum(['running', 'succeeded', 'failed', 'skipped']);
 export type JobStatus = z.infer<typeof jobStatus>;
@@ -274,4 +276,24 @@ export function formatTokens(n: number): string {
   }
   if (n >= 1_000) return `${nf(n / 1_000)} mil`;
   return nf(n);
+}
+
+// Exportación de los datos de la empresa (docs/plan-lanzamiento.md 3.7).
+export const companyExportSchema = z.object({
+  id: z.string(),
+  status: z.enum(['running', 'succeeded', 'failed', 'skipped']),
+  requested_at: z.string(),
+  finished_at: z.string().nullable(),
+  size_bytes: z.number().nullable(),
+  available_until: z.string().nullable(),
+});
+export type CompanyExport = z.infer<typeof companyExportSchema>;
+export const companyExportsSchema = z.object({ data: z.array(companyExportSchema) });
+export const exportQueued = z.object({ queued: z.boolean() });
+
+/** 1536 → "1.5 KB"; 3 400 000 → "3.2 MB". */
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }

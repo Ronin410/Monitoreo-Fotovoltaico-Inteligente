@@ -47,6 +47,10 @@ export const invitationResentResponse = z.object({
 
 export const exampleDataResponse = z.object({ queued: z.boolean() });
 
+/** Borrado definitivo: se confirma escribiendo el identificador (slug) de la empresa. */
+export const purgeCompanyBody = z.object({ confirm_slug: z.string().trim().min(1) });
+export const purgeCompanyResponse = z.object({ queued: z.boolean() });
+
 export const patchCompanyBody = z
   .object({
     status: z.enum(['active', 'suspended']).optional(),
@@ -74,6 +78,8 @@ export const adminCompany = z.object({
   created_at: z.date(),
   plant_count: z.number().int(),
   ai_tokens_this_month: z.number().int(),
+  /** Última exportación de datos terminada (la pide su administrador); antes de borrarla. */
+  last_export_at: z.date().nullable(),
 });
 export const adminCompaniesResponse = paginatedSchema(adminCompany);
 export const companyCreatedResponse = z.object({

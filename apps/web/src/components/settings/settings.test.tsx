@@ -1,9 +1,10 @@
 import { DEFAULT_SETTINGS } from '@pv/core';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api';
 import type { Company } from '@/lib/settings';
+import { ExportPanel } from './export-panel';
 import { NotificationsSection, NumbersSection } from './settings-section';
 import { UsersPanel } from './users-panel';
 
@@ -20,9 +21,20 @@ const api = vi.fn(
     return schema.parse(reply(path, opts?.body));
   },
 );
+// Respuesta mínima de la descarga (jsdom no lee blobs de fetch).
+const authFetch = vi.fn(async (_path: string, _init: RequestInit) => ({
+  ok: true,
+  status: 200,
+  headers: new Headers({
+    'Content-Disposition': 'attachment; filename="pv-iot-solar-demo-2026-11-03.zip"',
+  }),
+  blob: async () => new Blob(['PK']),
+}));
 vi.mock('@/lib/auth', () => ({
+  useCompanyTimezone: () => 'America/Mazatlan',
   useAuth: () => ({
     api,
+    authFetch,
     reload: async () => {},
     state: { status: 'authenticated', user: { id: ID(1), role: 'company_admin' } },
   }),
@@ -202,5 +214,53 @@ describe('usuarios', () => {
     expect(
       await screen.findByText('La empresa debe conservar un administrador activo'),
     ).toBeTruthy();
+  });
+});
+
+describe('exportar datos', () => {
+  it('pide una exportación y descarga la disponible', async () => {
+    const createObjectURL = vi.fn(() => 'blob:zip');
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
+    reply = (path, body) => {
+      if (path === '/company/exports' && body === undefined && calls.at(-1)?.method === 'POST')
+        return { queued: true };
+      return {
+        data: [
+          {
+            id: ID(5),
+            status: 'succeeded',
+            requested_at: '2026-11-03T18:00:00Z',
+            finished_at: '2026-11-03T18:02:00Z',
+            size_bytes: 2_500_000,
+            available_until: '2026-11-10T18:02:00Z',
+          },
+          {
+            id: ID(6),
+            status: 'succeeded',
+            requested_at: '2026-10-01T18:00:00Z',
+            finished_at: '2026-10-01T18:02:00Z',
+            size_bytes: 1_000,
+            available_until: null,
+          },
+        ],
+      };
+    };
+    render(<ExportPanel />);
+    expect(await screen.findByText(/2.4 MB/)).toBeTruthy();
+    expect(screen.getByText(/Ya no está disponible/)).toBeTruthy();
+    // Solo la vigente se descarga.
+    const downloads = screen.getAllByRole('button', { name: 'Descargar' });
+    expect(downloads).toHaveLength(1);
+    await userEvent.click(downloads[0] as HTMLElement);
+    expect(authFetch).toHaveBeenCalledWith(`/company/exports/${ID(5)}/download`, { method: 'GET' });
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Preparar exportación' }));
+    expect(calls.find((c) => c.method === 'POST')).toEqual({
+      path: '/company/exports',
+      method: 'POST',
+      body: undefined,
+    });
+    expect(await screen.findByText(/Estamos preparando el archivo/)).toBeTruthy();
   });
 });

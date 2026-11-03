@@ -110,11 +110,13 @@ export async function runJob(
     status: 'running' | 'succeeded' | 'failed' | 'skipped';
     error?: string;
     stats?: JobStats;
+    /** Una empresa que ya no existe (borrada definitivamente) no puede quedar referida. */
+    orphan?: boolean;
   }) =>
     deps.serviceDb.jobRun.create({
       data: {
         jobName: definition.name,
-        companyId,
+        companyId: data.orphan ? null : companyId,
         startedAt,
         finishedAt: data.status === 'running' ? null : deps.now(),
         status: data.status,
@@ -138,7 +140,10 @@ export async function runJob(
       // Empresa suspendida (o eliminada): sus jobs se pausan.
       await record({
         status: 'skipped',
-        stats: { reason: company ? 'company_suspended' : 'company_not_found' },
+        stats: company
+          ? { reason: 'company_suspended' }
+          : { reason: 'company_not_found', company_id: companyId },
+        orphan: !company,
       });
       log.info({ company_id: companyId }, 'job omitido: empresa no activa');
       return 'skipped';

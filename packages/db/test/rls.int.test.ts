@@ -293,6 +293,34 @@ describe('rol de plataforma pv_service', () => {
       expect(await pgError(() => servicePool.query(`SELECT 1 FROM ${table}`)), table).toBe('42501');
     }
   });
+
+  it('solo borra empresa, usuarios y auditoría de una empresa suspendida (borrado definitivo)', async () => {
+    const { rows } = await servicePool.query<{ id: string }>(
+      `INSERT INTO audit_log (company_id, action) VALUES ($1, 'auth.login'), (NULL, 'auth.login_failed')
+       RETURNING id`,
+      [A.companyId],
+    );
+    const ids = rows.map((r) => r.id);
+    // A está activa: nada se borra, aunque la consulta no falle.
+    for (const sql of [
+      'DELETE FROM audit_log WHERE id = ANY($1)',
+      'DELETE FROM users WHERE company_id = $2',
+      'DELETE FROM job_runs WHERE company_id = $2',
+      'DELETE FROM companies WHERE id = $2',
+    ]) {
+      const res = await servicePool.query(sql.replace('$2', '$1'), [
+        sql.includes('ANY') ? ids : A.companyId,
+      ]);
+      expect(res.rowCount, sql).toBe(0);
+    }
+    const left = await servicePool.query(
+      'SELECT count(*)::int AS n FROM audit_log WHERE id = ANY($1)',
+      [ids],
+    );
+    expect(left.rows[0].n).toBe(2);
+    // Los datos operativos tampoco: pv_service no tiene DELETE sobre ellos.
+    expect(await pgError(() => servicePool.query('DELETE FROM solar_plants'))).toBe('42501');
+  });
 });
 
 describe('withTenant (capa 1 + capa 2)', () => {
