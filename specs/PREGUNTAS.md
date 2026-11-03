@@ -431,3 +431,9 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Credenciales propuestas por planta: `access_token` e `id_site`.
     - **Pendiente, con una cuenta de prueba:** qué códigos de atributo trae la producción FV, si cada punto es energía o potencia, y si los timestamps de `stats` van en segundos o milisegundos (la documentación no lo dice).
     - **Pendiente del equipo:** confirmar por escrito con Victron el uso comercial por un tercero. La API es pública, pero sin soporte.
+213. **GoodWe (OpenAPI de SEMS): revisión de la documentación oficial (2026-11-03).** Resumen en `docs/fabricantes/goodwe-openapi.md`.
+    - El acceso **se solicita a GoodWe**, que entrega un Client ID y un Client Secret.
+    - Serie de 1 minuto por planta, en kW, hasta 100 plantas y 24 h por consulta. Energía del día por inversor, con historial desde 2025-01-01. Alarmas con código.
+    - Solo un token activo por Client ID: el worker debe compartirlo.
+    - **Decisión del PO:** ¿cada instaladora solicita acceso como *usuario de organización* con su cuenta SEMS+ (credenciales por empresa, que hoy no existen en PV-IoT), o PV-IoT se registra como *tercero* y cada cliente final autoriza con OAuth?
+    - **Pendiente con GoodWe:** límite de peticiones, formato de `Request-Id`, servidor para México, y las contradicciones de unidades y formato listadas en el documento.
