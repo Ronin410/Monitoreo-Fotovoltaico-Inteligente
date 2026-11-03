@@ -25,7 +25,7 @@ Plan unificado (2026-11-03) a partir de la revisión de cumplimiento (`docs/cump
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | :----: |
 | 0.1 | Elegir la primera marca (la que más usen los clientes piloto): GoodWe, Growatt o Victron                                                                                                                        | Equipo      |   ⬜   |
 | 0.2 | Conseguir su **documentación oficial de API** (✅ Victron y GoodWe, `docs/fabricantes/`), una cuenta de prueba con un inversor reportando y la confirmación escrita de que permite uso comercial por un tercero | Equipo      |   🟡   |
-| 0.3 | Programar el adaptador con esa documentación (GoodWe: llaves por empresa y prueba de conexión listas; falta la lectura de datos) y repetir la prueba de carga (F10-T6)                                          | Código      |   🟡   |
+| 0.3 | Programar el adaptador con esa documentación (GoodWe y Victron: credenciales y prueba de conexión listas; falta la lectura de datos, que necesita una cuenta real) y repetir la prueba de carga (F10-T6)        | Código      |   🟡   |
 
 Sin esto, un piloto solo muestra datos simulados.
 

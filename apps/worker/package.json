@@ -13,7 +13,8 @@
     "eval:assistant": "tsx src/cli/eval-assistant.ts",
     "load:test": "tsx src/cli/load-test.ts",
     "costs:report": "tsx src/cli/costs-report.ts",
-    "credentials:rotate": "tsx src/cli/rotate-credentials.ts"
+    "credentials:rotate": "tsx src/cli/rotate-credentials.ts",
+    "victron:probe": "tsx src/cli/victron-probe.ts"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

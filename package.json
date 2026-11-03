@@ -25,6 +25,7 @@
     "storage:check": "pnpm --filter @pv/api storage:check",
     "costs:report": "pnpm --filter @pv/worker costs:report",
     "credentials:rotate": "pnpm --filter @pv/worker credentials:rotate",
+    "victron:probe": "pnpm --filter @pv/worker victron:probe",
     "coverage:core": "vitest run --project @pv/core --coverage --coverage.include='src/**' --coverage.exclude='**/*.test.ts' --coverage.reporter=text-summary --coverage.thresholds.lines=90"
   },
   "devDependencies": {

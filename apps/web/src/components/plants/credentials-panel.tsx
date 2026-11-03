@@ -38,17 +38,24 @@ export function CredentialsPanel({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<{ tone: 'error' | 'success'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  // Victron (VRM): token de acceso y número de instalación (docs/fabricantes/victron-vrm.md).
+  const victron = plant.inverter_brand === 'victron';
 
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const f = new FormData(form);
     const credentials: Record<string, string> = {};
-    const username = String(f.get('cred_username') ?? '').trim();
-    const password = String(f.get('cred_password') ?? '');
-    if (username) credentials.username = username;
-    if (password) credentials.password = password;
-    for (const x of extras) if (x.key.trim() && x.value) credentials[x.key.trim()] = x.value;
+    if (victron) {
+      credentials.access_token = String(f.get('cred_access_token') ?? '').trim();
+      credentials.id_site = String(f.get('cred_id_site') ?? '').trim();
+    } else {
+      const username = String(f.get('cred_username') ?? '').trim();
+      const password = String(f.get('cred_password') ?? '');
+      if (username) credentials.username = username;
+      if (password) credentials.password = password;
+      for (const x of extras) if (x.key.trim() && x.value) credentials[x.key.trim()] = x.value;
+    }
     setBusy(true);
     setErrors({});
     setMessage(null);
@@ -115,63 +122,89 @@ export function CredentialsPanel({
       {editing ? (
         <form onSubmit={save} noValidate className="flex flex-col gap-4" autoComplete="off">
           <p className="text-xs text-slate-600 dark:text-slate-400">
-            Se guardan cifradas y nunca se vuelven a mostrar. Escribe todas las que pida el portal
-            del fabricante.
+            Se guardan cifradas y nunca se vuelven a mostrar.
+            {!victron && ' Escribe todas las que pida el portal del fabricante.'}
           </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <TextInput
-              id="cred_username"
-              label="Usuario del portal"
-              autoComplete="off"
-              error={errors['credentials']}
-            />
-            <TextInput
-              id="cred_password"
-              label="Contraseña del portal"
-              type="password"
-              autoComplete="new-password"
-            />
-          </div>
-          {extras.map((x, i) => (
-            <div key={i} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+          {victron ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <TextInput
-                id={`cred_key_${i}`}
-                label="Campo"
-                value={x.key}
-                placeholder="Por ejemplo: id de planta"
-                onChange={(e) =>
-                  setExtras(extras.map((y, j) => (j === i ? { ...y, key: e.target.value } : y)))
-                }
-              />
-              <TextInput
-                id={`cred_value_${i}`}
-                label="Valor"
+                id="cred_access_token"
+                label="Token de acceso de VRM"
                 type="password"
                 autoComplete="new-password"
-                value={x.value}
-                onChange={(e) =>
-                  setExtras(extras.map((y, j) => (j === i ? { ...y, value: e.target.value } : y)))
-                }
+                required
+                hint="Créelo en su cuenta de VRM (tokens de acceso). Se usa con el formato Token."
+                error={errors['access_token'] ?? errors['credentials']}
               />
-              <Button
-                type="button"
-                variant="ghost"
-                aria-label={`Quitar campo ${i + 1}`}
-                onClick={() => setExtras(extras.filter((_, j) => j !== i))}
-              >
-                <Trash2 aria-hidden="true" className="size-4" />
-              </Button>
+              <TextInput
+                id="cred_id_site"
+                label="Número de instalación (idSite)"
+                inputMode="numeric"
+                required
+                hint="El número de la instalación en VRM."
+                error={errors['id_site']}
+              />
             </div>
-          ))}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setExtras([...extras, { key: '', value: '' }])}
-            >
-              <Plus aria-hidden="true" className="size-4" /> Campo adicional
-            </Button>
-          </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <TextInput
+                  id="cred_username"
+                  label="Usuario del portal"
+                  autoComplete="off"
+                  error={errors['credentials']}
+                />
+                <TextInput
+                  id="cred_password"
+                  label="Contraseña del portal"
+                  type="password"
+                  autoComplete="new-password"
+                />
+              </div>
+              {extras.map((x, i) => (
+                <div key={i} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+                  <TextInput
+                    id={`cred_key_${i}`}
+                    label="Campo"
+                    value={x.key}
+                    placeholder="Por ejemplo: id de planta"
+                    onChange={(e) =>
+                      setExtras(extras.map((y, j) => (j === i ? { ...y, key: e.target.value } : y)))
+                    }
+                  />
+                  <TextInput
+                    id={`cred_value_${i}`}
+                    label="Valor"
+                    type="password"
+                    autoComplete="new-password"
+                    value={x.value}
+                    onChange={(e) =>
+                      setExtras(
+                        extras.map((y, j) => (j === i ? { ...y, value: e.target.value } : y)),
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    aria-label={`Quitar campo ${i + 1}`}
+                    onClick={() => setExtras(extras.filter((_, j) => j !== i))}
+                  >
+                    <Trash2 aria-hidden="true" className="size-4" />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setExtras([...extras, { key: '', value: '' }])}
+                >
+                  <Plus aria-hidden="true" className="size-4" /> Campo adicional
+                </Button>
+              </div>
+            </>
+          )}
           <div className="flex flex-wrap gap-2">
             <Button type="submit" disabled={busy}>
               {busy ? 'Guardando…' : 'Guardar credenciales'}

@@ -445,3 +445,8 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Cada planta se ubicará por el número de serie de su inversor (`searchType` 3 de `base-info/plants`), sin credenciales por planta.
     - La lectura de la serie de potencia sigue pendiente de una cuenta aprobada (#213).
     - **Riesgo anotado:** GoodWe admite un solo token activo por Client ID. La API (Probar conexión) y el worker son procesos distintos y cada uno pide el suyo; uno puede invalidar el del otro, y el cliente lo renueva una vez ante el error `10002`. Al programar la ingesta conviene un token compartido por empresa.
+215. **Victron: adaptador parcial (2026-11-03).**
+    - Hechos: credenciales por planta `{access_token, id_site}` (validadas al guardar) y "Probar conexión" con `/users/me` y `/users/{idUser}/installations?idSite=`.
+    - El contrato de los adaptadores gana `credentialsSchema` opcional; la API valida con él al guardar.
+    - `fetchReadings` sigue pendiente (#212). La ingesta omite esas plantas como `adapter_not_implemented`.
+    - Para cerrarlo: correr `pnpm victron:probe --site <idSite>` con un token real y entregar el archivo que genera (no contiene el token).

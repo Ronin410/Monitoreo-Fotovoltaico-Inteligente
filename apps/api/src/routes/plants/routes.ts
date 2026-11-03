@@ -543,6 +543,8 @@ export function plantsRouter(db: PrismaClient, options: PlantsRouterOptions): Ro
         include: { credentials: credentialsMeta },
       });
       if (!plant) throw plantNotFound();
+      // Marcas con adaptador: se validan los campos que pide su fabricante.
+      adapters[plant.inverterBrand].credentialsSchema?.parse(credentials);
       const encrypted = options.cipher.encrypt(credentials, {
         companyId: session.companyId,
         plantId: id,

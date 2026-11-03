@@ -11,3 +11,4 @@ coverage/
 apps/*/storage/
 next-env.d.ts
 packages/db/src/generated/
+victron-probe-*.json

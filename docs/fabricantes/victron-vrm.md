@@ -49,3 +49,24 @@ Este documento resume solo lo que dice la documentación. Lo que no dice queda e
 4. **Uso comercial por un tercero:** la documentación no lo prohíbe ni lo autoriza explícitamente. Conviene confirmarlo por escrito con el representante de Victron.
 
 Los puntos 1 y 2 se resuelven con **una cuenta de prueba**: una consulta real a `stats` y a `/data-attributes` muestra los códigos y las unidades. Esa respuesta se graba como ejemplo para las pruebas automáticas.
+
+## 6. Estado de la implementación (2026-11-03)
+
+- **Hecho:**
+  - el cliente de la VRM API (`packages/adapters/src/inverters/victron.ts`): token, manejo de 429 con `Retry-After` y errores sin el token;
+  - las credenciales por planta (`access_token` e `id_site`), validadas al guardarlas;
+  - **Probar conexión**: `GET /users/me` y que la instalación aparezca en `GET /users/{idUser}/installations`.
+  - Se comprobó contra la API real que un token inválido responde `401 invalid_token`, como dice la documentación.
+- **Pendiente:** la lectura de la serie (`fetchReadings`). Mientras tanto la ingesta omite las plantas Victron sin marcar error (`adapter_not_implemented`).
+
+### Diagnóstico con una cuenta real
+
+1. En su cuenta de VRM, cree un token de acceso; conviene ponerle vencimiento. Anote el número de la instalación (`idSite`).
+2. En la Shell de `pv-api` (o en una computadora con el repositorio), corra:
+   ```sh
+   pnpm victron:probe --site <idSite>
+   ```
+   Pide el token por la entrada estándar: no queda en el historial y no se guarda.
+3. El comando hace solo consultas de lectura documentadas: usuario, instalación, `stats` de `solar_yield`, `live_feed` y `kwh` cada 15 min, `overallstats`, `diagnostics` y `data-attributes`. En `stats` no manda `start` ni `end` (usa el último día por omisión), para no suponer la unidad de las fechas.
+4. Imprime qué series trae cada tipo y guarda las respuestas en `victron-probe-<idSite>-<fecha>.json`, sin el token ni datos personales de la instalación.
+5. Con ese archivo se confirman los códigos y las unidades, se termina `fetchReadings` y las respuestas se graban como ejemplos de prueba. Después, borre el token en VRM.

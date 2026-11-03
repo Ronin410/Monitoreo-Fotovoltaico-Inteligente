@@ -174,6 +174,19 @@ describe('PUT /api/plants/:id/credentials', () => {
     }
   });
 
+  it('Victron: exige el token de VRM y el número de instalación, sin repetirlos en el error', async () => {
+    const s = await session();
+    const id = await plant(s, 'victron');
+    const bad = await put(s.auth, id, { credentials: { access_token: SECRET_TOKEN } });
+    expect(bad.status).toBe(400);
+    expect(JSON.stringify(bad.body)).not.toContain(SECRET_TOKEN);
+    const ok = await put(s.auth, id, {
+      credentials: { access_token: SECRET_TOKEN, id_site: '151734' },
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.body.provider).toBe('victron');
+  });
+
   it('cambiar la marca de la planta borra sus credenciales', async () => {
     const s = await session();
     const id = await plant(s);

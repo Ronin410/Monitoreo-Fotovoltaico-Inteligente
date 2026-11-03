@@ -11,6 +11,14 @@ import { victronAdapter } from './victron.js';
 
 export * from './types.js';
 export { createSimulatorAdapter, type SimulatorDataSource } from './simulator.js';
+export {
+  VRM_BASE_URL,
+  VrmApiError,
+  VrmClient,
+  victronCredentialsSchema,
+  type VictronCredentials,
+  type VrmInstallation,
+} from './victron.js';
 
 export type InverterAdapterRegistry = Record<InverterBrand, InverterAdapter>;
 

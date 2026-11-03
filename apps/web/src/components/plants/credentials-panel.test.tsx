@@ -79,3 +79,24 @@ describe('credenciales del inversor (solo escritura)', () => {
     expect(screen.getByText(/Última prueba: .* · falló/)).toBeTruthy();
   });
 });
+
+describe('credenciales de Victron', () => {
+  it('pide el token de VRM y el número de instalación', async () => {
+    calls.length = 0;
+    render(
+      <CredentialsPanel
+        plant={{ ...plant, inverter_brand: 'victron' } as Plant}
+        timezone="America/Mazatlan"
+        onSaved={() => {}}
+      />,
+    );
+    expect(screen.queryByLabelText(/Usuario del portal/)).toBeNull();
+    await userEvent.type(screen.getByLabelText(/Token de acceso de VRM/), 'token-vrm-123456');
+    await userEvent.type(screen.getByLabelText(/Número de instalación/), '151734');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar credenciales' }));
+    expect(calls.at(-1)).toEqual({
+      path: `/plants/${plant.id}/credentials`,
+      body: { credentials: { access_token: 'token-vrm-123456', id_site: '151734' } },
+    });
+  });
+});
