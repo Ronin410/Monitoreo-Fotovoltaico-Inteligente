@@ -20,6 +20,7 @@ Plataforma SaaS B2B multiempresa para que **empresas instaladoras** de sistemas 
 | 11 | `11-plan-de-tareas.md` | Fases y tareas ordenadas con criterios de aceptación |
 | 12 | `12-pruebas-y-calidad.md` | Estrategia de pruebas y checklist de seguridad |
 | 13 | `13-roadmap-v2.md` | Funciones de IA para ofrecer después (fuera de alcance v1) |
+| 14 | `14-datos-adicionales-fabricantes.md` | Otros datos de Victron y GoodWe y para qué servirían (roadmap) |
 
 ## Cómo usar estos specs con el agente
 1. Sube esta carpeta y `CLAUDE.md` a la raíz del repositorio.

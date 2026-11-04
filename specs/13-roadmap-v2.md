@@ -15,5 +15,6 @@ Funciones para ofrecer después como mejoras o servicios de mantenimiento. **No 
 | 9 | **Benchmark anónimo entre empresas** | Comparar la zona contra el promedio anónimo de la plataforma | Requiere consentimiento explícito de las empresas y agregación anónima |
 | 10 | **Facturación de la suscripción** | Planes y cobro dentro de la plataforma | Stripe o proveedor local |
 | 11 | **Modo soporte para superadmin** | Ver datos de una empresa con su autorización, con auditoría | `audit_log` |
+| 12 | **Datos adicionales de los fabricantes** | Fallas del inversor, a dónde va la energía, batería, validación contra el fabricante, diagnóstico por cadena | `14-datos-adicionales-fabricantes.md` |
 
 Cada función nueva debe tener su propio spec (`14-…`) antes de empezar.
