@@ -340,6 +340,29 @@ describe('cleaning_due_soon', () => {
   });
 });
 
+describe('planta con batería o límite de inyección (specs/06 §2.4)', () => {
+  const open = { severity: 'warning' as const, detectedOn: START, cleaningDidNotRecover: false };
+
+  it('una caída que abriría alerta no abre nada', () => {
+    const days = series([1, 2, 1, 45]);
+    expect(evaluate(days)).not.toEqual([]);
+    expect(evaluate(days, { curtailable: true })).toEqual([]);
+  });
+
+  it('cierra las alertas de rendimiento que estaban abiertas, y solo esas', () => {
+    expect(
+      evaluate(series([1, 2]), {
+        curtailable: true,
+        open: { sudden_drop: open, soiling: open, cleaning_due_soon: open },
+      }),
+    ).toEqual([
+      { kind: 'resolve', type: 'sudden_drop', reason: 'curtailable_plant' },
+      { kind: 'resolve', type: 'soiling', reason: 'curtailable_plant' },
+      { kind: 'resolve', type: 'cleaning_due_soon', reason: 'curtailable_plant' },
+    ]);
+  });
+});
+
 describe('offline', () => {
   const CULIACAN = { lat: 24.8, lon: -107.39 };
   // 21 oct 2026 en Culiacán (UTC−7): amanece ≈ 13:20 UTC y anochece ≈ 00:50 UTC.

@@ -63,4 +63,10 @@ export type AlertAction =
   | { kind: 'resolve'; type: AlertType; reason: AlertResolveReason };
 
 export type AlertResolveReason =
-  'recovered' | 'cleaning_recovered' | 'cleaning_event' | 'soiling_opened' | 'readings_resumed';
+  | 'recovered'
+  | 'cleaning_recovered'
+  | 'cleaning_event'
+  | 'soiling_opened'
+  | 'readings_resumed'
+  /** La planta tiene batería o límite de inyección: sus alertas de rendimiento no aplican. */
+  | 'curtailable_plant';

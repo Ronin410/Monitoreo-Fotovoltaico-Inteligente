@@ -34,6 +34,11 @@ export type DailyAlertInput = {
   events: AlertPlantEvent[];
   open: { sudden_drop?: OpenAlert; soiling?: OpenAlert; cleaning_due_soon?: OpenAlert };
   thresholds: AlertThresholds;
+  /**
+   * La planta tiene batería o límite de inyección (specs/06 §2.4): el inversor puede bajar la
+   * producción a propósito, así que un rendimiento bajo no indica suciedad ni falla.
+   */
+  curtailable?: boolean;
 };
 
 const triggerOf = (days: AlertDay[]): AlertTrigger => ({
@@ -219,6 +224,12 @@ function evaluateCleaningDueSoon(
 
 /** Acciones de las reglas diarias para una planta y una fecha. */
 export function evaluateDailyAlerts(input: DailyAlertInput): AlertAction[] {
+  // Planta que limita su producción: no se abren alertas de rendimiento y las abiertas se cierran.
+  if (input.curtailable) {
+    return (['sudden_drop', 'soiling', 'cleaning_due_soon'] as const)
+      .filter((type) => input.open[type])
+      .map((type) => ({ kind: 'resolve', type, reason: 'curtailable_plant' }));
+  }
   const valid = validDays(input);
   const actions: AlertAction[] = [];
 

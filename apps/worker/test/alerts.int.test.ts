@@ -140,6 +140,35 @@ describe('alerts.evaluate', () => {
     }
   });
 
+  it('planta con batería o límite de inyección: sin alertas de rendimiento, y cierra las abiertas', async () => {
+    const c = await createCompanyWithClient(ctx.owner);
+    const plant = await createPlant(ctx.owner, c.company.id, c.client.id);
+    await metrics(c, plant.id, [1, 2, 45, 44]);
+    expect(await evaluate(c, 2)).toMatchObject({ opened: 1 });
+
+    // Se marca después: la alerta abierta se cierra y no se abre otra.
+    await ctx.owner.solarPlant.update({ where: { id: plant.id }, data: { hasBattery: true } });
+    expect(await evaluate(c, 3)).toMatchObject({ opened: 0, resolved: 1 });
+    const [alert] = await alertsOf(plant.id);
+    expect(alert).toMatchObject({ status: 'resolved', resolution: 'auto' });
+    expect(await alertsOf(plant.id)).toHaveLength(1);
+  });
+
+  it('las plantas que limitan su producción no cuentan para el evento de zona', async () => {
+    const c = await createCompanyWithClient(ctx.owner);
+    const plants = [];
+    for (let i = 0; i < 3; i++)
+      plants.push(await createPlant(ctx.owner, c.company.id, c.client.id));
+    for (const p of plants) await metrics(c, p.id, [1, 2, 45]);
+    // Dos de las tres tienen límite de inyección: la caída de la tercera ya no es "de la zona".
+    for (const p of plants.slice(0, 2)) {
+      await ctx.owner.solarPlant.update({ where: { id: p.id }, data: { exportLimited: true } });
+    }
+    expect(await evaluate(c, 2)).toMatchObject({ zone_events: 0, opened: 1 });
+    expect(await alertsOf(plants[2]!.id)).toHaveLength(1);
+    for (const p of plants.slice(0, 2)) expect(await alertsOf(p.id)).toHaveLength(0);
+  });
+
   it('el evento de zona solo agrupa plantas de la misma empresa', async () => {
     const a = await createCompanyWithClient(ctx.owner);
     const b = await createCompanyWithClient(ctx.owner);
@@ -298,7 +327,7 @@ describe('alerts.offline_company', () => {
     expect(await alertsOf(broken.plant.id)).toHaveLength(0);
   });
 
-  it('una marca sin adaptador (Growatt o Victron hoy) no crea alerta offline', async () => {
+  it('una marca sin adaptador (Growatt hoy) no crea alerta offline', async () => {
     ctx.setNow(localTime('2026-10-21', 14));
     const { company, plant } = await plantWithLastReading(localTime('2026-10-21', 8));
     await ctx.owner.solarPlant.update({

@@ -42,6 +42,8 @@ type Plant = {
   capacityKwp: number;
   noctC: number;
   gammaPctPerC: number;
+  /** Con batería o límite de inyección (specs/06 §2.4): puede limitar su producción. */
+  curtailable: boolean;
 };
 
 type PlantDay = {
@@ -157,6 +159,7 @@ export async function computeCompanyDay(ctx: JobContext, companyId: string, date
         capacityKwp: Number(p.capacityKwp),
         noctC: Number(p.noctC),
         gammaPctPerC: Number(p.gammaPctPerC),
+        curtailable: p.hasBattery || p.exportLimited,
       }));
       if (plants.length === 0) return { date, plants: 0 };
       const ids = plants.map((p) => p.id);
@@ -251,8 +254,9 @@ export async function computeCompanyDay(ctx: JobContext, companyId: string, date
         return { plant, day, own, history: baselineHistory };
       });
 
-      // Línea base provisional: mediana de las líneas base propias de las vecinas (§4, §6).
-      const withOwn = days.filter((d) => d.own.source === 'own');
+      // Línea base provisional: mediana de las líneas base propias de las vecinas (§4, §6). Una
+      // planta que limita su producción no sirve de referencia (specs/06 §2.4).
+      const withOwn = days.filter((d) => d.own.source === 'own' && !d.plant.curtailable);
       const results: PlantDay[] = days.map(({ plant, day, own, history: h }) => {
         let baseline = own;
         if (own.source !== 'own') {
@@ -294,8 +298,9 @@ export async function computeCompanyDay(ctx: JobContext, companyId: string, date
             rPct: (100 * day.prTemp) / baseline.value,
           });
         }
+        // Sin predicción de lavado: su rendimiento bajo puede ser producción limitada a propósito.
         const soiling = predictSoiling(
-          points,
+          plant.curtailable ? [] : points,
           daysBetween(resetDay, date),
           thresholds.soiling_deviation_pct,
         );
@@ -312,7 +317,7 @@ export async function computeCompanyDay(ctx: JobContext, companyId: string, date
         prBaseline: r.baseline.value,
         isValidDay: r.day.isValidDay,
       });
-      const candidates = results.map(toCandidate);
+      const candidates = results.filter((r) => !r.plant.curtailable).map(toCandidate);
       for (const r of results) {
         const neighbors = neighborIndex(toCandidate(r), candidates, {
           radiusKm: thresholds.neighbor_radius_km,
@@ -324,7 +329,8 @@ export async function computeCompanyDay(ctx: JobContext, companyId: string, date
           openAlertSeverities: openAlerts
             .filter((a) => a.plantId === r.plant.id)
             .map((a) => a.severity),
-          deviationPct: r.deviation,
+          // Su desviación no cuenta para el estado: puede ser producción limitada a propósito.
+          deviationPct: r.plant.curtailable ? null : r.deviation,
           daysToCleaning: r.soiling.daysToCleaning,
           soilingDeviationPct: thresholds.soiling_deviation_pct,
         });

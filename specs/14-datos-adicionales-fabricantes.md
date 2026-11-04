@@ -43,7 +43,7 @@ Se mostrarían como extras ("cuando la marca lo permite"), sin entrar en las est
 ## 4. Prioridad propuesta
 
 1. **D4, validación diaria contra el total del fabricante.** Da confianza en los números, y sirve en el piloto para detectar cualquier error de conversión.
-2. **D3, producción limitada en plantas con batería o con límite de inyección.** Evita alertas falsas de suciedad o de caída brusca en sistemas que reducen su producción a propósito. Mientras no exista, conviene marcar esas plantas a mano y revisar sus alertas con criterio.
+2. **D3, producción limitada en plantas con batería o con límite de inyección.** Evita alertas falsas de suciedad o de caída brusca en sistemas que reducen su producción a propósito. _Primer paso hecho (2026-11-04): la instaladora marca la planta y sus alertas de rendimiento se omiten por completo (`06` §2). Falta el dato del fabricante para excluir solo los ratos limitados._
 3. **D1, historial de fallas.** Es lo que más esperan las instaladoras: saber por qué se detuvo el inversor.
 4. **D2, a dónde va la energía.** Ahorro real y autoconsumo; refuerza el plan Pro (5.3 del plan de lanzamiento).
 5. **E1, diagnóstico por cadena de GoodWe**, como extra de esa marca.

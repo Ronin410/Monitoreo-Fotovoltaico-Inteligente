@@ -136,6 +136,31 @@ describe('importación masiva de plantas', () => {
     expect(twice.body.errors[0].message).toMatch(/ya tiene una planta llamada "Casa"/);
   });
 
+  it('lee "con batería" y "límite de inyección" como sí o no', async () => {
+    const f = await company();
+    const csv = [
+      'cliente,direccion,colonia,codigo_postal,latitud,longitud,planta,capacidad_kwp,marca_inversor,con_bateria,limite_inyeccion',
+      'Casa Uno,Calle 1,Centro,80000,24.8,-107.39,Techo,5,Victron,Sí,',
+      'Casa Uno,Calle 1,Centro,80000,24.8,-107.39,Patio,3,GoodWe,no,x',
+      'Casa Uno,Calle 1,Centro,80000,24.8,-107.39,Bodega,3,GoodWe,tal vez,no',
+    ].join('\n');
+    const bad = await importCsv(f.auth, csv, true);
+    expect(bad.body.errors).toEqual([
+      { row: 4, column: 'con_bateria', message: '"tal vez" no es sí o no' },
+    ]);
+    const res = await importCsv(f.auth, csv.split('\n').slice(0, 3).join('\n'));
+    expect(res.body).toMatchObject({ imported: true, plants_new: 2 });
+    const plants = await ctx.owner.solarPlant.findMany({
+      where: { companyId: f.company.id },
+      orderBy: { name: 'asc' },
+      select: { name: true, hasBattery: true, exportLimited: true },
+    });
+    expect(plants).toEqual([
+      { name: 'Patio', hasBattery: false, exportLimited: true },
+      { name: 'Techo', hasBattery: true, exportLimited: false },
+    ]);
+  });
+
   it('faltan columnas, archivo vacío, plantas repetidas y permisos', async () => {
     const f = await company();
     const missing = await importCsv(f.auth, 'cliente,planta\nA,B', true);

@@ -59,6 +59,8 @@ export const plantSchema = z.object({
   last_reading_at: z.string().nullable(),
   last_power_kw: z.number().nullable(),
   simulation_profile: simulationProfileSchema.nullable(),
+  has_battery: z.boolean(),
+  export_limited: z.boolean(),
   credentials: credentialsStatus,
   metrics: z
     .object({

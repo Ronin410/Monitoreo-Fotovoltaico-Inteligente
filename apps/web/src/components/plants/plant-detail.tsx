@@ -243,6 +243,14 @@ export function PlantDetail({ id }: { id: string }) {
               : `${p.panel_count}${p.panel_model ? ` × ${p.panel_model}` : ''}`}
           </Item>
           <Item label="Número de serie">{p.inverter_serial}</Item>
+          {(p.has_battery || p.export_limited) && (
+            <Item label="Producción limitada">
+              {[p.has_battery && 'Con batería', p.export_limited && 'Límite de inyección']
+                .filter(Boolean)
+                .join(' · ')}
+              {' — sin alertas de suciedad ni de caída de rendimiento'}
+            </Item>
+          )}
           <Item label="Puesta en marcha">
             {p.commissioning_date &&
               formatDate(p.commissioning_date, { day: 'numeric', month: 'long', year: 'numeric' })}

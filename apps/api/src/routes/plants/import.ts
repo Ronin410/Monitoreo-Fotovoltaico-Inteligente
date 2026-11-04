@@ -42,6 +42,8 @@ const PLANT_COLUMNS = {
   orientacion: 'azimuth_deg',
   latitud_planta: 'lat',
   longitud_planta: 'lon',
+  con_bateria: 'has_battery',
+  limite_inyeccion: 'export_limited',
 } as const;
 
 export const IMPORT_COLUMNS = [...Object.keys(CLIENT_COLUMNS), ...Object.keys(PLANT_COLUMNS)];
@@ -60,6 +62,11 @@ const NUMERIC = new Set([
   'latitud_planta',
   'longitud_planta',
 ]);
+
+/** Columnas de sí/no (specs/06 §2.4). Vacío es "no". */
+const BOOLEAN = new Set(['con_bateria', 'limite_inyeccion']);
+const YES = new Set(['si', 'yes', 'x', '1', 'true', 'verdadero']);
+const NO = new Set(['no', '0', 'false', 'falso']);
 
 const BRANDS: Record<string, InverterBrand> = {
   goodwe: 'goodwe',
@@ -167,6 +174,14 @@ export function planImport(
             fail(col, `"${raw}" no es un número`);
             ok = false;
           } else out[field] = n;
+        } else if (BOOLEAN.has(col)) {
+          const v = normalizeHeader(raw);
+          if (YES.has(v)) out[field] = true;
+          else if (NO.has(v)) out[field] = false;
+          else {
+            fail(col, `"${raw}" no es sí o no`);
+            ok = false;
+          }
         } else if (col === 'puesta_en_marcha') out[field] = isoDate(raw);
         else out[field] = raw;
       }

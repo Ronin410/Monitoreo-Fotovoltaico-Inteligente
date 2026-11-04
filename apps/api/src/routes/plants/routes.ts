@@ -166,6 +166,8 @@ function plantDto(
     last_reading_at: p.lastReadingAt,
     last_power_kw: dec(p.lastPowerKw),
     simulation_profile: p.simulationProfile as z.input<typeof plantResponse>['simulation_profile'],
+    has_battery: p.hasBattery,
+    export_limited: p.exportLimited,
     credentials: credentialsDto(p.credentials),
     metrics,
     created_at: p.createdAt,
@@ -200,6 +202,8 @@ function toData(b: Partial<z.output<typeof patchPlantBody>>) {
     colonia: b.colonia,
     status: b.status,
     simulationProfile: jsonOrDbNull(b.simulation_profile),
+    hasBattery: b.has_battery,
+    exportLimited: b.export_limited,
   };
 }
 

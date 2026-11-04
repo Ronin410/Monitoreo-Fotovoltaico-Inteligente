@@ -41,6 +41,15 @@ Se evalúa sobre días válidos sin `zone_event`:
 - Severidad `info`. No envía correo individual; aparece en el resumen diario y en el tablero.
 - Se resuelve sola cuando se abre la alerta `soiling` o cuando hay un evento de limpieza.
 
+### Plantas que limitan su producción a propósito (decisión del PO, 2026-11-04)
+Una planta **con batería** (cuando la batería se llena y no hay consumo) o **con límite de inyección a la red** (cero exportación o tope de potencia) puede producir menos a propósito. Ese rendimiento bajo no indica suciedad ni falla. La instaladora lo marca en la planta (`has_battery`, `export_limited`). Con cualquiera de las dos:
+- No se abren `sudden_drop`, `soiling` ni `cleaning_due_soon`, y las que estuvieran abiertas se resuelven solas (motivo `curtailable_plant`).
+- No se predice la fecha de lavado, y su desviación no cambia el estado diario de la planta. La energía, el PR y la desviación se siguen calculando y guardando.
+- No sirve de vecina para las demás: queda fuera del índice de vecinas, de la línea base provisional (`05` §4, §6) y del evento de zona (§1).
+- `offline` y las alertas por falla del fabricante siguen igual.
+
+Es una medida provisional mientras no se lea el estado de la batería del fabricante. Ese dato permitiría excluir solo los ratos con producción limitada, y no toda la planta (`14-datos-adicionales-fabricantes.md`, D3).
+
 ## 3. Evidencia (`alerts.evidence`)
 Se guarda al abrir la alerta y se actualiza mientras siga abierta:
 ```json

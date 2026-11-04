@@ -32,6 +32,8 @@ const plantFields = {
   colonia: text(120),
   status: plantStatusSchema,
   simulation_profile: nullable(simulationProfileSchema),
+  has_battery: z.boolean(),
+  export_limited: z.boolean(),
 };
 
 // Entrada. Los campos técnicos toman el valor por defecto de la empresa y la ubicación se copia
@@ -46,6 +48,8 @@ export const createPlantBody = z
     postal_code: true,
     colonia: true,
     status: true,
+    has_battery: true,
+    export_limited: true,
   })
   .refine(
     (b) => (b.lat === undefined || b.lat === null) === (b.lon === undefined || b.lon === null),
@@ -137,6 +141,8 @@ export const plantResponse = z.object({
   last_reading_at: z.date().nullable(),
   last_power_kw: z.number().nullable(),
   simulation_profile: simulationProfileSchema.nullable(),
+  has_battery: z.boolean(),
+  export_limited: z.boolean(),
   credentials: credentialsStatus,
   /** Indicadores actuales; null en las respuestas de crear y editar. */
   metrics: z

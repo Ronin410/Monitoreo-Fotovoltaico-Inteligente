@@ -146,10 +146,16 @@ export async function evaluateCompanyDay(ctx: JobContext, companyId: string, dat
           postalCode: true,
           lat: true,
           lon: true,
+          hasBattery: true,
+          exportLimited: true,
           client: { select: { name: true } },
         },
       });
       const ids = plants.map((p) => p.id);
+      // Con batería o límite de inyección: puede limitar su producción (specs/06 §2.4).
+      const curtailable = new Set(
+        plants.filter((p) => p.hasBattery || p.exportLimited).map((p) => p.id),
+      );
       const [metrics, events, openAlerts] = await Promise.all([
         tx.plantDailyMetric.findMany({
           where: {
@@ -185,17 +191,19 @@ export async function evaluateCompanyDay(ctx: JobContext, companyId: string, dat
       const todays = metrics.filter((m) => isoDay(m.date) === date);
       const plantById = new Map(plants.map((p) => [p.id, p]));
       const zone = zoneEventPlants(
-        todays.map((m) => {
-          const p = plantById.get(m.plantId);
-          return {
-            plantId: m.plantId,
-            postalCode: p?.postalCode ?? m.postalCode,
-            lat: num(p?.lat ?? null),
-            lon: num(p?.lon ?? null),
-            isValidDay: m.isValidDay,
-            deviationPct: num(m.deviationPct),
-          };
-        }),
+        todays
+          .filter((m) => !curtailable.has(m.plantId))
+          .map((m) => {
+            const p = plantById.get(m.plantId);
+            return {
+              plantId: m.plantId,
+              postalCode: p?.postalCode ?? m.postalCode,
+              lat: num(p?.lat ?? null),
+              lon: num(p?.lon ?? null),
+              isValidDay: m.isValidDay,
+              deviationPct: num(m.deviationPct),
+            };
+          }),
         thresholds,
       );
       for (const m of todays) {
@@ -267,6 +275,7 @@ export async function evaluateCompanyDay(ctx: JobContext, companyId: string, dat
           events: plantEvents,
           open,
           thresholds,
+          curtailable: curtailable.has(m.plantId),
         });
         for (const action of actions) {
           const openedId = await applyAction(

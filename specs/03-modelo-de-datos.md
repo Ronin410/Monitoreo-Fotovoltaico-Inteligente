@@ -102,6 +102,8 @@ job_name, company_id null, started_at, finished_at, status, error, stats jsonb.
 | last_reading_at | timestamptz null | |
 | last_power_kw | numeric null | |
 | simulation_profile | jsonb null | solo si `inverter_brand = simulator` (ver `04`) |
+| has_battery | bool, por defecto false | tiene batería: puede limitar su producción (`06` §2) |
+| export_limited | bool, por defecto false | tiene límite de inyección a la red (`06` §2) |
 | deleted_at | timestamptz null | |
 
 Índices: `(company_id, postal_code)`, `(company_id, status)`.

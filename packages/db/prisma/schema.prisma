@@ -479,6 +479,11 @@ model SolarPlant {
   lastPowerKw       Decimal?      @map("last_power_kw") @db.Decimal(14, 4)
   /// Solo si inverter_brand = simulator (ver specs/04 §3).
   simulationProfile Json?         @map("simulation_profile")
+  /// El inversor puede limitar la producción a propósito (specs/06 §2.4): con batería (al llenarse,
+  /// sin consumo) o con límite de inyección a la red. Sin alertas de rendimiento ni predicción de
+  /// lavado, y no sirve de referencia para sus vecinas.
+  hasBattery        Boolean       @default(false) @map("has_battery")
+  exportLimited     Boolean       @default(false) @map("export_limited")
   deletedAt         DateTime?     @map("deleted_at") @db.Timestamptz
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz

@@ -239,6 +239,41 @@ describe('metrics.recompute / metrics.daily_company', () => {
     expect(row?.baselineSource).toBe('neighbors');
   });
 
+  it('planta con batería: sin predicción de lavado y sin servir de vecina a las demás', async () => {
+    const c = await createCompanyWithClient(ctx.owner);
+    await ctx.owner.company.update({
+      where: { id: c.company.id },
+      data: { settings: { thresholds: { neighbor_min_count: 2 } } },
+    });
+    const battery = await simulatedPlant(
+      c,
+      [{ type: 'soiling', start: FIRST, rate_pct_per_day: 0.6 }],
+      8,
+    );
+    const others = [await simulatedPlant(c, [], 9), await simulatedPlant(c, [], 10)];
+    await ingest(c.company.id, [battery.id, ...others.map((p) => p.id)]);
+    await ctx.owner.plantWeatherHourly.updateMany({
+      where: { plantId: battery.id },
+      data: { precipitationMm: 0 },
+    });
+    await ctx.owner.solarPlant.update({ where: { id: battery.id }, data: { hasBattery: true } });
+    await recompute(c.company.id);
+
+    const last = (await metricsOf(battery.id)).at(-1)!;
+    expect(last).toMatchObject({
+      soilingSlopePctPerDay: null,
+      daysToCleaning: null,
+      predictionConfidence: null,
+    });
+    // Sus datos se siguen guardando (energía y PR).
+    expect(Number(last.energyKwh)).toBeGreaterThan(0);
+    // Cada una de las otras solo tiene 1 vecina válida (< mínimo 2): sin índice.
+    for (const p of others) {
+      const row = (await metricsOf(p.id)).at(-1)!;
+      expect(row.neighborCount).toBe(0);
+    }
+  });
+
   it('una planta sin telemetría queda sin datos válidos; no se calcula antes de su puesta en marcha', async () => {
     const c = await createCompanyWithClient(ctx.owner);
     const silent = await createPlant(ctx.owner, c.company.id, c.client.id);

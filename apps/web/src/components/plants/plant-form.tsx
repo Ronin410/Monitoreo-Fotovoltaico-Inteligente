@@ -100,6 +100,8 @@ export function PlantForm({ plant }: { plant?: Plant }) {
       postal_code: optional(textOrNull(f, 'postal_code')),
       colonia: optional(textOrNull(f, 'colonia')),
       simulation_profile: brand === 'simulator' ? profile : null,
+      has_battery: f.get('has_battery') === 'on',
+      export_limited: f.get('export_limited') === 'on',
     };
     if (plant) body.status = f.get('status');
     const bad = invalidNumbers(f, [
@@ -222,6 +224,41 @@ export function PlantForm({ plant }: { plant?: Plant }) {
           defaultValue={v(plant?.panel_count)}
           error={errors.panel_count}
         />
+        <label className="flex min-h-11 items-start gap-3 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            name="has_battery"
+            defaultChecked={plant?.has_battery ?? false}
+            className="mt-0.5 size-5 accent-brand"
+          />
+          <span>
+            <span className="font-medium">Tiene batería</span>
+            <span className="block text-slate-600 dark:text-slate-400">
+              Cuando la batería se llena y no hay consumo, el inversor baja la producción a
+              propósito.
+            </span>
+          </span>
+        </label>
+        <label className="flex min-h-11 items-start gap-3 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            name="export_limited"
+            defaultChecked={plant?.export_limited ?? false}
+            className="mt-0.5 size-5 accent-brand"
+          />
+          <span>
+            <span className="font-medium">Tiene límite de inyección a la red</span>
+            <span className="block text-slate-600 dark:text-slate-400">
+              Cero exportación o un tope de potencia hacia la red: el inversor recorta la producción
+              que sobra.
+            </span>
+          </span>
+        </label>
+        <p className="text-xs text-slate-600 dark:text-slate-400 sm:col-span-2">
+          Con cualquiera de las dos, la plataforma no genera alertas de suciedad ni de caída de
+          rendimiento para esta planta, porque un rendimiento bajo puede ser producción limitada y
+          no una falla. Las alertas de &quot;sin datos&quot; siguen activas.
+        </p>
       </Fieldset>
 
       <Fieldset
