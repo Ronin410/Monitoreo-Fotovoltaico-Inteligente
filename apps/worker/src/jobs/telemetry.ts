@@ -126,6 +126,16 @@ export const ingestTelemetryPlantJob = registerJob(ingestTelemetryPlant, async (
   if (!plant.credentials && plant.inverterBrand !== 'simulator') {
     return { plant_id: plant.id, skipped: 'no_credentials' };
   }
+  const adapter = ctx.adapters(companyId)[plant.inverterBrand];
+  // Marcas con llaves de la empresa (Enphase): sin ellas la planta no se puede leer.
+  const integrationRow = adapter.usesCompanyIntegration
+    ? await withTenant(ctx.db, companyId, (tx) =>
+        tx.companyIntegration.findFirst({ where: { provider: plant.inverterBrand } }),
+      )
+    : null;
+  if (adapter.usesCompanyIntegration && !integrationRow) {
+    return { plant_id: plant.id, skipped: 'no_integration' };
+  }
 
   const lastReading = plant.lastReadingAt?.getTime() ?? 0;
   const since = new Date(Math.max(lastReading - OVERLAP_MS, now.getTime() - MAX_LOOKBACK_MS));
@@ -137,7 +147,10 @@ export const ingestTelemetryPlantJob = registerJob(ingestTelemetryPlant, async (
     const creds = plant.credentials
       ? ctx.cipher.decrypt(plant.credentials, { companyId, plantId: plant.id })
       : {};
-    readings = await ctx.adapters(companyId)[plant.inverterBrand].fetchReadings({
+    const integration = integrationRow
+      ? ctx.cipher.decrypt(integrationRow, { companyId, integration: integrationRow.provider })
+      : undefined;
+    readings = await adapter.fetchReadings({
       plant: {
         id: plant.id,
         capacityKwp: Number(plant.capacityKwp),
@@ -152,6 +165,7 @@ export const ingestTelemetryPlantJob = registerJob(ingestTelemetryPlant, async (
         timezone,
       },
       creds,
+      integration,
       since,
       until,
     });

@@ -187,6 +187,15 @@ describe('PUT /api/plants/:id/credentials', () => {
     expect(ok.body.provider).toBe('victron');
   });
 
+  it('Enphase: cada planta guarda su número de sistema', async () => {
+    const s = await session();
+    const id = await plant(s, 'enphase');
+    expect((await put(s.auth, id, { credentials: { username: 'u' } })).status).toBe(400);
+    const ok = await put(s.auth, id, { credentials: { system_id: '698905955' } });
+    expect(ok.status).toBe(200);
+    expect(ok.body.provider).toBe('enphase');
+  });
+
   it('cambiar la marca de la planta borra sus credenciales', async () => {
     const s = await session();
     const id = await plant(s);
@@ -240,6 +249,15 @@ describe('POST /api/plants/:id/credentials/test', () => {
     expect(noCreds.body.error.code).toBe('NO_CREDENTIALS');
     const sim = await test(s.auth, await plant(s, 'simulator'));
     expect(sim.body).toMatchObject({ ok: true });
+  });
+
+  it('Enphase sin la cuenta de la empresa responde 409 NO_INTEGRATION', async () => {
+    const s = await session();
+    const id = await plant(s, 'enphase');
+    await put(s.auth, id, { credentials: { system_id: '698905955' } });
+    const res = await test(s.auth, id);
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('NO_INTEGRATION');
   });
 
   it('limita a 5 pruebas por minuto por planta', async () => {

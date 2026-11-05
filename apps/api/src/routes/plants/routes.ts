@@ -606,15 +606,34 @@ export function plantsRouter(db: PrismaClient, options: PlantsRouterOptions): Ro
     if (!target.credentials && target.inverterBrand !== 'simulator') {
       throw new HttpError(409, 'NO_CREDENTIALS', 'La planta no tiene credenciales guardadas');
     }
+    const adapter = adapters[target.inverterBrand];
+    // Marcas con llaves de la empresa (Enphase): se prueban junto con las de la planta.
+    const integrationRow = adapter.usesCompanyIntegration
+      ? await withTenant(db, companyId, (tx) =>
+          tx.companyIntegration.findFirst({ where: { provider: target.inverterBrand } }),
+        )
+      : null;
+    if (adapter.usesCompanyIntegration && !integrationRow) {
+      throw new HttpError(
+        409,
+        'NO_INTEGRATION',
+        'Primero conecte la cuenta de la marca en Configuración → Integraciones',
+      );
+    }
 
     let ok = false;
     try {
       const creds = target.credentials
         ? options.cipher.decrypt(target.credentials, { companyId, plantId: id })
         : {};
-      const adapter = adapters[target.inverterBrand];
+      const integration = integrationRow
+        ? options.cipher.decrypt(integrationRow, {
+            companyId,
+            integration: integrationRow.provider,
+          })
+        : undefined;
       const result = await Promise.race([
-        adapter.testConnection(creds),
+        adapter.testConnection(creds, integration),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('timeout')), CONNECTION_TEST_TIMEOUT_MS).unref(),
         ),

@@ -58,14 +58,10 @@ describe('integraciones de la empresa', () => {
   it('el administrador guarda las llaves de GoodWe cifradas y la API nunca las devuelve', async () => {
     const { company, auth } = await companyWithAdmin();
     const before = await send('get', '/company/integrations', auth);
+    const empty = { configured: false, updated_at: null, last_test_at: null, last_test_ok: null };
     expect(before.body.data).toEqual([
-      {
-        provider: 'goodwe',
-        configured: false,
-        updated_at: null,
-        last_test_at: null,
-        last_test_ok: null,
-      },
+      { provider: 'goodwe', ...empty },
+      { provider: 'enphase', ...empty },
     ]);
 
     const put = await send('put', '/company/integrations/goodwe', auth, { credentials: goodwe });

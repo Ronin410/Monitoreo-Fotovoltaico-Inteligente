@@ -48,8 +48,17 @@ Reglas de la telemetría: sin `start_at` empieza a la medianoche **en la zona ho
 - **Serie de 15 minutos:** con medidor, `wh_del` ya viene cada 15 min (kW = Wh × 4 / 1000). Sin medidor, se suman tres intervalos de 5 min de `enwh`. Los timestamps son de **fin** de intervalo; PV-IoT guarda el inicio, así que se resta la duración.
 - **Requisito en campo:** el sistema debe estar dado de alta en Enlighten y reportando con su Envoy.
 
-## 4. Pendientes (ver `specs/PREGUNTAS.md` #222)
+## 4. Implementación (2026-11-05)
+
+- **Credenciales (decisión del PO, #224):** se guarda cifrada la cuenta de Enlighten (correo y contraseña) junto con la API key, el Client ID y el Client Secret, en `company_integrations`. Con ella la plataforma pide un token nuevo cuando vence (cada día), sin que la instaladora tenga que volver a capturar nada.
+- Cliente: `packages/adapters/src/integrations/enphase.ts`. El token se guarda solo en memoria del proceso y se comparte entre las plantas de la misma cuenta. Con 401 se pide uno nuevo una vez; 429 hace que el job reintente.
+- Adaptador: `packages/adapters/src/inverters/enphase.ts`. Cada planta guarda su `system_id`. Lee `telemetry/production_micro` (un día por consulta) y suma los tres intervalos de 5 min de cada cuarto de hora. Un cuarto de hora incompleto no se entrega, para no confundir un hueco con producción baja.
+- Sin la cuenta de la empresa, la planta se omite (`no_integration`) y cuenta como problema de conexión, no como planta sin datos.
+- Pantallas: **Configuración → Integraciones → Enphase** y, en cada planta, el número de sistema.
+- Las pruebas usan respuestas con la forma de los ejemplos de la especificación oficial. Falta validarlas con una cuenta real.
+
+## 5. Pendientes (ver `specs/PREGUNTAS.md` #222 y #224)
 
 1. Confirmar que la empresa cumple el requisito del plan Partner (10 instalaciones Enphase) y que acepta el costo por petición.
-2. ~~Decidir la frecuencia de lectura.~~ Cada 2 horas (ver §3). Falta decidir si se guarda la cuenta de Enlighten o solo el refresh token. Guardar solo el refresh token obliga a renovarlo antes de un mes; si se vence, la instaladora tendría que volver a capturar su contraseña.
-3. Confirmar con respuestas reales el servidor de producción (`api.enphaseenergy.com`), la zona horaria y que `end_at` es el fin del intervalo.
+2. Con una cuenta real: confirmar el servidor de producción (`api.enphaseenergy.com`), la zona horaria, que `end_at` es el fin del intervalo y que los intervalos sin producción vienen con 0 (si no vienen, los cuartos de hora de madrugada y atardecer contarían como faltantes).
+3. Sistemas con medidor de producción: hoy se usa la suma de los microinversores. Se puede cambiar a `telemetry/production_meter` si se prefiere la lectura del medidor.

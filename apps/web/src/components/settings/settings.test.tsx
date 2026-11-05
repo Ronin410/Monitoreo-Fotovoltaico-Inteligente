@@ -308,4 +308,39 @@ describe('integraciones', () => {
     });
     expect(await screen.findByText('Conexión exitosa')).toBeTruthy();
   });
+
+  it('muestra Enphase y guarda su cuenta de Enlighten sin recortar la contraseña', async () => {
+    reply = (path, body) => {
+      const status = (provider: string) => ({
+        provider,
+        configured: false,
+        updated_at: null,
+        last_test_at: null,
+        last_test_ok: null,
+      });
+      if (path === '/company/integrations/enphase' && body) return status('enphase');
+      return { data: [status('goodwe'), status('enphase')] };
+    };
+    render(<IntegrationsPanel />);
+    expect(await screen.findByText('Enphase (Enlighten)')).toBeTruthy();
+    await userEvent.type(screen.getByLabelText(/API key/), 'llave-app');
+    await userEvent.type(screen.getAllByLabelText(/Client ID/)[1]!, 'cliente-app');
+    await userEvent.type(screen.getAllByLabelText(/Client Secret/)[1]!, 'secreto-app');
+    await userEvent.type(screen.getByLabelText(/Correo de Enlighten/), 'ops@instaladora.mx');
+    await userEvent.type(screen.getByLabelText(/Contraseña de Enlighten/), ' Clave 1 ');
+    await userEvent.click(screen.getAllByRole('button', { name: 'Guardar llaves' })[1]!);
+    expect(calls.find((c) => c.method === 'PUT')).toEqual({
+      path: '/company/integrations/enphase',
+      method: 'PUT',
+      body: {
+        credentials: {
+          api_key: 'llave-app',
+          client_id: 'cliente-app',
+          client_secret: 'secreto-app',
+          username: 'ops@instaladora.mx',
+          password: ' Clave 1 ',
+        },
+      },
+    });
+  });
 });

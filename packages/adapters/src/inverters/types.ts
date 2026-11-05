@@ -41,11 +41,20 @@ export interface InverterAdapter {
    * espacia en marcas que cobran por consulta (specs/PREGUNTAS.md #223).
    */
   readonly pollEveryMinutes?: number;
-  /** Recibe las credenciales descifradas, solo en memoria. */
-  testConnection(creds: unknown): Promise<ConnectionTestResult>;
+  /**
+   * La marca usa las llaves de la empresa (company_integrations, mismo `provider`) además de las
+   * de la planta. Sin ellas, la planta no se lee.
+   */
+  readonly usesCompanyIntegration?: boolean;
+  /**
+   * Recibe las credenciales descifradas, solo en memoria. `integration` son las de la empresa, si
+   * la marca las usa.
+   */
+  testConnection(creds: unknown, integration?: unknown): Promise<ConnectionTestResult>;
   fetchReadings(args: {
     plant: PlantForAdapter;
     creds: unknown;
+    integration?: unknown;
     since: Date;
     until: Date;
   }): Promise<RawReading[]>;

@@ -114,7 +114,7 @@ export const BRANDS = [
   { name: 'Growatt', status: 'soon' },
   { name: 'Huawei', status: 'soon' },
   { name: 'Fronius', status: 'soon' },
-  { name: 'Enphase', status: 'soon' },
+  { name: 'Enphase', status: 'integrating' },
 ] as const;
 
 export const BRAND_STATUS = {

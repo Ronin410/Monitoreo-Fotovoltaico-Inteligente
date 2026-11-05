@@ -490,3 +490,10 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - El adaptador declara `pollEveryMinutes: 120`; el orquestador usa `isPollSlot` (`packages/core`) y cuenta las plantas omitidas en `not_poll_slot`.
     - Se eligieron 2 horas, y no más, para que la alerta "sin datos" (4 horas con sol) no salte en falso. Unas 240 consultas al mes por planta.
     - El adaptador de Enphase sigue sin implementar: falta decidir cómo se guardan las credenciales (cuenta de Enlighten o solo el refresh token) y tener acceso al plan Partner.
+224. **Enphase: adaptador con la cuenta de Enlighten (decisión del PO, 2026-11-05: opción A).** Detalle en `docs/fabricantes/enphase-api-v4.md` §4.
+    - La empresa captura en Integraciones la API key, el Client ID, el Client Secret y el correo y la contraseña de Enlighten; se guardan cifrados y nunca se devuelven. Cada planta guarda su `system_id`.
+    - El token se pide con la cuenta cuando vence y solo vive en memoria; nunca se guarda ni se registra.
+    - Lectura: `telemetry/production_micro`, sumando los intervalos de 5 min por cuarto de hora; un cuarto de hora incompleto no se entrega.
+    - Sin la cuenta de la empresa, la planta se omite como problema de conexión (`no_integration`).
+    - En el sitio público, Enphase pasa a "En integración".
+    - **Pendiente:** validar con una cuenta real (zona horaria, fin de intervalo, intervalos en cero) y grabar una respuesta real como ejemplo de prueba.

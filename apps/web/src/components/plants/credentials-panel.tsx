@@ -40,13 +40,17 @@ export function CredentialsPanel({
   const [busy, setBusy] = useState(false);
   // Victron (VRM): token de acceso y número de instalación (docs/fabricantes/victron-vrm.md).
   const victron = plant.inverter_brand === 'victron';
+  // Enphase: las llaves son de la empresa (Configuración → Integraciones); aquí, el sistema.
+  const enphase = plant.inverter_brand === 'enphase';
 
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const f = new FormData(form);
     const credentials: Record<string, string> = {};
-    if (victron) {
+    if (enphase) {
+      credentials.system_id = String(f.get('cred_system_id') ?? '').trim();
+    } else if (victron) {
       credentials.access_token = String(f.get('cred_access_token') ?? '').trim();
       credentials.id_site = String(f.get('cred_id_site') ?? '').trim();
     } else {
@@ -100,8 +104,10 @@ export function CredentialsPanel({
   return (
     <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-900">
       <h2 className="flex items-center gap-2 text-base font-semibold">
-        <KeyRound aria-hidden="true" className="size-5" /> Credenciales del portal{' '}
-        {BRAND_LABELS[plant.inverter_brand]}
+        <KeyRound aria-hidden="true" className="size-5" />{' '}
+        {enphase
+          ? 'Sistema de Enphase'
+          : `Credenciales del portal ${BRAND_LABELS[plant.inverter_brand]}`}
       </h2>
       {status.has_credentials ? (
         <ul className="flex flex-col gap-0.5 text-sm">
@@ -123,9 +129,18 @@ export function CredentialsPanel({
         <form onSubmit={save} noValidate className="flex flex-col gap-4" autoComplete="off">
           <p className="text-xs text-slate-600 dark:text-slate-400">
             Se guardan cifradas y nunca se vuelven a mostrar.
-            {!victron && ' Escribe todas las que pida el portal del fabricante.'}
+            {!victron && !enphase && ' Escribe todas las que pida el portal del fabricante.'}
           </p>
-          {victron ? (
+          {enphase ? (
+            <TextInput
+              id="cred_system_id"
+              label="Número de sistema de Enphase (system_id)"
+              inputMode="numeric"
+              required
+              hint="El número del sistema en Enlighten. La cuenta de Enphase de la empresa se conecta en Configuración → Integraciones."
+              error={errors['system_id'] ?? errors['credentials']}
+            />
+          ) : victron ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <TextInput
                 id="cred_access_token"

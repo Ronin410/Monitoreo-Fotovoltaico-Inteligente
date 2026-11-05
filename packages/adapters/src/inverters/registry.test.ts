@@ -18,7 +18,7 @@ const plant = {
 describe('adaptadores de marcas reales (F3-T5)', () => {
   const registry = createAdapterRegistry();
 
-  for (const brand of ['goodwe', 'huawei', 'fronius', 'enphase', 'other'] as const) {
+  for (const brand of ['goodwe', 'huawei', 'fronius', 'other'] as const) {
     it(`${brand} lanza NotImplementedError hasta tener documentación oficial`, async () => {
       const adapter = registry[brand];
       expect(adapter.provider).toBe(brand);
@@ -29,7 +29,7 @@ describe('adaptadores de marcas reales (F3-T5)', () => {
     });
   }
 
-  for (const brand of ['goodwe', 'huawei', 'fronius', 'enphase']) {
+  for (const brand of ['goodwe', 'huawei', 'fronius']) {
     it(`${brand}.ts exige la documentación oficial en su TODO`, () => {
       const source = readFileSync(new URL(`./${brand}.ts`, import.meta.url), 'utf8');
       expect(source).toContain(`TODO(${brand}): implementar SOLO con la documentación oficial`);

@@ -100,3 +100,24 @@ describe('credenciales de Victron', () => {
     });
   });
 });
+
+describe('credenciales de Enphase', () => {
+  it('solo pide el número de sistema; las llaves son de la empresa', async () => {
+    calls.length = 0;
+    render(
+      <CredentialsPanel
+        plant={{ ...plant, inverter_brand: 'enphase' } as Plant}
+        timezone="America/Mazatlan"
+        onSaved={() => {}}
+      />,
+    );
+    expect(screen.queryByLabelText(/Usuario del portal/)).toBeNull();
+    expect(screen.getByText(/Configuración → Integraciones/)).toBeTruthy();
+    await userEvent.type(screen.getByLabelText(/Número de sistema/), '698905955');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar credenciales' }));
+    expect(calls.at(-1)).toEqual({
+      path: `/plants/${plant.id}/credentials`,
+      body: { credentials: { system_id: '698905955' } },
+    });
+  });
+});

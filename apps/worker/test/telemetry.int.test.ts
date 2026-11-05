@@ -57,7 +57,17 @@ function testAdapters(companyId: string, db: PrismaClient): InverterAdapterRegis
       return fetchSolarYield(new VrmClient(c.access_token, { fetchImpl }), c.id_site, since, until);
     },
   };
-  return { ...base, goodwe, huawei, victron };
+  // Enphase de prueba: recibe las llaves de la empresa además de las de la planta.
+  const enphase: InverterAdapter = {
+    ...base.enphase,
+    fetchReadings: async ({ creds, integration, until }) => {
+      received.push({ creds, integration });
+      return [
+        { ts: new Date(Math.floor(until.getTime() / 900_000) * 900_000 - 900_000), powerKw: 2 },
+      ];
+    },
+  };
+  return { ...base, goodwe, huawei, victron, enphase };
 }
 
 /** Respuesta real de la VRM API (instalación demo, 6 horas desde FIXTURE_START). */
@@ -254,8 +264,40 @@ describe('ingest.telemetry_plant con marcas reales', () => {
     );
   });
 
+  it('Enphase sin las llaves de la empresa se omite como problema de conexión', async () => {
+    const { company, plant } = await realPlant('enphase');
+    expect(await runPlant(company.id, plant.id)).toBe('succeeded');
+    const [run] = await ctx.owner.jobRun.findMany({ where: { companyId: company.id } });
+    expect(run).toMatchObject({ status: 'succeeded', stats: { skipped: 'no_integration' } });
+  });
+
+  it('Enphase recibe descifradas las llaves de la empresa y el sistema de la planta', async () => {
+    const { company, plant } = await realPlant('enphase');
+    const integration = {
+      api_key: 'k',
+      client_id: 'c',
+      client_secret: 's',
+      username: 'a@b.mx',
+      password: SECRET,
+    };
+    await ctx.owner.companyIntegration.create({
+      data: {
+        companyId: company.id,
+        provider: 'enphase',
+        ...TEST_CIPHER.encrypt(integration, { companyId: company.id, integration: 'enphase' }),
+      },
+    });
+    received.length = 0;
+    ctx.setNow(localTime('2026-10-20', 12));
+    expect(await runPlant(company.id, plant.id)).toBe('succeeded');
+    expect(received).toEqual([{ creds: { username: 'u', password: SECRET }, integration }]);
+    expect(await telemetryOf(plant.id)).toHaveLength(1);
+    const [run] = await ctx.owner.jobRun.findMany({ where: { companyId: company.id } });
+    expect(JSON.stringify(run)).not.toContain(SECRET);
+  });
+
   it('una marca sin adaptador se omite sin fallar ni reintentar', async () => {
-    for (const brand of ['growatt', 'enphase', 'fronius'] as const) {
+    for (const brand of ['growatt', 'fronius'] as const) {
       const { company, plant } = await realPlant(brand);
       expect(await runPlant(company.id, plant.id)).toBe('succeeded');
       const [run] = await ctx.owner.jobRun.findMany({ where: { companyId: company.id } });

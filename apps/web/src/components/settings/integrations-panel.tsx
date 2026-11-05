@@ -1,7 +1,7 @@
 'use client';
 
 import { CheckCircle2, KeyRound, XCircle } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { ConfirmButton } from '@/components/confirm-button';
 import { fieldErrors, SelectInput, TextInput, type FieldErrors } from '@/components/form';
 import { Button, Notice, Spinner } from '@/components/ui';
@@ -18,20 +18,96 @@ import {
 } from '@/lib/settings';
 import { useApiQuery } from '@/lib/use-api';
 
-// Integraciones de la empresa (docs/fabricantes/goodwe-openapi.md). GoodWe da acceso a la API a
-// cada instaladora ("usuario de organización") con un Client ID y un Client Secret. Aquí se
-// capturan; se guardan cifrados y nunca se vuelven a mostrar.
+// Integraciones de la empresa: llaves de la instaladora, no de cada planta. GoodWe da acceso a la
+// API a cada instaladora ("usuario de organización", docs/fabricantes/goodwe-openapi.md); Enphase,
+// con el plan Partner (docs/fabricantes/enphase-api-v4.md). Aquí se capturan; se guardan cifradas
+// y nunca se vuelven a mostrar.
 
 const card =
   'flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-900';
 
-function GoodweCard({ status, onChange }: { status: IntegrationStatus; onChange: () => void }) {
+type Field = {
+  name: string;
+  label: string;
+  type?: 'text' | 'password' | 'email';
+  hint?: string;
+  options?: readonly { value: string; label: string }[];
+};
+
+type ProviderInfo = {
+  title: string;
+  intro: ReactNode;
+  fields: Field[];
+  removeQuestion: string;
+};
+
+const PROVIDERS: Record<string, ProviderInfo> = {
+  goodwe: {
+    title: 'GoodWe (SEMS)',
+    intro: (
+      <>
+        Para leer sus inversores GoodWe, su empresa necesita acceso a la API de GoodWe como
+        <strong> usuario de organización</strong>. Solicítelo a GoodWe con el código de organización
+        de su cuenta SEMS+, el correo de esa cuenta y su razón social. Al aprobarlo, GoodWe le
+        entrega un <strong>Client ID</strong> y un <strong>Client Secret</strong> y le indica el
+        servidor de su cuenta. Las plantas se ubican por el número de serie del inversor.
+      </>
+    ),
+    fields: [
+      { name: 'client_id', label: 'Client ID' },
+      { name: 'client_secret', label: 'Client Secret', type: 'password' },
+      {
+        name: 'region',
+        label: 'Servidor',
+        hint: 'El que le indique GoodWe para su cuenta.',
+        options: GOODWE_REGIONS,
+      },
+    ],
+    removeQuestion: '¿Borrar las llaves de GoodWe? Se dejarán de leer sus inversores GoodWe.',
+  },
+  enphase: {
+    title: 'Enphase (Enlighten)',
+    intro: (
+      <>
+        Para leer sus sistemas Enphase, cree una aplicación con el <strong>plan Partner</strong> en
+        el portal de desarrolladores de Enphase (developer-v4.enphase.com). Es para instaladoras
+        registradas con al menos 10 instalaciones y pide una tarjeta de crédito: incluye 10,000
+        consultas gratis al mes y cobra las adicionales. La plataforma lee cada planta cada 2 horas
+        para quedarse cerca de lo gratuito. Capture la <strong>API key</strong>, el{' '}
+        <strong>Client ID</strong> y el <strong>Client Secret</strong> de la aplicación, y el correo
+        y la contraseña de la cuenta de Enlighten de su empresa. En cada planta se captura su número
+        de sistema.
+      </>
+    ),
+    fields: [
+      { name: 'api_key', label: 'API key', type: 'password' },
+      { name: 'client_id', label: 'Client ID' },
+      { name: 'client_secret', label: 'Client Secret', type: 'password' },
+      { name: 'username', label: 'Correo de Enlighten', type: 'email' },
+      { name: 'password', label: 'Contraseña de Enlighten', type: 'password' },
+    ],
+    removeQuestion: '¿Borrar las llaves de Enphase? Se dejarán de leer sus sistemas Enphase.',
+  },
+};
+
+function IntegrationCard({
+  provider,
+  info,
+  status,
+  onChange,
+}: {
+  provider: string;
+  info: ProviderInfo;
+  status: IntegrationStatus;
+  onChange: () => void;
+}) {
   const { api } = useAuth();
   const timezone = useCompanyTimezone();
   const [editing, setEditing] = useState(!status.configured);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const path = `/company/integrations/${provider}`;
 
   async function run(action: () => Promise<{ tone: 'success' | 'error'; text: string } | null>) {
     setBusy(true);
@@ -43,7 +119,10 @@ function GoodweCard({ status, onChange }: { status: IntegrationStatus; onChange:
       const fields = fieldErrors(err);
       setErrors(
         Object.fromEntries(
-          Object.entries(fields).map(([k, v]) => [`goodwe-${k.replace('credentials.', '')}`, v]),
+          Object.entries(fields).map(([k, v]) => [
+            `${provider}-${k.replace('credentials.', '')}`,
+            v,
+          ]),
         ),
       );
       setMessage({ tone: 'error', text: errorMessage(err) });
@@ -56,17 +135,15 @@ function GoodweCard({ status, onChange }: { status: IntegrationStatus; onChange:
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     setErrors({});
+    const credentials = Object.fromEntries(
+      info.fields.map((field) => {
+        const value = String(f.get(`${provider}-${field.name}`) ?? '');
+        // Las contraseñas se mandan tal cual: un espacio puede ser parte de ellas.
+        return [field.name, field.name === 'password' ? value : value.trim()];
+      }),
+    );
     void run(async () => {
-      await api('/company/integrations/goodwe', integrationStatusSchema, {
-        method: 'PUT',
-        body: {
-          credentials: {
-            client_id: String(f.get('goodwe-client_id') ?? '').trim(),
-            client_secret: String(f.get('goodwe-client_secret') ?? '').trim(),
-            region: String(f.get('goodwe-region') ?? ''),
-          },
-        },
-      });
+      await api(path, integrationStatusSchema, { method: 'PUT', body: { credentials } });
       setEditing(false);
       return { tone: 'success', text: 'Llaves guardadas. Ahora pruebe la conexión.' };
     });
@@ -74,24 +151,23 @@ function GoodweCard({ status, onChange }: { status: IntegrationStatus; onChange:
 
   const test = () =>
     run(async () => {
-      const r = await api('/company/integrations/goodwe/test', integrationTestSchema, {
-        method: 'POST',
-      });
+      const r = await api(`${path}/test`, integrationTestSchema, { method: 'POST' });
       return { tone: r.ok ? 'success' : 'error', text: r.message };
     });
 
   const remove = () =>
     run(async () => {
-      await api('/company/integrations/goodwe', noContent, { method: 'DELETE' });
+      await api(path, noContent, { method: 'DELETE' });
       setEditing(true);
       return { tone: 'success', text: 'Llaves borradas.' };
     });
 
+  const titleId = `${provider}-title`;
   return (
-    <section className={card} aria-labelledby="goodwe-title">
+    <section className={card} aria-labelledby={titleId}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="goodwe-title" className="flex items-center gap-2 text-base font-semibold">
-          <KeyRound aria-hidden="true" className="size-4" /> GoodWe (SEMS)
+        <h2 id={titleId} className="flex items-center gap-2 text-base font-semibold">
+          <KeyRound aria-hidden="true" className="size-4" /> {info.title}
         </h2>
         {status.configured &&
           (status.last_test_ok === null ? (
@@ -106,13 +182,7 @@ function GoodweCard({ status, onChange }: { status: IntegrationStatus; onChange:
             </span>
           ))}
       </div>
-      <p className="text-sm text-slate-700 dark:text-slate-300">
-        Para leer sus inversores GoodWe, su empresa necesita acceso a la API de GoodWe como
-        <strong> usuario de organización</strong>. Solicítelo a GoodWe con el código de organización
-        de su cuenta SEMS+, el correo de esa cuenta y su razón social. Al aprobarlo, GoodWe le
-        entrega un <strong>Client ID</strong> y un <strong>Client Secret</strong> y le indica el
-        servidor de su cuenta. Las plantas se ubican por el número de serie del inversor.
-      </p>
+      <p className="text-sm text-slate-700 dark:text-slate-300">{info.intro}</p>
       {status.configured && !editing && (
         <p className="text-sm text-slate-600 dark:text-slate-400">
           Llaves guardadas
@@ -123,29 +193,36 @@ function GoodweCard({ status, onChange }: { status: IntegrationStatus; onChange:
         </p>
       )}
       {editing ? (
-        <form onSubmit={save} noValidate className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <TextInput
-            id="goodwe-client_id"
-            label="Client ID"
-            autoComplete="off"
-            required
-            error={errors['goodwe-client_id']}
-          />
-          <TextInput
-            id="goodwe-client_secret"
-            label="Client Secret"
-            type="password"
-            autoComplete="new-password"
-            required
-            error={errors['goodwe-client_secret']}
-          />
-          <SelectInput
-            id="goodwe-region"
-            label="Servidor"
-            hint="El que le indique GoodWe para su cuenta."
-            options={[...GOODWE_REGIONS]}
-            error={errors['goodwe-region']}
-          />
+        <form
+          onSubmit={save}
+          noValidate
+          autoComplete="off"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+        >
+          {info.fields.map((field) => {
+            const id = `${provider}-${field.name}`;
+            return field.options ? (
+              <SelectInput
+                key={id}
+                id={id}
+                label={field.label}
+                hint={field.hint}
+                options={[...field.options]}
+                error={errors[id]}
+              />
+            ) : (
+              <TextInput
+                key={id}
+                id={id}
+                label={field.label}
+                type={field.type ?? 'text'}
+                autoComplete={field.type === 'password' ? 'new-password' : 'off'}
+                hint={field.hint}
+                required
+                error={errors[id]}
+              />
+            );
+          })}
           <div className="flex flex-wrap items-end gap-2">
             <Button type="submit" disabled={busy}>
               {busy ? 'Guardando…' : 'Guardar llaves'}
@@ -168,7 +245,7 @@ function GoodweCard({ status, onChange }: { status: IntegrationStatus; onChange:
           <ConfirmButton
             label="Borrar llaves"
             confirmLabel="Sí, borrar"
-            question="¿Borrar las llaves de GoodWe? Se dejarán de leer sus inversores GoodWe."
+            question={info.removeQuestion}
             busy={busy}
             onConfirm={() => void remove()}
           />
@@ -183,13 +260,22 @@ export function IntegrationsPanel() {
   const { data, error, reload } = useApiQuery('/company/integrations', integrationsSchema);
   if (error) return <Notice tone="error">{error.message}</Notice>;
   if (!data) return <Spinner />;
-  const goodwe = data.data.find((i) => i.provider === 'goodwe');
   return (
     <div className="flex flex-col gap-4">
-      {goodwe && <GoodweCard status={goodwe} onChange={() => void reload()} />}
+      {data.data.map((status) => {
+        const info = PROVIDERS[status.provider];
+        return info ? (
+          <IntegrationCard
+            key={status.provider}
+            provider={status.provider}
+            info={info}
+            status={status}
+            onChange={() => void reload()}
+          />
+        ) : null;
+      })}
       <p className="text-sm text-slate-600 dark:text-slate-400">
-        Victron se configura en cada planta (token de acceso de VRM y número de instalación), en
-        cuanto su adaptador esté listo.
+        Victron se configura en cada planta (token de acceso de VRM y número de instalación).
       </p>
     </div>
   );
