@@ -471,3 +471,8 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - El umbral de 30 kWp es una propuesta conservadora. **Pregunta:** ¿se ajusta, o se hace configurable por empresa?
     - **Etapa 2 (requiere su propio spec antes):** varios inversores por planta y tarifas de negocio de CFE (PDBT, GDMTO, GDMTH) para un ahorro realista. Hoy el ahorro de los reportes usa un precio fijo por kWh, que sirve para casas.
     - El reporte mensual y el asistente IA todavía no distinguen el tipo de instalación.
+220. **Growatt: información oficial del soporte de México (2026-11-05).** Resumen en `docs/fabricantes/growatt-openapi.md`.
+    - Token de la cuenta de instalador, obtenido en OSS, en el encabezado `token`. Encaja como llave por empresa, igual que GoodWe.
+    - **Riesgo principal:** el límite de "una solicitud cada cinco minutos". `/v1/plant/list` además tiene un máximo de 10 consultas al día. Si el límite es por cuenta, la ingesta tiene que ser por lotes (todas las plantas en una consulta) y quizá con menos frecuencia que cada 15 minutos.
+    - **Pendiente:** leer la documentación de referencia en ShowDoc (dominio no permitido en la sesión; se puede subir en PDF), confirmar con Growatt el alcance del límite y si hay consultas por lotes, y obtener el token en OSS.
+    - Huawei (FusionSolar) y Enphase (API v4): el equipo compartió enlaces, pero no se pudieron abrir desde la sesión. Falta su documentación.
