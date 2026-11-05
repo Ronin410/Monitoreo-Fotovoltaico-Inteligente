@@ -58,17 +58,18 @@ Presentación para interesados, con menú de cinco secciones. Quien entra a la d
 
 El resumen de la flota al abrir la plataforma.
 
-| Bloque                       | Qué muestra                                                                                                                                |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Pregúntale a tu flota**    | Atajo al asistente IA con su pregunta.                                                                                                     |
-| **Plantas activas**          | Plantas en operación, potencia instalada total (kWp) y número de clientes.                                                                 |
-| **Energía de hoy / del mes** | Lo generado por toda la flota hoy y desde el día 1.                                                                                        |
-| **PR corregido · 7 días**    | Qué tan bien aprovecha la flota el sol que recibe. Normal: 80–90 %.                                                                        |
-| **Alertas abiertas**         | Cuántas hay, por severidad.                                                                                                                |
-| **Mapa de plantas**          | Cada planta con su estado de hoy (color y forma): Bien, Advertencia, Crítica, Sin datos, Sin métricas. Toque un punto para ver su detalle. |
-| **Requieren atención**       | Las 5 alertas abiertas más graves y recientes.                                                                                             |
-| **Próximos lavados**         | Plantas que cruzarán el umbral de suciedad en 14 días, con su confianza. "Ya" = ya lo cruzaron.                                            |
-| **Mejores y peores**         | Las 5 plantas con mejor y peor PR de los últimos 30 días.                                                                                  |
+| Bloque                                           | Qué muestra                                                                                                                                  |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pregúntale a tu flota**                        | Atajo al asistente IA con su pregunta.                                                                                                       |
+| **Todas · Residencial · Comercial · Industrial** | Aparece si la empresa tiene plantas de más de un tipo: filtra todo el tablero por tipo de instalación, con el número de plantas de cada uno. |
+| **Plantas activas**                              | Plantas en operación, potencia instalada total (kWp) y número de clientes.                                                                   |
+| **Energía de hoy / del mes**                     | Lo generado por toda la flota hoy y desde el día 1.                                                                                          |
+| **PR corregido · 7 días**                        | Qué tan bien aprovecha la flota el sol que recibe. Normal: 80–90 %.                                                                          |
+| **Alertas abiertas**                             | Cuántas hay, por severidad.                                                                                                                  |
+| **Mapa de plantas**                              | Cada planta con su estado de hoy (color y forma): Bien, Advertencia, Crítica, Sin datos, Sin métricas. Toque un punto para ver su detalle.   |
+| **Requieren atención**                           | Las 5 alertas abiertas más graves y recientes.                                                                                               |
+| **Próximos lavados**                             | Plantas que cruzarán el umbral de suciedad en 14 días, con su confianza. "Ya" = ya lo cruzaron.                                              |
+| **Mejores y peores**                             | Las 5 plantas con mejor y peor PR de los últimos 30 días.                                                                                    |
 
 ## Plantas (`/plants`)
 
@@ -103,6 +104,7 @@ Los clientes que ya existen (mismo nombre) no se modifican; la planta se les agr
 | **Capacidad (kWp)**                                    | Suma de la potencia de los paneles: número de paneles × watts de cada uno ÷ 1000. Ej.: 12 paneles de 550 W = 6.6 kWp.                                                                                                                                                                             |
 | **Puesta en marcha**                                   | Fecha en que empezó a generar.                                                                                                                                                                                                                                                                    |
 | **Estado**                                             | Activa, Pausada (no se monitorea ni da alertas) o Dada de baja.                                                                                                                                                                                                                                   |
+| **Tipo de instalación**                                | Residencial (casa), comercial (negocio) o industrial. Sirve para filtrar el tablero, las plantas y las alertas, y hace que las fallas de negocios y de plantas grandes salgan primero y con mayor prioridad.                                                                                      |
 | **Marca, modelo y número de serie del inversor**       | Están en la etiqueta del inversor. La marca decide cómo se leen sus datos ("Simulador (demo)" solo en pruebas).                                                                                                                                                                                   |
 | **Modelo y número de paneles**                         | De la hoja técnica o la cotización.                                                                                                                                                                                                                                                               |
 | **Tiene batería / Tiene límite de inyección a la red** | Márquelas si la planta tiene batería, o si el inversor no puede mandar a la red todo lo que produce (cero exportación o un tope). En esas plantas el inversor baja la producción a propósito, así que la plataforma no da alertas de suciedad ni de caída de rendimiento (las de "sin datos" sí). |

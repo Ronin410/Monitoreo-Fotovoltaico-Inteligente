@@ -69,6 +69,15 @@ enum InverterBrand {
   @@map("inverter_brand")
 }
 
+/// Segmento de la instalación (specs/03): casa, negocio o industria.
+enum InstallationType {
+  residential
+  commercial
+  industrial
+
+  @@map("installation_type")
+}
+
 enum PlantStatus {
   active
   paused
@@ -452,41 +461,42 @@ model Client {
 }
 
 model SolarPlant {
-  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  companyId         String        @map("company_id") @db.Uuid
-  clientId          String        @map("client_id") @db.Uuid
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId         String           @map("company_id") @db.Uuid
+  clientId          String           @map("client_id") @db.Uuid
   name              String
-  capacityKwp       Decimal       @map("capacity_kwp") @db.Decimal(8, 2)
-  tiltDeg           Decimal       @map("tilt_deg") @db.Decimal(5, 2)
+  capacityKwp       Decimal          @map("capacity_kwp") @db.Decimal(8, 2)
+  tiltDeg           Decimal          @map("tilt_deg") @db.Decimal(5, 2)
   /// 180 = sur, 90 = este, 270 = oeste.
-  azimuthDeg        Decimal       @map("azimuth_deg") @db.Decimal(5, 2)
-  noctC             Decimal       @default(45) @map("noct_c") @db.Decimal(5, 2)
+  azimuthDeg        Decimal          @map("azimuth_deg") @db.Decimal(5, 2)
+  noctC             Decimal          @default(45) @map("noct_c") @db.Decimal(5, 2)
   /// %/°C, negativo (por ejemplo −0.40).
-  gammaPctPerC      Decimal       @default(-0.40) @map("gamma_pct_per_c") @db.Decimal(6, 4)
-  panelModel        String?       @map("panel_model")
-  panelCount        Int?          @map("panel_count")
-  inverterBrand     InverterBrand @map("inverter_brand")
-  inverterModel     String?       @map("inverter_model")
-  inverterSerial    String?       @map("inverter_serial")
-  commissioningDate DateTime?     @map("commissioning_date") @db.Date
+  gammaPctPerC      Decimal          @default(-0.40) @map("gamma_pct_per_c") @db.Decimal(6, 4)
+  panelModel        String?          @map("panel_model")
+  panelCount        Int?             @map("panel_count")
+  inverterBrand     InverterBrand    @map("inverter_brand")
+  inverterModel     String?          @map("inverter_model")
+  inverterSerial    String?          @map("inverter_serial")
+  commissioningDate DateTime?        @map("commissioning_date") @db.Date
   /// Si es null se usan las del cliente.
-  lat               Decimal?      @db.Decimal(9, 6)
-  lon               Decimal?      @db.Decimal(9, 6)
-  postalCode        String        @map("postal_code")
+  lat               Decimal?         @db.Decimal(9, 6)
+  lon               Decimal?         @db.Decimal(9, 6)
+  postalCode        String           @map("postal_code")
   colonia           String
-  status            PlantStatus   @default(active)
-  lastReadingAt     DateTime?     @map("last_reading_at") @db.Timestamptz
-  lastPowerKw       Decimal?      @map("last_power_kw") @db.Decimal(14, 4)
+  status            PlantStatus      @default(active)
+  lastReadingAt     DateTime?        @map("last_reading_at") @db.Timestamptz
+  lastPowerKw       Decimal?         @map("last_power_kw") @db.Decimal(14, 4)
   /// Solo si inverter_brand = simulator (ver specs/04 §3).
-  simulationProfile Json?         @map("simulation_profile")
+  simulationProfile Json?            @map("simulation_profile")
   /// El inversor puede limitar la producción a propósito (specs/06 §2.4): con batería (al llenarse,
   /// sin consumo) o con límite de inyección a la red. Sin alertas de rendimiento ni predicción de
   /// lavado, y no sirve de referencia para sus vecinas.
-  hasBattery        Boolean       @default(false) @map("has_battery")
-  exportLimited     Boolean       @default(false) @map("export_limited")
-  deletedAt         DateTime?     @map("deleted_at") @db.Timestamptz
-  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  installationType  InstallationType @default(residential) @map("installation_type")
+  hasBattery        Boolean          @default(false) @map("has_battery")
+  exportLimited     Boolean          @default(false) @map("export_limited")
+  deletedAt         DateTime?        @map("deleted_at") @db.Timestamptz
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   company           Company              @relation(fields: [companyId], references: [id])
   client            Client               @relation(fields: [clientId, companyId], references: [id, companyId])
@@ -501,6 +511,7 @@ model SolarPlant {
   @@unique([id, companyId])
   @@index([companyId, postalCode])
   @@index([companyId, status])
+  @@index([companyId, installationType])
   @@index([clientId])
   @@map("solar_plants")
 }

@@ -1,3 +1,4 @@
+import { INSTALLATION_TYPES } from '@pv/core';
 import { z } from 'zod';
 
 // Respuestas del tablero y de la bandeja de alertas (espejo de apps/api/src/routes).
@@ -14,6 +15,13 @@ export const summaryResponse = z.object({
   pr_temp_7d: z.number().nullable(),
   alerts_open: z.object({ critical: z.number(), warning: z.number(), info: z.number() }),
   offline_plants: z.number(),
+  by_installation_type: z.array(
+    z.object({
+      installation_type: z.enum(INSTALLATION_TYPES),
+      plants: z.number(),
+      capacity_kwp: z.number(),
+    }),
+  ),
 });
 
 export const mapResponse = z.object({

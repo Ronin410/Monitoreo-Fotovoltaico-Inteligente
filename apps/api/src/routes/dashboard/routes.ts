@@ -1,4 +1,11 @@
-import { addDays, currentPlantStatus, localDate, startOfLocalDay } from '@pv/core';
+import {
+  addDays,
+  currentPlantStatus,
+  INSTALLATION_TYPES,
+  localDate,
+  startOfLocalDay,
+  type InstallationType,
+} from '@pv/core';
 import { withTenant, type PrismaClient } from '@pv/db';
 import { Router } from 'express';
 import { companyAuthOf, requirePermission } from '../../auth/authorize.js';
@@ -7,6 +14,7 @@ import { respond } from '../../http/respond.js';
 import {
   mapResponse,
   summaryResponse,
+  segmentQuery,
   topBottomQuery,
   topBottomResponse,
   upcomingCleaningsQuery,
@@ -24,21 +32,30 @@ const MIN_VALID_DAYS = 5;
 const day = (d: string) => new Date(`${d}T00:00:00Z`);
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 
+/** Filtro por tipo de instalación de la query (vacío = todas). */
+function segmentOf(query: unknown): { installationType?: InstallationType } {
+  const { installation_type } = segmentQuery.parse(query);
+  return installation_type ? { installationType: installation_type } : {};
+}
+
 export function dashboardRouter(db: PrismaClient, now: () => Date): Router {
   const router = Router();
   router.use(requirePermission('fleet:read'));
 
   router.get('/summary', async (req, res) => {
     const { companyId } = companyAuthOf(req);
+    const segment = segmentOf(req.query);
     const data = await withTenant(db, companyId, async (tx) => {
       const company = await tx.company.findUniqueOrThrow({ where: { id: companyId } });
       const tz = company.timezone;
       const today = localDate(now(), tz);
       const monthStart = `${today.slice(0, 7)}-01`;
-      const active = { deletedAt: null, status: 'active' as const };
-      const [plants, clients, todayEnergy, monthEnergy, pr, alerts] = await Promise.all([
+      const active = { deletedAt: null, status: 'active' as const, ...segment };
+      const [plants, clients, todayEnergy, monthEnergy, pr, alerts, byType] = await Promise.all([
         tx.solarPlant.aggregate({ where: active, _count: true, _sum: { capacityKwp: true } }),
-        tx.client.count({ where: { deletedAt: null } }),
+        tx.client.count({
+          where: { deletedAt: null, ...(segment.installationType && { plants: { some: active } }) },
+        }),
         tx.telemetryReading.aggregate({
           where: { ts: { gte: startOfLocalDay(today, tz) }, plant: active },
           _sum: { energyKwh: true },
@@ -58,8 +75,14 @@ export function dashboardRouter(db: PrismaClient, now: () => Date): Router {
         }),
         tx.alert.groupBy({
           by: ['severity', 'type'],
-          where: { status: { in: [...OPEN] }, plant: { deletedAt: null } },
+          where: { status: { in: [...OPEN] }, plant: { deletedAt: null, ...segment } },
           _count: true,
+        }),
+        tx.solarPlant.groupBy({
+          by: ['installationType'],
+          where: { deletedAt: null, status: 'active' },
+          _count: { _all: true },
+          _sum: { capacityKwp: true },
         }),
       ]);
       const count = (s: string) =>
@@ -84,6 +107,18 @@ export function dashboardRouter(db: PrismaClient, now: () => Date): Router {
         offline_plants: alerts
           .filter((a) => a.type === 'offline')
           .reduce((n, a) => n + a._count, 0),
+        by_installation_type: INSTALLATION_TYPES.flatMap((t) => {
+          const row = byType.find((r) => r.installationType === t);
+          return row
+            ? [
+                {
+                  installation_type: t,
+                  plants: row._count._all,
+                  capacity_kwp: dec(row._sum.capacityKwp) ?? 0,
+                },
+              ]
+            : [];
+        }),
       };
     });
     respond(res, summaryResponse, data);
@@ -91,11 +126,18 @@ export function dashboardRouter(db: PrismaClient, now: () => Date): Router {
 
   router.get('/map', async (req, res) => {
     const { companyId } = companyAuthOf(req);
+    const segment = segmentOf(req.query);
     const plants = await withTenant(db, companyId, async (tx) => {
       const company = await tx.company.findUniqueOrThrow({ where: { id: companyId } });
       const today = localDate(now(), company.timezone);
       return tx.solarPlant.findMany({
-        where: { deletedAt: null, status: 'active', lat: { not: null }, lon: { not: null } },
+        where: {
+          deletedAt: null,
+          status: 'active',
+          lat: { not: null },
+          lon: { not: null },
+          ...segment,
+        },
         select: {
           id: true,
           name: true,
@@ -138,7 +180,8 @@ export function dashboardRouter(db: PrismaClient, now: () => Date): Router {
 
   router.get('/upcoming-cleanings', async (req, res) => {
     const { companyId } = companyAuthOf(req);
-    const { days } = upcomingCleaningsQuery.parse(req.query);
+    const { days, installation_type } = upcomingCleaningsQuery.parse(req.query);
+    const segment = installation_type ? { installationType: installation_type } : {};
     const plants = await withTenant(db, companyId, async (tx) => {
       const company = await tx.company.findUniqueOrThrow({ where: { id: companyId } });
       const today = localDate(now(), company.timezone);
@@ -146,6 +189,7 @@ export function dashboardRouter(db: PrismaClient, now: () => Date): Router {
         where: {
           deletedAt: null,
           status: 'active',
+          ...segment,
           // Con una caída brusca abierta la tendencia no es de suciedad (specs/PREGUNTAS.md #103).
           alerts: { none: { type: 'sudden_drop', status: { in: [...OPEN] } } },
         },
@@ -191,7 +235,8 @@ export function dashboardRouter(db: PrismaClient, now: () => Date): Router {
 
   router.get('/top-bottom', async (req, res) => {
     const { companyId } = companyAuthOf(req);
-    const { days } = topBottomQuery.parse(req.query);
+    const { days, installation_type } = topBottomQuery.parse(req.query);
+    const segment = installation_type ? { installationType: installation_type } : {};
     const { stats, plants } = await withTenant(db, companyId, async (tx) => {
       const company = await tx.company.findUniqueOrThrow({ where: { id: companyId } });
       const today = localDate(now(), company.timezone);
@@ -202,13 +247,13 @@ export function dashboardRouter(db: PrismaClient, now: () => Date): Router {
             date: { gte: day(addDays(today, -days)), lt: day(today) },
             isValidDay: true,
             prTemp: { not: null },
-            plant: { deletedAt: null, status: 'active' },
+            plant: { deletedAt: null, status: 'active', ...segment },
           },
           _avg: { prTemp: true },
           _count: { _all: true },
         }),
         tx.solarPlant.findMany({
-          where: { deletedAt: null, status: 'active' },
+          where: { deletedAt: null, status: 'active', ...segment },
           select: { id: true, name: true, client: { select: { name: true } } },
         }),
       ]);

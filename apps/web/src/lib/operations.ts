@@ -1,4 +1,4 @@
-import { formatDuration, ticketDurations } from '@pv/core';
+import { formatDuration, INSTALLATION_TYPES, ticketDurations } from '@pv/core';
 import { z } from 'zod';
 import { alertSeveritySchema, alertTypeSchema } from './dashboard';
 
@@ -14,6 +14,9 @@ const alertPlant = z.object({
   colonia: z.string(),
   postal_code: z.string(),
   client_name: z.string(),
+  installation_type: z.enum(INSTALLATION_TYPES),
+  capacity_kwp: z.number(),
+  high_impact: z.boolean(),
 });
 
 export const alertSummary = z.object({

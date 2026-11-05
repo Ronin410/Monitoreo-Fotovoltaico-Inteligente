@@ -464,3 +464,10 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Contenido limitado a lo que la plataforma hace hoy. Victron aparece como disponible, GoodWe en integración y las demás marcas como próximamente. Sin precios, testimonios ni certificaciones. La vista previa del tablero se marca como "datos de ejemplo".
     - El contacto es por correo o WhatsApp (`NEXT_PUBLIC_CONTACT_EMAIL`, `NEXT_PUBLIC_CONTACT_WHATSAPP`). No se agregó un formulario que guarde datos de interesados, porque implicaría tratar datos personales nuevos y actualizar el aviso de privacidad.
     - **Pendiente del PO:** el correo y el WhatsApp comerciales, revisar los textos, y decidir si quiere un formulario de contacto (con su aviso) y un dominio propio.
+219. **Casas, negocios e industrias: etapa 1 (decisión del PO, 2026-11-05).** Se clasifica cada planta en lugar de separar la plataforma.
+    - Campo `solar_plants.installation_type` (`residential`, `commercial`, `industrial`; las plantas existentes quedan como residenciales). Está en el formulario, el detalle, la importación (columna `tipo_instalacion`) y los filtros de plantas y alertas.
+    - El tablero tiene un selector por tipo y el resumen trae las plantas por tipo.
+    - **Alto impacto** = comercial, industrial o ≥ 30 kWp: sus alertas salen primero con `sort=priority` (lo usa el tablero) y su ticket sube un nivel de prioridad (`ticketPriorityFor`).
+    - El umbral de 30 kWp es una propuesta conservadora. **Pregunta:** ¿se ajusta, o se hace configurable por empresa?
+    - **Etapa 2 (requiere su propio spec antes):** varios inversores por planta y tarifas de negocio de CFE (PDBT, GDMTO, GDMTH) para un ahorro realista. Hoy el ahorro de los reportes usa un precio fijo por kWh, que sirve para casas.
+    - El reporte mensual y el asistente IA todavía no distinguen el tipo de instalación.

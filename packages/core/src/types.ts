@@ -16,5 +16,9 @@ export const INVERTER_BRANDS = [
 ] as const;
 export type InverterBrand = (typeof INVERTER_BRANDS)[number];
 
+/** Tipo de instalación (segmento): casa, negocio o industria. */
+export const INSTALLATION_TYPES = ['residential', 'commercial', 'industrial'] as const;
+export type InstallationType = (typeof INSTALLATION_TYPES)[number];
+
 export const PLANT_DAILY_STATUSES = ['ok', 'warning', 'critical', 'offline', 'no_data'] as const;
 export type PlantDailyStatus = (typeof PLANT_DAILY_STATUSES)[number];

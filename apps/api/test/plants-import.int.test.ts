@@ -161,6 +161,40 @@ describe('importación masiva de plantas', () => {
     ]);
   });
 
+  it('lee el tipo de instalación (casa, negocio o industria) y filtra la lista por él', async () => {
+    const f = await company();
+    const csv = [
+      'cliente,direccion,colonia,codigo_postal,latitud,longitud,planta,capacidad_kwp,marca_inversor,tipo_instalacion',
+      'Tienda,Calle 1,Centro,80000,24.8,-107.39,Techo,40,GoodWe,Negocio',
+      'Tienda,Calle 1,Centro,80000,24.8,-107.39,Casa,5,GoodWe,',
+      'Tienda,Calle 1,Centro,80000,24.8,-107.39,Nave,300,GoodWe,Industrial',
+      'Tienda,Calle 1,Centro,80000,24.8,-107.39,Otra,3,GoodWe,granja',
+    ].join('\n');
+    const bad = await importCsv(f.auth, csv, true);
+    expect(bad.body.errors).toEqual([
+      {
+        row: 5,
+        column: 'tipo_instalacion',
+        message: '"granja" no es residencial, comercial ni industrial',
+      },
+    ]);
+    await importCsv(f.auth, csv.split('\n').slice(0, 4).join('\n'));
+    const list = await request(ctx.app)
+      .get('/api/plants?installation_type=commercial')
+      .set('Authorization', f.auth);
+    expect(list.body.data.map((p: { name: string }) => p.name)).toEqual(['Techo']);
+    const all = await ctx.owner.solarPlant.findMany({
+      where: { companyId: f.company.id },
+      orderBy: { name: 'asc' },
+      select: { name: true, installationType: true },
+    });
+    expect(all).toEqual([
+      { name: 'Casa', installationType: 'residential' },
+      { name: 'Nave', installationType: 'industrial' },
+      { name: 'Techo', installationType: 'commercial' },
+    ]);
+  });
+
   it('faltan columnas, archivo vacío, plantas repetidas y permisos', async () => {
     const f = await company();
     const missing = await importCsv(f.auth, 'cliente,planta\nA,B', true);

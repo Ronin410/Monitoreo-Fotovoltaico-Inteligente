@@ -12,7 +12,12 @@ import { noContent } from '@/lib/api';
 import { useAuth, useCompanyTimezone } from '@/lib/auth';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, formatDateTime, formatEnergy, formatNumber, formatPct } from '@/lib/format';
-import { BRAND_LABELS, LIFECYCLE_LABELS, plantSchema } from '@/lib/inventory';
+import {
+  BRAND_LABELS,
+  INSTALLATION_TYPE_LABELS,
+  LIFECYCLE_LABELS,
+  plantSchema,
+} from '@/lib/inventory';
 import { useApiQuery } from '@/lib/use-api';
 import { PerformanceCharts } from './charts/performance-charts';
 import { TodayChart } from './charts/today-chart';
@@ -242,6 +247,7 @@ export function PlantDetail({ id }: { id: string }) {
               ? p.panel_model
               : `${p.panel_count}${p.panel_model ? ` × ${p.panel_model}` : ''}`}
           </Item>
+          <Item label="Tipo de instalación">{INSTALLATION_TYPE_LABELS[p.installation_type]}</Item>
           <Item label="Número de serie">{p.inverter_serial}</Item>
           {(p.has_battery || p.export_limited) && (
             <Item label="Producción limitada">

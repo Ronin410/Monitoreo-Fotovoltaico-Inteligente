@@ -1,6 +1,6 @@
 import { aiExplainAlert, type JobEnqueuer } from '@pv/adapters';
 import { estimateAlertLoss } from '@pv/ai';
-import { localDate, startOfLocalDay } from '@pv/core';
+import { isHighImpactPlant, localDate, startOfLocalDay, ticketPriorityFor } from '@pv/core';
 import { withTenant, type Alert, type Prisma, type PrismaClient } from '@pv/db';
 import { Router } from 'express';
 import type { z } from 'zod';
@@ -35,6 +35,8 @@ const withPlant = {
       name: true,
       colonia: true,
       postalCode: true,
+      installationType: true,
+      capacityKwp: true,
       client: { select: { name: true } },
     },
   },
@@ -65,6 +67,12 @@ function summaryDto(a: AlertWithPlant): z.input<typeof alertSummary> {
       colonia: a.plant.colonia,
       postal_code: a.plant.postalCode,
       client_name: a.plant.client.name,
+      installation_type: a.plant.installationType,
+      capacity_kwp: Number(a.plant.capacityKwp),
+      high_impact: isHighImpactPlant({
+        installationType: a.plant.installationType,
+        capacityKwp: Number(a.plant.capacityKwp),
+      }),
     },
   };
 }
@@ -128,8 +136,6 @@ function ticketDefaults(alert: Alert, plantName: string) {
   }
 }
 
-const PRIORITY = { critical: 'high', warning: 'normal', info: 'low' } as const;
-
 /** "Regenerar explicación": máximo por alerta en el día local de la empresa (specs/07 §3). */
 export const MAX_REGENERATIONS_PER_DAY = 3;
 
@@ -148,14 +154,31 @@ export function alertsRouter(db: PrismaClient, jobs: JobEnqueuer, now: () => Dat
       ...(query.type ? { type: query.type } : {}),
       ...(query.severity ? { severity: query.severity } : {}),
       ...(query.plant_id ? { plantId: query.plant_id } : {}),
-      ...(query.postal_code ? { plant: { postalCode: query.postal_code } } : {}),
+      ...(query.postal_code || query.installation_type
+        ? {
+            plant: {
+              ...(query.postal_code && { postalCode: query.postal_code }),
+              ...(query.installation_type && { installationType: query.installation_type }),
+            },
+          }
+        : {}),
     };
+    const orderBy: Prisma.AlertOrderByWithRelationInput[] =
+      query.sort === 'priority'
+        ? [
+            { severity: 'desc' },
+            { plant: { installationType: 'desc' } },
+            { plant: { capacityKwp: 'desc' } },
+            { detectedAt: 'desc' },
+            { id: 'asc' },
+          ]
+        : [{ detectedAt: 'desc' }, { id: 'asc' }];
     const [alerts, total] = await withTenant(db, companyId, (tx) =>
       Promise.all([
         tx.alert.findMany({
           where,
           include: withPlant,
-          orderBy: [{ detectedAt: 'desc' }, { id: 'asc' }],
+          orderBy,
           ...pageArgs(query),
         }),
         tx.alert.count({ where }),
@@ -258,7 +281,10 @@ export function alertsRouter(db: PrismaClient, jobs: JobEnqueuer, now: () => Dat
     const { ticket, email } = await withTenant(db, auth.companyId, async (tx) => {
       const alert = await tx.alert.findFirst({
         where: { id },
-        include: { plant: { select: { name: true } }, ticket: { select: { status: true } } },
+        include: {
+          plant: { select: { name: true, installationType: true, capacityKwp: true } },
+          ticket: { select: { status: true } },
+        },
       });
       if (!alert) throw alertNotFound();
       if (!(OPEN_STATUSES as readonly string[]).includes(alert.status)) throw alertClosed();
@@ -272,7 +298,12 @@ export function alertsRouter(db: PrismaClient, jobs: JobEnqueuer, now: () => Dat
         plantId: alert.plantId,
         alertId: alert.id,
         type: defaults.type,
-        priority: body.priority ?? PRIORITY[alert.severity],
+        priority:
+          body.priority ??
+          ticketPriorityFor(alert.severity, {
+            installationType: alert.plant.installationType,
+            capacityKwp: Number(alert.plant.capacityKwp),
+          }),
         title: body.title ?? defaults.title,
         description: body.description === undefined ? defaults.description : body.description,
         assignedTo: body.assigned_to,

@@ -166,6 +166,7 @@ function plantDto(
     last_reading_at: p.lastReadingAt,
     last_power_kw: dec(p.lastPowerKw),
     simulation_profile: p.simulationProfile as z.input<typeof plantResponse>['simulation_profile'],
+    installation_type: p.installationType,
     has_battery: p.hasBattery,
     export_limited: p.exportLimited,
     credentials: credentialsDto(p.credentials),
@@ -202,6 +203,7 @@ function toData(b: Partial<z.output<typeof patchPlantBody>>) {
     colonia: b.colonia,
     status: b.status,
     simulationProfile: jsonOrDbNull(b.simulation_profile),
+    installationType: b.installation_type,
     hasBattery: b.has_battery,
     exportLimited: b.export_limited,
   };
@@ -270,6 +272,7 @@ export function plantsRouter(db: PrismaClient, options: PlantsRouterOptions): Ro
       ...(query.postal_code ? { postalCode: query.postal_code } : {}),
       ...(query.colonia ? { colonia: { equals: query.colonia, mode: 'insensitive' } } : {}),
       ...(query.brand ? { inverterBrand: query.brand } : {}),
+      ...(query.installation_type ? { installationType: query.installation_type } : {}),
       ...(query.client_id ? { clientId: query.client_id } : {}),
       ...(query.q
         ? {

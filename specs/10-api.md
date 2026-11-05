@@ -39,7 +39,7 @@ Base: `/api`. JSON. Autenticación con `Authorization: Bearer <access_token>`, s
 |--------|------|-----|
 | GET / POST | `/clients` | operator |
 | GET / PATCH / DELETE | `/clients/:id` | operator (DELETE = lógico) |
-| GET / POST | `/plants` | operator (GET con filtros `status`, `postal_code`, `colonia`, `brand`, `q`, `sort`) |
+| GET / POST | `/plants` | operator (GET con filtros `status`, `postal_code`, `colonia`, `brand`, `installation_type`, `q`, `sort`) |
 | GET / PATCH / DELETE | `/plants/:id` | operator |
 | PUT | `/plants/:id/credentials` | operator (solo escritura) |
 | POST | `/plants/:id/credentials/test` | operator |
@@ -50,7 +50,7 @@ Base: `/api`. JSON. Autenticación con `Authorization: Bearer <access_token>`, s
 ## Tablero
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/dashboard/summary` | tarjetas del tablero |
+| GET | `/dashboard/summary` | tarjetas del tablero; incluye `by_installation_type` (plantas activas por tipo). Las cuatro rutas del tablero aceptan `installation_type` |
 | GET | `/dashboard/map` | plantas con lat, lon y estado |
 | GET | `/dashboard/upcoming-cleanings?days=14` | |
 | GET | `/dashboard/top-bottom?days=30` | |
@@ -58,7 +58,7 @@ Base: `/api`. JSON. Autenticación con `Authorization: Bearer <access_token>`, s
 ## Alertas y tickets
 | Método | Ruta | Rol |
 |--------|------|-----|
-| GET | `/alerts` | operator (filtros `status`, `type`, `severity`, `plant_id`, `postal_code`) |
+| GET | `/alerts` | operator (filtros `status`, `type`, `severity`, `plant_id`, `postal_code`, `installation_type`; `sort=recent` o `priority`) |
 | GET | `/alerts/:id` | operator |
 | POST | `/alerts/:id/acknowledge` | operator |
 | POST | `/alerts/:id/dismiss` | operator (motivo obligatorio) |

@@ -89,6 +89,7 @@ export const TOOLS = [
   { title: 'Alta desde Excel', text: 'Cientos de plantas con una plantilla.' },
   { title: 'Tiempos de atención', text: 'Cuánto tardan sus técnicos en resolver.' },
   { title: 'Plantas con batería', text: 'Sin falsas alarmas por producción limitada.' },
+  { title: 'Casas y negocios', text: 'Filtre por tipo; las fallas de negocios salen primero.' },
   { title: 'Exportación de datos', text: 'Toda su información en archivos de Excel.' },
 ] as const;
 

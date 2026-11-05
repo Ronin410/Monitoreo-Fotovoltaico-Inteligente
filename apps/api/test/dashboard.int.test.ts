@@ -131,7 +131,29 @@ describe('tablero', () => {
       pr_temp_7d: expect.closeTo((0.9 + 0.8) / 2, 6),
       alerts_open: { critical: 1, warning: 1, info: 1 },
       offline_plants: 1,
+      by_installation_type: [{ installation_type: 'residential', plants: 2, capacity_kwp: 35.5 }],
     });
+
+    // Filtro por tipo: B pasa a negocio; el resumen de negocios solo la cuenta a ella.
+    await ctx.owner.solarPlant.update({
+      where: { id: b.id },
+      data: { installationType: 'commercial' },
+    });
+    const biz = await get(await f.auth('operator'), '/summary?installation_type=commercial');
+    expect(biz.body).toMatchObject({
+      plants: { active: 1, capacity_kwp: 25.5, clients: 1 },
+      energy_today_kwh: 0,
+      alerts_open: { critical: 0, warning: 1, info: 1 },
+      offline_plants: 0,
+      by_installation_type: [
+        { installation_type: 'residential', plants: 1, capacity_kwp: 10 },
+        { installation_type: 'commercial', plants: 1, capacity_kwp: 25.5 },
+      ],
+    });
+    const map = await get(await f.auth('operator'), '/map?installation_type=residential');
+    expect(map.body.plants.map((p: { name: string }) => p.name)).toEqual(['A']);
+    const bad = await get(await f.auth('operator'), '/summary?installation_type=casa');
+    expect(bad.status).toBe(400);
   });
 
   it('mapa: estado actual según alertas abiertas y el último día calculado', async () => {

@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   BatteryCharging,
+  Building2,
   Bot,
   Check,
   Clock,
@@ -56,7 +57,7 @@ export function HomePage({ contact = CONTACT_LINKS }: Props) {
               <ContactButtons links={contact} />
             </div>
             <p className="mt-6 text-sm text-slate-400">
-              Sin instalar equipos nuevos · Varias marcas de inversor · Desde el celular
+              Casas y negocios · Sin instalar equipos nuevos · Varias marcas de inversor
             </p>
           </div>
           {first && <PillarIllustration art={first.art} />}
@@ -113,6 +114,7 @@ export function FeaturesPage({ contact = CONTACT_LINKS }: Props) {
     Clock,
     BatteryCharging,
     Download,
+    Building2,
   ];
   return (
     <>

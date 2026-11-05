@@ -80,6 +80,11 @@ export const IMPORT_GUIDE: { column: string; required: string; help: string }[] 
     help: 'Solo si la planta está en otro lugar que el domicilio del cliente.',
   },
   {
+    column: 'tipo_instalacion',
+    required: 'No',
+    help: 'Residencial (casa), comercial (negocio) o industrial. Vacío: residencial.',
+  },
+  {
     column: 'con_bateria, limite_inyeccion',
     required: 'No',
     help: 'Sí o no (vacío es no). Si la planta tiene batería o límite de inyección a la red, no se generan alertas de suciedad ni de caída de rendimiento.',

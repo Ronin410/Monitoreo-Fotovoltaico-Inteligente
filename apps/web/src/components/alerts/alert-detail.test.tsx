@@ -61,6 +61,9 @@ beforeEach(() => {
       colonia: 'Centro',
       postal_code: '80000',
       client_name: 'Abarrotes El Sol',
+      installation_type: 'residential',
+      capacity_kwp: 8,
+      high_impact: false,
     },
     dismiss_reason: null,
     evidence: {

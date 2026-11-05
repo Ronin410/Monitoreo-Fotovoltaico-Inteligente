@@ -75,6 +75,8 @@ Esta evidencia es lo que se le pasa a la IA para generar la explicación (ver `0
 - Desde una alerta: botón "Crear ticket" con datos prellenados.
   - `soiling` → tipo `cleaning`; `sudden_drop` y `offline` → tipo `inspection`.
   - La descripción incluye el resumen de la explicación IA si ya existe.
+  - **Prioridad por defecto** (decisión del PO, 2026-11-05): `critical` → alta, `warning` → normal, `info` → baja. En una planta de **alto impacto** (comercial, industrial o de 30 kWp o más) sube un nivel, porque cada día de falla cuesta más (`ticketPriorityFor` en `packages/core`).
+- La bandeja de alertas puede ordenarse por **prioridad**: severidad, luego tipo de instalación (industrial, comercial, residencial) y luego capacidad. El tablero usa ese orden en "Requieren atención".
 - También se pueden crear manualmente desde la planta.
 - El técnico ve sus tickets en el celular, cambia el estado, agrega notas y marca `cleaning_performed`.
 - **Tiempos de atención** (pedido del PO, 2026-11-03): la primera vez que el ticket pasa a `in_progress` ("Iniciar") se guarda `started_at`.

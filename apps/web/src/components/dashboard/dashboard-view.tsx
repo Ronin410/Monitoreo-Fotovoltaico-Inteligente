@@ -4,12 +4,13 @@ import { Bot, RefreshCw } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { FormEvent, ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { InfoTip } from '@/components/info-tip';
 import { SeverityBadge, STATUS, StatusBadge } from '@/components/status';
 import { Button, Notice } from '@/components/ui';
 import { ALERT_TYPE_LABELS, type PlantStatus } from '@/lib/dashboard';
 import { formatDate, formatDateTime, formatEnergy, formatNumber, formatPct } from '@/lib/format';
+import { INSTALLATION_TYPE_LABELS } from '@/lib/inventory';
 import type { HelpKey } from '@/lib/help';
 import { useDashboard, type DashboardData } from './use-dashboard';
 
@@ -391,8 +392,49 @@ function Skeleton() {
   );
 }
 
+/** Selector Todas · Residencial · Comercial · Industrial; solo si hay más de un tipo. */
+function SegmentPicker({
+  types,
+  value,
+  onChange,
+}: {
+  types: DashboardData['summary']['by_installation_type'];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  if (types.length < 2 && value === '') return null;
+  const options = [
+    { value: '', label: 'Todas', plants: types.reduce((n, t) => n + t.plants, 0) },
+    ...types.map((t) => ({
+      value: t.installation_type,
+      label: INSTALLATION_TYPE_LABELS[t.installation_type],
+      plants: t.plants,
+    })),
+  ];
+  return (
+    <div role="group" aria-label="Tipo de instalación" className="flex flex-wrap gap-1">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={value === o.value}
+          onClick={() => onChange(o.value)}
+          className={`min-h-11 rounded-lg px-3 text-sm ${
+            value === o.value
+              ? 'bg-slate-200 font-semibold dark:bg-slate-700'
+              : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+          }`}
+        >
+          {o.label} <span className="tabular-nums opacity-70">({o.plants})</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function DashboardView() {
-  const { data, error, reload } = useDashboard();
+  const [segment, setSegment] = useState('');
+  const { data, error, reload } = useDashboard(segment);
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -406,6 +448,13 @@ export function DashboardView() {
         </div>
         <QuickAsk />
       </div>
+      {data && (
+        <SegmentPicker
+          types={data.summary.by_installation_type}
+          value={segment}
+          onChange={setSegment}
+        />
+      )}
       {error ? (
         <div className="flex flex-col items-start gap-3">
           <Notice tone="error">No se pudo cargar el tablero: {error}</Notice>

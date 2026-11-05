@@ -1,4 +1,4 @@
-import { INVERTER_BRANDS, simulationProfileSchema } from '@pv/core';
+import { INSTALLATION_TYPES, INVERTER_BRANDS, simulationProfileSchema } from '@pv/core';
 import { z } from 'zod';
 import { plantStatusSchema as healthSchema } from './dashboard';
 
@@ -8,6 +8,18 @@ export const inverterBrandSchema = z.enum(INVERTER_BRANDS);
 export type InverterBrand = z.infer<typeof inverterBrandSchema>;
 export const INVERTER_BRAND_OPTIONS = inverterBrandSchema.options;
 export const plantLifecycleSchema = z.enum(['active', 'paused', 'decommissioned']);
+export const installationTypeSchema = z.enum(INSTALLATION_TYPES);
+export type InstallationType = z.infer<typeof installationTypeSchema>;
+/** Tipo de instalación (segmento): casa, negocio o industria. */
+export const INSTALLATION_TYPE_LABELS: Record<InstallationType, string> = {
+  residential: 'Residencial',
+  commercial: 'Comercial',
+  industrial: 'Industrial',
+};
+export const INSTALLATION_TYPE_OPTIONS = INSTALLATION_TYPES.map((value) => ({
+  value,
+  label: INSTALLATION_TYPE_LABELS[value],
+}));
 
 export const BRAND_LABELS: Record<InverterBrand, string> = {
   goodwe: 'GoodWe',
@@ -59,6 +71,7 @@ export const plantSchema = z.object({
   last_reading_at: z.string().nullable(),
   last_power_kw: z.number().nullable(),
   simulation_profile: simulationProfileSchema.nullable(),
+  installation_type: installationTypeSchema,
   has_battery: z.boolean(),
   export_limited: z.boolean(),
   credentials: credentialsStatus,

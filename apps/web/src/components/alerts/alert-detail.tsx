@@ -1,5 +1,6 @@
 'use client';
 
+import { ticketPriorityFor } from '@pv/core';
 import { InfoTip } from '@/components/info-tip';
 import type { HelpKey } from '@/lib/help';
 import { can } from '@pv/core';
@@ -31,7 +32,6 @@ import { EvidenceChart } from './evidence-chart';
 // últimos 14 días y acciones (reconocer, crear ticket, descartar con motivo, regenerar). Mientras
 // la explicación se genera (ai_status pending), la página la vuelve a consultar.
 
-const PRIORITY_BY_SEVERITY = { critical: 'high', warning: 'normal', info: 'low' } as const;
 const CONFIDENCE = { baja: 'Baja', media: 'Media', alta: 'Alta' } as const;
 const RESOLUTION = {
   auto: 'se resolvió sola al normalizarse',
@@ -260,7 +260,13 @@ function TicketForm({
       </p>
       {error && <Notice tone="error">{error}</Notice>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <AssignmentFields errors={errors} priorityDefault={PRIORITY_BY_SEVERITY[alert.severity]} />
+        <AssignmentFields
+          errors={errors}
+          priorityDefault={ticketPriorityFor(alert.severity, {
+            installationType: alert.plant.installation_type,
+            capacityKwp: alert.plant.capacity_kwp,
+          })}
+        />
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={busy}>

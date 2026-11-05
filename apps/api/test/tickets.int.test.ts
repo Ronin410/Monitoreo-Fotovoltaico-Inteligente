@@ -90,6 +90,51 @@ const http = (auth: string) => ({
 });
 
 describe('alertas', () => {
+  it('orden por prioridad: severidad, luego negocios y plantas grandes; filtro por tipo', async () => {
+    const f = await fleet();
+    await ctx.owner.solarPlant.update({
+      where: { id: f.plant.id },
+      data: { installationType: 'commercial' },
+    });
+    const casa = await ctx.owner.solarPlant.create({
+      data: {
+        companyId: f.company.id,
+        clientId: f.client.id,
+        name: 'Casa chica',
+        capacityKwp: 5,
+        tiltDeg: 20,
+        azimuthDeg: 180,
+        inverterBrand: 'goodwe',
+        postalCode: '80000',
+        colonia: 'Centro',
+      },
+    });
+    const negocio = await openAlert(f);
+    // La de la casa es más reciente: en el orden normal sale primero.
+    const deCasa = await ctx.owner.alert.create({
+      data: {
+        companyId: f.company.id,
+        plantId: casa.id,
+        type: 'soiling',
+        severity: 'warning',
+        detectedAt: new Date('2026-10-22T05:00:00Z'),
+        evidence: {},
+      },
+    });
+    const op = http(f.users.operator.auth);
+    const ids = async (path: string) =>
+      (await op.get(path)).body.data.map((a: { id: string }) => a.id);
+    expect(await ids('/alerts?open=true')).toEqual([deCasa.id, negocio.id]);
+    expect(await ids('/alerts?open=true&sort=priority')).toEqual([negocio.id, deCasa.id]);
+    expect(await ids('/alerts?installation_type=residential')).toEqual([deCasa.id]);
+    const [first] = (await op.get('/alerts?open=true&sort=priority')).body.data;
+    expect(first.plant).toMatchObject({
+      installation_type: 'commercial',
+      capacity_kwp: 30,
+      high_impact: true,
+    });
+  });
+
   it('bandeja con filtros y detalle con evidencia', async () => {
     const f = await fleet();
     const soiling = await openAlert(f);
@@ -222,7 +267,8 @@ describe('alertas', () => {
     expect(res.body).toMatchObject({
       type: 'cleaning',
       status: 'scheduled',
-      priority: 'normal',
+      // Advertencia en una planta de 30 kWp (grande): sube de normal a alta (specs/06 §5).
+      priority: 'high',
       title: 'Lavado de paneles — Comercial Centro',
       description: 'Posible suciedad. Rinde 15.2 % por debajo de su normal.',
       scheduled_for: '2026-10-24',

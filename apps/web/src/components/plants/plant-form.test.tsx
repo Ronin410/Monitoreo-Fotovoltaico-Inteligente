@@ -35,9 +35,14 @@ describe('formulario de planta', () => {
     await userEvent.type(await screen.findByLabelText(/Nombre/), 'Casa con batería');
     await userEvent.type(screen.getByLabelText(/Capacidad/), '5');
     await userEvent.click(screen.getByLabelText(/Tiene batería/));
+    await userEvent.selectOptions(screen.getByLabelText(/Tipo de instalación/), 'commercial');
     expect(screen.getByText(/no genera alertas de suciedad/)).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: /Guardar|Crear/ }));
     const post = calls.find((c) => c.method === 'POST');
-    expect(post?.body).toMatchObject({ has_battery: true, export_limited: false });
+    expect(post?.body).toMatchObject({
+      has_battery: true,
+      export_limited: false,
+      installation_type: 'commercial',
+    });
   });
 });

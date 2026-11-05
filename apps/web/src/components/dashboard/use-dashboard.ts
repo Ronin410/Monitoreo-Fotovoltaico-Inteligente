@@ -20,7 +20,8 @@ export type DashboardData = {
   attention: z.infer<typeof alertsResponse>;
 };
 
-export function useDashboard() {
+/** `segment`: tipo de instalación para filtrar el tablero (vacío = todas). */
+export function useDashboard(segment = '') {
   const { api } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,18 +29,21 @@ export function useDashboard() {
   const load = useCallback(async () => {
     setError(null);
     try {
+      const seg = segment ? `installation_type=${segment}` : '';
+      const q = (base: string) => (seg ? `${base}${base.includes('?') ? '&' : '?'}${seg}` : base);
       const [summary, map, cleanings, ranking, attention] = await Promise.all([
-        api('/dashboard/summary', summaryResponse),
-        api('/dashboard/map', mapResponse),
-        api('/dashboard/upcoming-cleanings?days=14', upcomingCleaningsResponse),
-        api('/dashboard/top-bottom?days=30', topBottomResponse),
-        api('/alerts?open=true&page_size=50', alertsResponse),
+        api(q('/dashboard/summary'), summaryResponse),
+        api(q('/dashboard/map'), mapResponse),
+        api(q('/dashboard/upcoming-cleanings?days=14'), upcomingCleaningsResponse),
+        api(q('/dashboard/top-bottom?days=30'), topBottomResponse),
+        // Negocios y plantas grandes primero (specs/06 §5).
+        api(q('/alerts?open=true&page_size=50&sort=priority'), alertsResponse),
       ]);
       setData({ summary, map, cleanings, ranking, attention });
     } catch (err) {
       setError(errorMessage(err));
     }
-  }, [api]);
+  }, [api, segment]);
 
   useEffect(() => {
     void load();

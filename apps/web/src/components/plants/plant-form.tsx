@@ -20,6 +20,7 @@ import {
   BRAND_LABELS,
   clientsResponse,
   companyDefaultsResponse,
+  INSTALLATION_TYPE_OPTIONS,
   INVERTER_BRAND_OPTIONS,
   LIFECYCLE_LABELS,
   plantSchema,
@@ -100,6 +101,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
       postal_code: optional(textOrNull(f, 'postal_code')),
       colonia: optional(textOrNull(f, 'colonia')),
       simulation_profile: brand === 'simulator' ? profile : null,
+      installation_type: f.get('installation_type'),
       has_battery: f.get('has_battery') === 'on',
       export_limited: f.get('export_limited') === 'on',
     };
@@ -177,6 +179,13 @@ export function PlantForm({ plant }: { plant?: Plant }) {
           type="date"
           defaultValue={v(plant?.commissioning_date)}
           error={errors.commissioning_date}
+        />
+        <SelectInput
+          id="installation_type"
+          label="Tipo de instalación"
+          defaultValue={plant?.installation_type ?? 'residential'}
+          options={INSTALLATION_TYPE_OPTIONS}
+          hint="Casa, negocio o industria. Las alertas de negocios y plantas grandes salen primero."
         />
         {plant && (
           <SelectInput

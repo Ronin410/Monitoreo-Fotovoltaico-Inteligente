@@ -1,5 +1,6 @@
 'use client';
 
+import { INSTALLATION_TYPE_LABELS, INSTALLATION_TYPE_OPTIONS } from '@/lib/inventory';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Filter, filterControl } from '@/components/filter';
@@ -9,7 +10,7 @@ import { SeverityBadge } from '@/components/status';
 import { Notice, Spinner } from '@/components/ui';
 import { useCompanyTimezone } from '@/lib/auth';
 import { ALERT_TYPE_LABELS } from '@/lib/dashboard';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatNumber } from '@/lib/format';
 import { ALERT_STATUS_LABELS, alertsPage, type AlertSummary } from '@/lib/operations';
 import { useApiQuery } from '@/lib/use-api';
 
@@ -27,6 +28,18 @@ const STATUS_OPTIONS = [
   })),
 ];
 
+/** "· Comercial · 40 kWp" para negocios, industrias y plantas grandes (specs/06 §5). */
+function PlantImpact({ plant }: { plant: AlertSummary['plant'] }) {
+  if (!plant.high_impact) return null;
+  return (
+    <span className="font-medium text-amber-800 dark:text-amber-300">
+      {' '}
+      · {INSTALLATION_TYPE_LABELS[plant.installation_type]} · {formatNumber(plant.capacity_kwp, 0)}{' '}
+      kWp
+    </span>
+  );
+}
+
 function TicketLink({ alert }: { alert: AlertSummary }) {
   if (!alert.ticket_id) return null;
   return (
@@ -42,6 +55,8 @@ export function AlertsInbox() {
   const [type, setType] = useState('');
   const [severity, setSeverity] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const [installationType, setInstallationType] = useState('');
+  const [sort, setSort] = useState('recent');
   const [page, setPage] = useState(1);
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
@@ -50,6 +65,8 @@ export function AlertsInbox() {
   if (type) params.set('type', type);
   if (severity) params.set('severity', severity);
   if (/^\d{5}$/.test(postalCode)) params.set('postal_code', postalCode);
+  if (installationType) params.set('installation_type', installationType);
+  if (sort === 'priority') params.set('sort', 'priority');
   const { data, error, loading } = useApiQuery(`/alerts?${params}`, alertsPage);
   const reset = (set: (v: string) => void) => (v: string) => {
     set(v);
@@ -78,6 +95,23 @@ export function AlertsInbox() {
           options={[
             { value: '', label: 'Todos' },
             ...Object.entries(ALERT_TYPE_LABELS).map(([value, label]) => ({ value, label })),
+          ]}
+        />
+        <Filter
+          id="installation_type"
+          label="Instalación"
+          value={installationType}
+          onChange={reset(setInstallationType)}
+          options={[{ value: '', label: 'Todas' }, ...INSTALLATION_TYPE_OPTIONS]}
+        />
+        <Filter
+          id="sort"
+          label="Ordenar por"
+          value={sort}
+          onChange={reset(setSort)}
+          options={[
+            { value: 'recent', label: 'Más recientes' },
+            { value: 'priority', label: 'Prioridad' },
           ]}
         />
         <Filter
@@ -159,6 +193,7 @@ export function AlertsInbox() {
                       {a.plant.name}
                       <div className="text-xs text-slate-500 dark:text-slate-400">
                         {a.plant.client_name}
+                        <PlantImpact plant={a.plant} />
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -198,6 +233,7 @@ export function AlertsInbox() {
                 </div>
                 <span className="text-sm">
                   {a.plant.name} · {a.plant.client_name}
+                  <PlantImpact plant={a.plant} />
                 </span>
                 <span className="text-xs text-slate-600 dark:text-slate-400">
                   {a.plant.colonia} · {formatDateTime(a.detected_at, timezone)} ·{' '}

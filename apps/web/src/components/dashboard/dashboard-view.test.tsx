@@ -24,6 +24,10 @@ const fixtures: Record<string, unknown> = {
     pr_temp_7d: 0.857,
     alerts_open: { critical: 1, warning: 3, info: 1 },
     offline_plants: 1,
+    by_installation_type: [
+      { installation_type: 'residential', plants: 20, capacity_kwp: 153 },
+      { installation_type: 'commercial', plants: 5, capacity_kwp: 400 },
+    ],
   },
   '/dashboard/map': {
     plants: [
@@ -84,7 +88,7 @@ const fixtures: Record<string, unknown> = {
     best: [{ id: ID(5), name: 'La mejor', client_name: 'C', pr_temp_avg: 0.9, valid_days: 28 }],
     worst: [],
   },
-  '/alerts?open=true&page_size=50': {
+  '/alerts?open=true&page_size=50&sort=priority': {
     data: [
       {
         id: ID(6),
@@ -118,7 +122,8 @@ const api = vi.fn(async (path: string, schema: { parse: (v: unknown) => unknown 
     failOnce = false;
     throw new ApiError(0, 'NETWORK_ERROR', 'No se pudo conectar con el servidor.');
   }
-  return schema.parse(fixtures[path]);
+  // El filtro por tipo devuelve los mismos datos de ejemplo; la prueba revisa la ruta pedida.
+  return schema.parse(fixtures[path.replace(/[?&]installation_type=\w+/, '').replace('?&', '?')]);
 });
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ api }) }));
 
@@ -165,6 +170,25 @@ describe('tablero', () => {
     expect(await screen.findByText(/No se pudo cargar el tablero/)).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(await screen.findByText('viernes, 23 de octubre')).toBeTruthy();
+  });
+
+  it('con casas y negocios, el selector filtra todo el tablero por tipo', async () => {
+    render(<DashboardView />);
+    const group = await screen.findByRole('group', { name: 'Tipo de instalación' });
+    expect(group.textContent).toContain('Residencial (20)');
+    await userEvent.click(screen.getByRole('button', { name: /Comercial/ }));
+    expect(screen.getByRole('button', { name: /Comercial/ }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    const paths = api.mock.calls.map((c) => c[0] as string);
+    for (const p of [
+      '/dashboard/summary?installation_type=commercial',
+      '/dashboard/map?installation_type=commercial',
+      '/dashboard/top-bottom?days=30&installation_type=commercial',
+      '/alerts?open=true&page_size=50&sort=priority&installation_type=commercial',
+    ]) {
+      expect(paths).toContain(p);
+    }
   });
 
   it('sin plantas invita a dar de alta la primera', async () => {

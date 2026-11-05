@@ -1,3 +1,4 @@
+import { INSTALLATION_TYPES } from '@pv/core';
 import { z } from 'zod';
 import { paginatedSchema, paginationQuery } from '../../http/pagination.js';
 import { postalCodeSchema } from '../clients/schemas.js';
@@ -20,6 +21,12 @@ export const alertsQuery = paginationQuery.extend({
   severity: alertSeveritySchema.optional(),
   plant_id: z.uuid().optional(),
   postal_code: postalCodeSchema.optional(),
+  installation_type: z.enum(INSTALLATION_TYPES).optional(),
+  /**
+   * recent (por defecto): la más reciente primero. priority: severidad, luego negocios e
+   * industrias, luego plantas más grandes (specs/06 §5).
+   */
+  sort: z.enum(['recent', 'priority']).default('recent'),
 });
 
 export const dismissAlertBody = z.object({
@@ -37,6 +44,10 @@ const alertPlant = z.object({
   colonia: z.string(),
   postal_code: z.string(),
   client_name: z.string(),
+  installation_type: z.enum(INSTALLATION_TYPES),
+  capacity_kwp: z.number(),
+  /** Negocio, industria o ≥ 30 kWp: sus alertas van primero y su ticket sube de prioridad. */
+  high_impact: z.boolean(),
 });
 
 export const alertSummary = z.object({

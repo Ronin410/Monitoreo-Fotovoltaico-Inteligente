@@ -1,13 +1,18 @@
+import { INSTALLATION_TYPES } from '@pv/core';
 import { z } from 'zod';
 
 // Tablero de flota (specs/09 §Tablero, specs/10 §Tablero).
 
 export const plantStatusSchema = z.enum(['ok', 'warning', 'critical', 'offline', 'no_data']);
 
-export const upcomingCleaningsQuery = z.object({
+/** Filtro opcional del tablero por tipo de instalación (casa, negocio, industria). */
+export const segmentQuery = z.object({
+  installation_type: z.enum(INSTALLATION_TYPES).optional(),
+});
+export const upcomingCleaningsQuery = segmentQuery.extend({
   days: z.coerce.number().int().min(1).max(60).default(14),
 });
-export const topBottomQuery = z.object({
+export const topBottomQuery = segmentQuery.extend({
   days: z.coerce.number().int().min(7).max(365).default(30),
 });
 
@@ -30,6 +35,14 @@ export const summaryResponse = z.object({
     info: z.number().int(),
   }),
   offline_plants: z.number().int(),
+  /** Plantas activas por tipo, siempre de toda la empresa (para el selector del tablero). */
+  by_installation_type: z.array(
+    z.object({
+      installation_type: z.enum(INSTALLATION_TYPES),
+      plants: z.number().int(),
+      capacity_kwp: z.number(),
+    }),
+  ),
 });
 
 export const mapResponse = z.object({

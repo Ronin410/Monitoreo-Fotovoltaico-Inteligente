@@ -1,4 +1,10 @@
-import { normalizeHeader, parseCsv, parseLooseNumber, type InverterBrand } from '@pv/core';
+import {
+  normalizeHeader,
+  parseCsv,
+  parseLooseNumber,
+  type InstallationType,
+  type InverterBrand,
+} from '@pv/core';
 import type { z } from 'zod';
 import { createClientBody } from '../clients/schemas.js';
 import { createPlantBody } from './schemas.js';
@@ -42,6 +48,7 @@ const PLANT_COLUMNS = {
   orientacion: 'azimuth_deg',
   latitud_planta: 'lat',
   longitud_planta: 'lon',
+  tipo_instalacion: 'installation_type',
   con_bateria: 'has_battery',
   limite_inyeccion: 'export_limited',
 } as const;
@@ -67,6 +74,18 @@ const NUMERIC = new Set([
 const BOOLEAN = new Set(['con_bateria', 'limite_inyeccion']);
 const YES = new Set(['si', 'yes', 'x', '1', 'true', 'verdadero']);
 const NO = new Set(['no', '0', 'false', 'falso']);
+
+/** "Residencial", "casa", "negocio"… → tipo de instalación. */
+const INSTALLATION: Record<string, InstallationType> = {
+  residencial: 'residential',
+  casa: 'residential',
+  domestica: 'residential',
+  hogar: 'residential',
+  comercial: 'commercial',
+  negocio: 'commercial',
+  industrial: 'industrial',
+  industria: 'industrial',
+};
 
 const BRANDS: Record<string, InverterBrand> = {
   goodwe: 'goodwe',
@@ -180,6 +199,13 @@ export function planImport(
           else if (NO.has(v)) out[field] = false;
           else {
             fail(col, `"${raw}" no es sí o no`);
+            ok = false;
+          }
+        } else if (col === 'tipo_instalacion') {
+          const type = INSTALLATION[normalizeHeader(raw)];
+          if (type) out[field] = type;
+          else {
+            fail(col, `"${raw}" no es residencial, comercial ni industrial`);
             ok = false;
           }
         } else if (col === 'puesta_en_marcha') out[field] = isoDate(raw);

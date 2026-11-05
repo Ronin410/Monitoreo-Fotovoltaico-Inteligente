@@ -1,4 +1,4 @@
-import { INVERTER_BRANDS, simulationProfileSchema } from '@pv/core';
+import { INSTALLATION_TYPES, INVERTER_BRANDS, simulationProfileSchema } from '@pv/core';
 import { z } from 'zod';
 import { paginatedSchema, paginationQuery } from '../../http/pagination.js';
 import { METRIC_SORTS } from './metrics.js';
@@ -11,6 +11,7 @@ const nullable = <T extends z.ZodType>(schema: T) => schema.nullable().optional(
 
 export const plantStatusSchema = z.enum(['active', 'paused', 'decommissioned']);
 export const inverterBrandSchema = z.enum(INVERTER_BRANDS);
+export const installationTypeSchema = z.enum(INSTALLATION_TYPES);
 
 const plantFields = {
   client_id: z.uuid(),
@@ -32,6 +33,7 @@ const plantFields = {
   colonia: text(120),
   status: plantStatusSchema,
   simulation_profile: nullable(simulationProfileSchema),
+  installation_type: installationTypeSchema,
   has_battery: z.boolean(),
   export_limited: z.boolean(),
 };
@@ -48,6 +50,7 @@ export const createPlantBody = z
     postal_code: true,
     colonia: true,
     status: true,
+    installation_type: true,
     has_battery: true,
     export_limited: true,
   })
@@ -82,6 +85,7 @@ export const plantsQuery = paginationQuery.extend({
   postal_code: postalCodeSchema.optional(),
   colonia: z.string().trim().min(1).max(120).optional(),
   brand: inverterBrandSchema.optional(),
+  installation_type: installationTypeSchema.optional(),
   client_id: z.uuid().optional(),
   q: z.string().trim().min(1).max(100).optional(),
   sort: z.enum([...PLANT_SORTS, ...METRIC_SORTS]).default('name'),
@@ -141,6 +145,7 @@ export const plantResponse = z.object({
   last_reading_at: z.date().nullable(),
   last_power_kw: z.number().nullable(),
   simulation_profile: simulationProfileSchema.nullable(),
+  installation_type: installationTypeSchema,
   has_battery: z.boolean(),
   export_limited: z.boolean(),
   credentials: credentialsStatus,

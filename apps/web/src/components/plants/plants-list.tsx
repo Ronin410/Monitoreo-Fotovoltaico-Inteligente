@@ -10,6 +10,7 @@ import { Notice, Spinner } from '@/components/ui';
 import type { PlantStatus } from '@/lib/dashboard';
 import {
   BRAND_LABELS,
+  INSTALLATION_TYPE_OPTIONS,
   INVERTER_BRAND_OPTIONS,
   LIFECYCLE_LABELS,
   plantsResponse,
@@ -33,6 +34,7 @@ export function PlantsList() {
   const [health, setHealth] = useState('');
   const [status, setStatus] = useState('active');
   const [brand, setBrand] = useState('');
+  const [installationType, setInstallationType] = useState('');
   const [colonia, setColonia] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [sort, setSort] = useState('name');
@@ -51,6 +53,7 @@ export function PlantsList() {
   if (health) params.set('health', health);
   if (status) params.set('status', status);
   if (brand) params.set('brand', brand);
+  if (installationType) params.set('installation_type', installationType);
   if (colonia.trim()) params.set('colonia', colonia.trim());
   if (/^\d{5}$/.test(postalCode)) params.set('postal_code', postalCode);
   const { data, error, loading } = useApiQuery(`/plants?${params}`, plantsResponse);
@@ -118,6 +121,13 @@ export function PlantsList() {
               { value: '', label: 'Todas' },
               ...Object.entries(LIFECYCLE_LABELS).map(([value, label]) => ({ value, label })),
             ]}
+          />
+          <Filter
+            id="installation_type"
+            label="Tipo"
+            value={installationType}
+            onChange={reset(setInstallationType)}
+            options={[{ value: '', label: 'Todos' }, ...INSTALLATION_TYPE_OPTIONS]}
           />
           <Filter
             id="brand"
