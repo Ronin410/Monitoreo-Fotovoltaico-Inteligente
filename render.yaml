@@ -141,6 +141,12 @@ services:
           type: web
           name: pv-api
           property: hostport
+      # Contacto de la página pública /inicio (opcionales; se leen al compilar). Correo y número de
+      # WhatsApp con lada, por ejemplo 526671234567. Sin ellos la página dice que se publicarán pronto.
+      - key: NEXT_PUBLIC_CONTACT_EMAIL
+        sync: false
+      - key: NEXT_PUBLIC_CONTACT_WHATSAPP
+        sync: false
 
 databases:
   - name: pv-db

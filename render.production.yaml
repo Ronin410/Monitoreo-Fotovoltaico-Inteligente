@@ -154,6 +154,12 @@ services:
           type: web
           name: pv-prod-api
           property: hostport
+      # Contacto de la página pública /inicio (opcionales; se leen al compilar). Correo y número de
+      # WhatsApp con lada, por ejemplo 526671234567. Sin ellos la página dice que se publicarán pronto.
+      - key: NEXT_PUBLIC_CONTACT_EMAIL
+        sync: false
+      - key: NEXT_PUBLIC_CONTACT_WHATSAPP
+        sync: false
       # Mapas comerciales: se leen al compilar, así que un cambio requiere volver a desplegar.
       # Ejemplo con MapTiler: https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=<llave>
       - key: NEXT_PUBLIC_MAP_TILE_URL

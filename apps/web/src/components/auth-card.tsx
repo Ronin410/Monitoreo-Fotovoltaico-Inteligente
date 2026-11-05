@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { LegalLinks } from './legal-page';
 
@@ -17,6 +18,11 @@ export function AuthCard({ title, children }: { title: string; children: ReactNo
           {children}
         </div>
         <LegalLinks className="mt-4 w-full justify-center text-sm" />
+        <p className="mt-2 text-center text-sm">
+          <Link href="/inicio" className="text-brand-text hover:underline">
+            Conozca PV-IoT
+          </Link>
+        </p>
       </div>
     </main>
   );

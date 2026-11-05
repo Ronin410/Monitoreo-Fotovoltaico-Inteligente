@@ -28,6 +28,14 @@ Para dar de alta a una persona: **Configuración → Usuarios → Invitar** (le 
 
 ---
 
+## Página pública (`/inicio`) — sin sesión
+
+Presentación para interesados. Quien entra a la dirección principal sin sesión llega aquí; quien ya tiene sesión entra directo a su tablero.
+
+- Secciones: beneficios, funciones, cómo funciona, marcas (con su estado real: disponible, en integración o próximamente), seguridad, preguntas frecuentes y contacto.
+- Los botones "Solicitar una demostración" y "Escribir por WhatsApp" usan `NEXT_PUBLIC_CONTACT_EMAIL` y `NEXT_PUBLIC_CONTACT_WHATSAPP` (en `pv-web`). La plataforma no guarda datos de los interesados.
+- Reglas del contenido: solo funciones que existen; sin precios, testimonios ni certificaciones; la vista previa del tablero dice "datos de ejemplo". Al cambiar el estado de una marca, actualice `apps/web/src/components/landing/landing-page.tsx`.
+
 ## Acceso (sin sesión)
 
 - **Iniciar sesión** (`/login`): correo y contraseña. Después de 5 intentos fallidos por minuto hay que esperar.

@@ -17,7 +17,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (state.status === 'anonymous') {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      // Quien llega a la dirección principal sin sesión ve la página pública; el resto, el login.
+      router.replace(pathname === '/' ? '/inicio' : `/login?next=${encodeURIComponent(pathname)}`);
     } else if (
       state.status === 'authenticated' &&
       pathname === '/' &&

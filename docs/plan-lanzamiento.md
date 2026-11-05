@@ -91,16 +91,16 @@ Sin esto, un piloto solo muestra datos simulados.
 
 ## 6. Lanzamiento y clientes
 
-| #   | Tarea                                                                                                                             | Responsable     | Estado |
-| --- | --------------------------------------------------------------------------------------------------------------------------------- | --------------- | :----: |
-| 6.1 | Demos en **staging** con "Cargar datos de ejemplo" (no existe en producción, a propósito)                                         | Equipo          |   ✅   |
-| 6.2 | Resend con dominio verificado (alertas, invitaciones, reportes)                                                                   | Equipo          |   🟡   |
-| 6.3 | Evaluación del asistente con la llave real de Anthropic (`pnpm eval:assistant`)                                                   | Equipo + Código |   ⬜   |
-| 6.4 | **Importación masiva** de clientes y plantas (CSV), indispensable para instaladoras con muchas plantas                            | Código          |   ✅   |
-| 6.5 | Proceso de alta de un cliente nuevo: quién captura las plantas y las credenciales, y en cuánto tiempo                             | Equipo          |   ⬜   |
-| 6.6 | Piloto con 1 o 2 instaladoras de la región, durante un mes, a cambio de retroalimentación                                         | Equipo          |   ⬜   |
-| 6.7 | Página comercial con beneficios y enlaces al aviso de privacidad y a los términos, sin mencionar certificaciones que no se tengan | Equipo          |   ⬜   |
-| 6.8 | Canal y horario de soporte                                                                                                        | Equipo          |   ⬜   |
+| #   | Tarea                                                                                                                                                                                                                       | Responsable     | Estado |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | :----: |
+| 6.1 | Demos en **staging** con "Cargar datos de ejemplo" (no existe en producción, a propósito)                                                                                                                                   | Equipo          |   ✅   |
+| 6.2 | Resend con dominio verificado (alertas, invitaciones, reportes)                                                                                                                                                             | Equipo          |   🟡   |
+| 6.3 | Evaluación del asistente con la llave real de Anthropic (`pnpm eval:assistant`)                                                                                                                                             | Equipo + Código |   ⬜   |
+| 6.4 | **Importación masiva** de clientes y plantas (CSV), indispensable para instaladoras con muchas plantas                                                                                                                      | Código          |   ✅   |
+| 6.5 | Proceso de alta de un cliente nuevo: quién captura las plantas y las credenciales, y en cuánto tiempo                                                                                                                       | Equipo          |   ⬜   |
+| 6.6 | Piloto con 1 o 2 instaladoras de la región, durante un mes, a cambio de retroalimentación                                                                                                                                   | Equipo          |   ⬜   |
+| 6.7 | Página comercial con beneficios y enlaces al aviso de privacidad y a los términos, sin mencionar certificaciones que no se tengan. Hecha en `/inicio`; falta el correo y WhatsApp de contacto y, después, un dominio propio | Equipo + Código |   🟡   |
+| 6.8 | Canal y horario de soporte                                                                                                                                                                                                  | Equipo          |   ⬜   |
 
 ## Orden recomendado
 
