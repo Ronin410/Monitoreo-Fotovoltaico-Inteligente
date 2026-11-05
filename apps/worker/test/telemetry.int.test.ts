@@ -300,4 +300,30 @@ describe('ingest.telemetry (orquestador)', () => {
     expect(queued).toContain(active.id);
     for (const p of [paused, noLocation, ofSuspended]) expect(queued).not.toContain(p.id);
   });
+
+  it('Enphase se encola cada 2 horas, no cada 15 min (#223)', async () => {
+    await ctx.queue.ensureQueue(ingestTelemetryPlantJob.definition);
+    const a = await createCompanyWithClient(ctx.owner);
+    const enphase = await createPlant(ctx.owner, a.company.id, a.client.id);
+    await ctx.owner.solarPlant.update({
+      where: { id: enphase.id },
+      data: { inverterBrand: 'enphase' },
+    });
+
+    // 12:00 en Mazatlán = 19:00 UTC: no es múltiplo de 2 horas.
+    ctx.setNow(localTime('2026-10-22', 12));
+    await runJob(ingestTelemetryJob, {}, 0, ctx.deps);
+    expect(await queuedPlantIds()).not.toContain(enphase.id);
+    const [run] = await ctx.owner.jobRun.findMany({
+      where: { jobName: 'ingest.telemetry' },
+      orderBy: { startedAt: 'desc' },
+      take: 1,
+    });
+    expect((run?.stats as { not_poll_slot: number }).not_poll_slot).toBeGreaterThan(0);
+
+    // 13:00 en Mazatlán = 20:00 UTC: toca leer.
+    ctx.setNow(localTime('2026-10-22', 13));
+    await runJob(ingestTelemetryJob, {}, 0, ctx.deps);
+    expect(await queuedPlantIds()).toContain(enphase.id);
+  });
 });

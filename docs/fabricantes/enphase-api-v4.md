@@ -44,12 +44,12 @@ Reglas de la telemetría: sin `start_at` empieza a la medianoche **en la zona ho
 
 - **Credenciales por empresa**, como GoodWe y Growatt: API key, Client ID, Client Secret y la cuenta de Enlighten de la instaladora, en **Configuración → Integraciones**, cifradas.
 - **Costo por petición.** Consultar cada planta cada 15 minutos son unas 2,880 peticiones al mes por planta: con 50 plantas, unas 144,000 peticiones, unos **USD 670 al mes**. En cambio, una consulta por planta y por día (`granularity=day` trae el día completo) son unas 30 al mes por planta: 50 plantas caben en las 10,000 gratis.
-- **Propuesta conservadora:** leer cada planta **cada pocas horas o una vez al día**, porque el motor de rendimiento calcula de noche. La alerta de "planta sin datos" se apoya en `last_report_at` de `/systems`, que trae 100 sistemas por petición.
+- **Frecuencia (decisión del PO, 2026-11-05): cada 2 horas con sol**, más una lectura justo al cerrar la ventana de sol para tener la tarde completa antes del cálculo de las 22:00. Son unas 8 consultas por planta al día (unas 240 al mes): 50 plantas son unas 12,000 al mes, unos USD 10 sobre lo gratuito. Cada consulta trae el día completo, así que no se pierden intervalos. La alerta "sin datos" (4 horas con sol) sigue funcionando: entre lecturas pasan como máximo 2 horas. Ya está en la ingesta: `pollEveryMinutes` del adaptador e `isPollSlot` en `packages/core`.
 - **Serie de 15 minutos:** con medidor, `wh_del` ya viene cada 15 min (kW = Wh × 4 / 1000). Sin medidor, se suman tres intervalos de 5 min de `enwh`. Los timestamps son de **fin** de intervalo; PV-IoT guarda el inicio, así que se resta la duración.
 - **Requisito en campo:** el sistema debe estar dado de alta en Enlighten y reportando con su Envoy.
 
 ## 4. Pendientes (ver `specs/PREGUNTAS.md` #222)
 
 1. Confirmar que la empresa cumple el requisito del plan Partner (10 instalaciones Enphase) y que acepta el costo por petición.
-2. Decidir la frecuencia de lectura (propuesta: cada pocas horas) y si se guarda la cuenta de Enlighten o solo el refresh token. Guardar solo el refresh token obliga a renovarlo antes de un mes; si se vence, la instaladora tendría que volver a capturar su contraseña.
+2. ~~Decidir la frecuencia de lectura.~~ Cada 2 horas (ver §3). Falta decidir si se guarda la cuenta de Enlighten o solo el refresh token. Guardar solo el refresh token obliga a renovarlo antes de un mes; si se vence, la instaladora tendría que volver a capturar su contraseña.
 3. Confirmar con respuestas reales el servidor de producción (`api.enphaseenergy.com`), la zona horaria y que `end_at` es el fin del intervalo.

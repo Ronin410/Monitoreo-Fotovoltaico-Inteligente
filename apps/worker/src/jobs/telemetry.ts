@@ -6,7 +6,7 @@ import {
 } from '@pv/adapters';
 import {
   floorToInterval,
-  isWithinSunWindow,
+  isPollSlot,
   normalizeReadings,
   simulationProfileSchema,
   type NormalizedInterval,
@@ -69,11 +69,13 @@ export const ingestTelemetryJob = registerJob(ingestTelemetry, async (_payload, 
   let enqueued = 0;
   let outsideSunWindow = 0;
   let withoutLocation = 0;
+  let notPollSlot = 0;
   for (const company of companies) {
+    const adapters = ctx.adapters(company.id);
     const plants = await withTenant(ctx.db, company.id, (tx) =>
       tx.solarPlant.findMany({
         where: { deletedAt: null, status: 'active' },
-        select: { id: true, lat: true, lon: true },
+        select: { id: true, lat: true, lon: true, inverterBrand: true },
       }),
     );
     for (const plant of plants) {
@@ -81,9 +83,14 @@ export const ingestTelemetryJob = registerJob(ingestTelemetry, async (_payload, 
         withoutLocation++;
         continue;
       }
-      // De noche no hay generación: solo se consulta con sol (± 30 min).
-      if (!isWithinSunWindow(now, Number(plant.lat), Number(plant.lon), company.timezone)) {
-        outsideSunWindow++;
+      const lat = Number(plant.lat);
+      const lon = Number(plant.lon);
+      const everyMinutes = adapters[plant.inverterBrand].pollEveryMinutes;
+      // De noche no hay generación: solo se consulta con sol (± 30 min). Las marcas que cobran por
+      // consulta se leen cada pocas horas (specs/PREGUNTAS.md #223).
+      if (!isPollSlot({ now, lat, lon, timeZone: company.timezone, everyMinutes })) {
+        if (isPollSlot({ now, lat, lon, timeZone: company.timezone })) notPollSlot++;
+        else outsideSunWindow++;
         continue;
       }
       if (
@@ -100,6 +107,7 @@ export const ingestTelemetryJob = registerJob(ingestTelemetry, async (_payload, 
     companies: companies.length,
     enqueued,
     outside_sun_window: outsideSunWindow,
+    not_poll_slot: notPollSlot,
     without_location: withoutLocation,
   };
 });

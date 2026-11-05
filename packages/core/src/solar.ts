@@ -70,3 +70,25 @@ export function isWithinSunWindow(now: Date, lat: number, lon: number, timeZone:
   const w = sunWindow(now, lat, lon, timeZone);
   return w !== null && now >= w.from && now <= w.to;
 }
+
+/**
+ * ¿Toca leer la planta en este cuarto de hora? Con `everyMinutes` de 15 (lo normal) se lee en toda
+ * la ventana de sol. Las marcas que cobran por consulta (Enphase) se leen menos: solo en los cuartos
+ * de hora alineados a `everyMinutes` (en UTC) dentro de la ventana, más el primero después de que
+ * cierra, para tener la tarde completa antes del cálculo nocturno (specs/PREGUNTAS.md #223).
+ */
+export function isPollSlot(args: {
+  now: Date;
+  lat: number;
+  lon: number;
+  timeZone: string;
+  everyMinutes?: number;
+}): boolean {
+  const { now, lat, lon, timeZone } = args;
+  const every = args.everyMinutes ?? 15;
+  const inWindow = isWithinSunWindow(now, lat, lon, timeZone);
+  if (every <= 15) return inWindow;
+  const slot = Math.floor(now.getTime() / 900_000) * 15;
+  if (inWindow) return slot % every === 0;
+  return isWithinSunWindow(new Date(now.getTime() - 900_000), lat, lon, timeZone);
+}

@@ -36,6 +36,11 @@ export interface InverterAdapter {
    * marcas sin adaptador aceptan campos libres.
    */
   readonly credentialsSchema?: z.ZodType;
+  /**
+   * Cada cuántos minutos se lee una planta de esta marca (múltiplo de 15). Por defecto 15. Se
+   * espacia en marcas que cobran por consulta (specs/PREGUNTAS.md #223).
+   */
+  readonly pollEveryMinutes?: number;
   /** Recibe las credenciales descifradas, solo en memoria. */
   testConnection(creds: unknown): Promise<ConnectionTestResult>;
   fetchReadings(args: {

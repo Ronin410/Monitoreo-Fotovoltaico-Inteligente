@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { hashString, normal, seededRandom } from './random.js';
-import { incidenceCos, isWithinSunWindow, sunPosition, sunTimes, sunWindow } from './solar.js';
+import {
+  incidenceCos,
+  isPollSlot,
+  isWithinSunWindow,
+  sunPosition,
+  sunTimes,
+  sunWindow,
+} from './solar.js';
 
 const CULIACAN = { lat: 24.8, lon: -107.39 };
 
@@ -82,5 +89,34 @@ describe('sunWindow', () => {
     expect(isWithinSunWindow(new Date((w?.from.getTime() ?? 0) - 60_000), 24.8, -107.39, TZ)).toBe(
       false,
     );
+  });
+});
+
+describe('isPollSlot', () => {
+  const TZ = 'America/Mazatlan';
+  const at = (iso: string, everyMinutes?: number) =>
+    isPollSlot({ now: new Date(iso), lat: 24.8, lon: -107.39, timeZone: TZ, everyMinutes });
+
+  it('cada 15 min: igual que la ventana de sol', () => {
+    expect(at('2026-10-20T19:15:00Z')).toBe(true);
+    expect(at('2026-10-20T09:00:00Z')).toBe(false);
+  });
+
+  it('cada 2 horas: solo en los cuartos de hora alineados dentro de la ventana', () => {
+    expect(at('2026-10-20T18:00:04Z', 120)).toBe(true);
+    expect(at('2026-10-20T18:15:00Z', 120)).toBe(false);
+    expect(at('2026-10-20T19:00:00Z', 120)).toBe(false);
+    expect(at('2026-10-20T20:00:00Z', 120)).toBe(true);
+    expect(at('2026-10-20T08:00:00Z', 120)).toBe(false); // 01:00 locales
+  });
+
+  it('cada 2 horas: una lectura más justo después de cerrar la ventana', () => {
+    const w = sunWindow(new Date('2026-10-20T19:00:00Z'), 24.8, -107.39, TZ);
+    const end = w?.to.getTime() ?? 0;
+    const slots = [0, 1, 2, 3].map((i) => new Date((Math.floor(end / 900_000) + 1 + i) * 900_000));
+    const polls = slots.map((now) =>
+      isPollSlot({ now, lat: 24.8, lon: -107.39, timeZone: TZ, everyMinutes: 120 }),
+    );
+    expect(polls).toEqual([true, false, false, false]);
   });
 });
