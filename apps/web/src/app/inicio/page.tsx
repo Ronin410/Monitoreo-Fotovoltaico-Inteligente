@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
-import { LandingPage } from '@/components/landing/landing-page';
-
-// Página pública para interesados (docs/plan-lanzamiento.md 6.7). Sin sesión.
+import { HomePage } from '@/components/landing/pages';
 
 export const metadata: Metadata = {
   title: 'PV-IoT · Monitoreo fotovoltaico inteligente para instaladoras',
@@ -16,6 +14,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default function InicioPage() {
-  return <LandingPage />;
+export default function Page() {
+  return <HomePage />;
 }
