@@ -497,3 +497,8 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Sin la cuenta de la empresa, la planta se omite como problema de conexión (`no_integration`).
     - En el sitio público, Enphase pasa a "En integración".
     - **Pendiente:** validar con una cuenta real (zona horaria, fin de intervalo, intervalos en cero) y grabar una respuesta real como ejemplo de prueba.
+225. **Growatt: segunda respuesta del soporte de México (2026-11-08).** Resumen en `docs/fabricantes/growatt-openapi.md` §1.1.
+    - El límite es **por función, no por equipo ni por planta**: las funciones que reciben `plant_id` permiten una llamada cada 5 minutos para toda la cuenta. Confirma que la lectura cada 15 minutos tiene que ser **por lotes** (`invs_data`, `tlxs_data`: hasta 100 inversores del mismo tipo por llamada).
+    - Las funciones por planta (`/v1/device/list`, `/v1/plant/power`) quedan para tareas ocasionales con una cola que respete el límite (12 plantas por hora). `/v1/plant/energy` y `/v1/plant/list` (10 al día) no sirven para leer ni validar todas las plantas a diario.
+    - Discrepancia: el soporte dice que `current_power` de `/v1/plant/list` está en kW; la documentación de ShowDoc dice W.
+    - **Pendiente:** aceptar la oferta del soporte de consultar al equipo técnico (preguntas en el documento, §3) y obtener el token para validar con respuestas reales.
