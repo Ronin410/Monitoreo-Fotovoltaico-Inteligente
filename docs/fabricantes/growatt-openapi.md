@@ -5,7 +5,8 @@
 1. Respuesta del **soporte de Growatt México** a la empresa (PDF "Info_GROWATT", entregado por el equipo el 2026-11-05).
 2. La documentación oficial que ese correo indica, en ShowDoc: `https://www.showdoc.com.cn/262556420217021/1494053950115877`. **Leída el 2026-11-05** con un navegador (ShowDoc rechaza las descargas automáticas). Se revisaron las 18 páginas clave; el resumen está en §4.
 3. Segunda respuesta del **soporte de Growatt México** (correo de Ingrid, entregado por el equipo el 2026-11-08), sobre el alcance del límite, las consultas por lotes y el historial. Resumen en §1.1.
-4. Como contexto, no como fuente: la librería comunitaria GrowattServer (`indykoning/PyPi_GrowattServer`, `docs/openapiv1.md`). No es de Growatt y no se programa con ella (`CLAUDE.md`).
+4. Tercera respuesta del **soporte de Growatt México** (Ingrid, entregada por el equipo el 2026-11-11). Resumen en §1.2.
+5. Como contexto, no como fuente: la librería comunitaria GrowattServer (`indykoning/PyPi_GrowattServer`, `docs/openapiv1.md`). No es de Growatt y no se programa con ella (`CLAUDE.md`).
 
 La página de ShowDoc muestra un "token de prueba" público. **No se usa**: solo se probará con el token de la empresa.
 
@@ -26,9 +27,19 @@ La página de ShowDoc muestra un "token de prueba" público. **No se usa**: solo
 
 - **El límite es por función (endpoint), no por equipo.** Cada función tiene su propia frecuencia, y algunas además un tope diario. Las funciones que reciben `plant_id` gastan el límite **en cada llamada, sin importar la planta**: no se puede pedir la planta A y luego la B dentro de los mismos 5 minutos con la misma función.
 - Ejemplos que da el soporte: `/v1/plant/data`, una cada 5 min; `/v1/plant/energy`, `/v1/plant/list` y `/v1/plant/modify`, una cada 5 min y **10 al día**.
-- **Varias plantas a la vez:** `/v1/plant/list` trae todas las plantas de la cuenta (`plant_id`, `name`, `peak_power`, `current_power`, `total_energy`, país, fecha de alta), hasta 100 por página. El soporte dice que `current_power` está en **kW**; la documentación de ShowDoc dice W. Hay que confirmarlo con una respuesta real.
+- **Varias plantas a la vez:** `/v1/plant/list` trae todas las plantas de la cuenta (`plant_id`, `name`, `peak_power`, `current_power`, `total_energy`, país, fecha de alta), hasta 100 por página. `current_power` está en **kW** (confirmado por el soporte en §1.2; la documentación de ShowDoc dice W).
 - **Historial:** `/v1/plant/energy` va planta por planta, con un rango de **7 días como máximo** por consulta (`start_date`, `end_date`, `time_unit` day/month/year, hasta 100 registros por página).
 - **Resolución del historial:** el soporte no la tiene documentada y ofreció preguntarle a su equipo técnico.
+
+### 1.2 Tercera respuesta del soporte (2026-11-11)
+
+- **El límite se cuenta por token** (por cuenta de instalador) y se gasta en cada llamada a la función. Cada empresa tiene su propio límite.
+- **Unidades:** `current_power` en `/v1/plant/list` y en `/v1/plant/data` (igual que `peak_power_actual`) está en **kW**; las energías, en **kWh**. El soporte pide tomar esto como válido para las conversiones, aunque ShowDoc diga W.
+- **Quedan con el equipo técnico de Growatt** (prometieron responder por el mismo medio):
+  1. si `invs_data` y `tlxs_data` con hasta 100 números de serie cuentan como una sola llamada;
+  2. la zona horaria de `time` y `calendar`, y las unidades de `pac` y `eacToday`;
+  3. cada cuánto se registra el histórico y cuántos días atrás se puede consultar;
+  4. el servidor de las cuentas de México (`openapi` o `openapi-us`); depende de dónde esté alojada la cuenta.
 
 ## 2. Cómo encaja con PV-IoT
 
@@ -41,16 +52,16 @@ La página de ShowDoc muestra un "token de prueba" público. **No se usa**: solo
 - **Identificación de la planta:** por el número de serie del inversor (`device_sn`) y su tipo. El tipo decide a qué función por lotes va cada equipo. Se obtienen de `/v1/device/list` una sola vez al vincular la planta y se guardan; la plataforma ya registra el número de serie del inversor.
 - **Requisito en campo:** cada equipo debe estar ligado a una planta en ShinePhone con su datalogger. Sin eso no aparece en la API.
 
-## 3. Pendientes (ver `specs/PREGUNTAS.md` #220, #221 y #225)
+## 3. Pendientes (ver `specs/PREGUNTAS.md` #220, #221, #225 y #226)
 
 1. ~~Leer la documentación de ShowDoc.~~ Hecho (§4).
 2. ~~Alcance del límite.~~ Por función, no por equipo ni por planta (§1.1).
-3. **Preguntas para el equipo técnico de Growatt** (el soporte ofreció canalizarlas):
+3. **Preguntas al equipo técnico de Growatt** (enviadas; el soporte respondió dos y canalizó las demás, §1.2):
    1. ¿`invs_data` y `tlxs_data` con 100 números de serie cuentan como **una sola llamada** para el límite de 5 minutos?
-   2. ¿El límite se cuenta **por token** (por cuenta de instalador) o por algo más amplio?
+   2. ~~¿El límite se cuenta por token?~~ Sí, por cuenta de instalador.
    3. ¿Cada cuánto se registran los datos de los inversores (5 o 15 minutos) y qué tan atrás se puede consultar?
    4. ¿En qué zona horaria vienen `time` y `calendar`? ¿En qué unidad vienen `pac` y `eacToday` de los inversores MIN?
-   5. `current_power` de `/v1/plant/list`: ¿kW o W?
+   5. ~~`current_power` de `/v1/plant/list`: ¿kW o W?~~ kW.
    6. ¿Las cuentas de México van en `openapi.growatt.com` o en `openapi-us.growatt.com`?
 4. "Probar conexión" **no debe usar** `/v1/plant/list` ni `/v1/plant/energy` (10 al día). Usar una sola llamada a `/v1/device/list` de una planta.
 5. Obtener el token en OSS con la cuenta de instalador, más al menos una planta reportando, para grabar respuestas reales como ejemplos de prueba.
@@ -61,12 +72,12 @@ Todas llevan el encabezado `token`. La respuesta tiene la forma `{ data, error_c
 
 ### Plantas
 
-| Función                                       | Parámetros                                                         | Datos útiles                                                                                | Límite                  |
-| --------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | ----------------------- |
-| `GET /v1/plant/list`                          | `page`, `perpage` (≤ 100)                                          | `plant_id`, `peak_power` (kWp), `current_power` (W), `total_energy` (kWh), latitud/longitud | 1 cada 5 min, 10 al día |
-| `GET /v1/plant/details`, `GET /v1/plant/data` | `plant_id`                                                         | Información básica y resumen de la planta                                                   | `data`: 1 cada 5 min    |
-| `GET /v1/plant/energy`                        | `plant_id`, `time_unit` (day/month/year), rango ≤ 7 días en diario | Energía en kWh                                                                              | 1 cada 5 min, 10 al día |
-| `GET /v1/plant/power`                         | `plant_id`, `date`                                                 | Serie cada 5 min: `time` ("YYYY-MM-DD HH:mm") y potencia en W                               | 1 cada 5 min            |
+| Función                                       | Parámetros                                                         | Datos útiles                                                                                                   | Límite                  |
+| --------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `GET /v1/plant/list`                          | `page`, `perpage` (≤ 100)                                          | `plant_id`, `peak_power` (kWp), `current_power` (kW, según el soporte), `total_energy` (kWh), latitud/longitud | 1 cada 5 min, 10 al día |
+| `GET /v1/plant/details`, `GET /v1/plant/data` | `plant_id`                                                         | Información básica y resumen de la planta                                                                      | `data`: 1 cada 5 min    |
+| `GET /v1/plant/energy`                        | `plant_id`, `time_unit` (day/month/year), rango ≤ 7 días en diario | Energía en kWh                                                                                                 | 1 cada 5 min, 10 al día |
+| `GET /v1/plant/power`                         | `plant_id`, `date`                                                 | Serie cada 5 min: `time` ("YYYY-MM-DD HH:mm") y potencia en W                                                  | 1 cada 5 min            |
 
 ### Equipos
 

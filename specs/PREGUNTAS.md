@@ -502,3 +502,8 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - Las funciones por planta (`/v1/device/list`, `/v1/plant/power`) quedan para tareas ocasionales con una cola que respete el límite (12 plantas por hora). `/v1/plant/energy` y `/v1/plant/list` (10 al día) no sirven para leer ni validar todas las plantas a diario.
     - Discrepancia: el soporte dice que `current_power` de `/v1/plant/list` está en kW; la documentación de ShowDoc dice W.
     - **Pendiente:** aceptar la oferta del soporte de consultar al equipo técnico (preguntas en el documento, §3) y obtener el token para validar con respuestas reales.
+226. **Growatt: tercera respuesta del soporte (2026-11-11).** Resumen en `docs/fabricantes/growatt-openapi.md` §1.2.
+    - El límite se cuenta **por token** (cada cuenta de instalador tiene el suyo) y por llamada a la función.
+    - `current_power` (en `/v1/plant/list` y `/v1/plant/data`) está en **kW** y las energías en kWh, aunque ShowDoc diga W. Se toma lo del soporte como válido.
+    - **Siguen con el equipo técnico de Growatt:** si una consulta por lotes de hasta 100 números de serie cuenta como una sola llamada (es la que decide si Growatt se puede leer cada 15 minutos), la zona horaria y las unidades de `pac` y `eacToday`, la resolución y antigüedad del histórico, y el servidor de México.
+    - El adaptador espera esa respuesta y el token de OSS.
