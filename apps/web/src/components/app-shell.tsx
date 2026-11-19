@@ -3,6 +3,7 @@
 import {
   Activity,
   Bell,
+  BookOpen,
   Bot,
   Building2,
   FileText,
@@ -40,6 +41,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   settings: Settings,
   companies: Building2,
   health: Activity,
+  manual: BookOpen,
 };
 
 const THEMES: { value: ThemeChoice; label: string; icon: LucideIcon }[] = [

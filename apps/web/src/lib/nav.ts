@@ -13,7 +13,8 @@ export type NavIcon =
   | 'reports'
   | 'settings'
   | 'companies'
-  | 'health';
+  | 'health'
+  | 'manual';
 
 export type NavItem = { href: string; label: string; icon: NavIcon };
 
@@ -22,6 +23,7 @@ export function navItems(role: UserRole): NavItem[] {
     return [
       { href: '/admin/companies', label: 'Empresas', icon: 'companies' },
       { href: '/admin/health', label: 'Salud del sistema', icon: 'health' },
+      { href: '/admin/manual', label: 'Manual', icon: 'manual' },
     ];
   }
   // El técnico solo trabaja con sus tickets (y la planta de cada uno).

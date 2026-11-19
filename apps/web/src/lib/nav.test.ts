@@ -26,7 +26,7 @@ describe('navegación por rol (specs/09)', () => {
       'Reportes',
     ]);
     expect(labels('technician')).toEqual(['Mis tickets']);
-    expect(labels('superadmin')).toEqual(['Empresas', 'Salud del sistema']);
+    expect(labels('superadmin')).toEqual(['Empresas', 'Salud del sistema', 'Manual']);
   });
 
   it('inicio por rol y rutas permitidas', () => {
