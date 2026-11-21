@@ -70,6 +70,7 @@ const SECTIONS = [
   { id: 'reporte', label: 'Reporte mensual' },
   { id: 'configuracion', label: 'Configuración' },
   { id: 'calendario', label: 'Calendario' },
+  { id: 'estandares', label: 'Estándares' },
   { id: 'pendientes', label: 'Preguntas abiertas' },
 ] as const;
 
@@ -778,7 +779,94 @@ E_real   = energía medida por el inversor en esa hora`}</Formula>
         <P muted>La última ejecución de cada tarea se ve en Salud del sistema.</P>
       </Section>
 
-      <Section id="pendientes" number={7} title="Preguntas abiertas que afectan los cálculos">
+      <Section id="estandares" number={7} title="Estándares y referencias">
+        <P>
+          Una parte de los cálculos sigue normas reconocidas de la industria y otra parte es propia
+          de PV-IoT. Esta sección las separa para explicarlo a clientes y técnicos.
+        </P>
+
+        <H3>7.1 Lo que sigue un estándar</H3>
+        <Table
+          head={['Cálculo', 'Referencia', 'Nota']}
+          rows={[
+            [
+              'PR (índice de rendimiento) y rendimiento específico (kWh/kWp)',
+              'Norma internacional IEC 61724-1 (monitoreo del desempeño de plantas fotovoltaicas)',
+              'Mismas fórmulas que usa la industria',
+            ],
+            [
+              'Temperatura de celda con el NOCT y factor por calor con γ',
+              'Modelo clásico de las hojas de datos de los paneles',
+              'NOCT y γ vienen de la hoja del panel de cada planta',
+            ],
+            [
+              'PR corregido por temperatura',
+              'Práctica reconocida; la más conocida es el "PR corregido por clima" de NREL (laboratorio de energía renovable de EE. UU.)',
+              'NREL corrige contra la temperatura promedio del año y PV-IoT contra 25 °C. Por eso el nuestro sale un poco más alto. No afecta las alertas: cada planta se compara contra sí misma',
+            ],
+            [
+              'Disponibilidad',
+              'Misma idea que la IEC 61724-1',
+              'Horas con sol con datos ÷ horas con sol',
+            ],
+          ]}
+        />
+
+        <H3>7.2 Lo que es propio de PV-IoT</H3>
+        <Table
+          head={['Cálculo', 'Por qué es propio']}
+          rows={[
+            [
+              'Línea base, desviación y comparación con vecinas',
+              `Decisiones de diseño (percentil 80 de ${BASELINE_WINDOW_DAYS} días, radio de ${n(T.neighbor_radius_km)} km). Ninguna norma las dicta`,
+            ],
+            [
+              'Suciedad y fecha de lavado',
+              'La IEC define cómo medir la pérdida por suciedad, pero con un sensor en sitio. La recta de tendencia de PV-IoT es un método propio y más simple. Hay métodos publicados más elaborados, como uno de NREL que también usa las lluvias y los lavados',
+            ],
+            [
+              'Reglas de alertas',
+              'Umbrales, días seguidos, evento de zona y prioridad. Cada plataforma tiene las suyas; no hay un estándar',
+            ],
+          ]}
+        />
+
+        <H3>7.3 Por qué los números no coinciden con los portales de los fabricantes</H3>
+        <List
+          ordered
+          items={[
+            <>
+              <strong>La irradiancia.</strong> Las plantas grandes miden el sol con un sensor en
+              sitio. PV-IoT lo estima con datos satelitales y modelos (Open-Meteo), sin instalar
+              equipo. Es lo normal en plantas residenciales y comerciales, pero tiene más error día
+              a día: típicamente algunos puntos porcentuales, y más en días nublados cambiantes.
+            </>,
+            <>
+              <strong>Los portales de Victron, GoodWe, Growatt o Enphase</strong> casi siempre
+              muestran solo energía y potencia. Si muestran un PR, suele ser sin corrección por
+              temperatura, y cada uno lo calcula a su manera.
+            </>,
+            <>
+              <strong>La energía sí debe coincidir</strong>, porque viene del mismo inversor. Está
+              pendiente una validación diaria contra el total del fabricante.
+            </>,
+          ]}
+        />
+
+        <H3>7.4 Cómo explicarlo a un cliente</H3>
+        <List
+          items={[
+            <>
+              <strong>En una frase:</strong> "Usamos las fórmulas de la norma IEC 61724-1, con
+              irradiancia estimada por satélite".
+            </>,
+            'El PR es una señal para detectar cambios en cada planta, no una medición de laboratorio. Por eso las alertas comparan cada planta contra su propio historial y contra sus vecinas, y no contra un valor fijo.',
+            'Si un cliente grande pide precisión de norma, la mejora es instalar un sensor de irradiancia en su planta (todavía no disponible en la plataforma).',
+          ]}
+        />
+      </Section>
+
+      <Section id="pendientes" number={8} title="Preguntas abiertas que afectan los cálculos">
         <List
           items={[
             `Factor de CO₂ vigente para México (hoy ${n(D.co2_kg_per_kwh, 3)} kg/kWh).`,

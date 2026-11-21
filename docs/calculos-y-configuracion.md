@@ -258,7 +258,40 @@ Estado de cada empresa (activa / suspendida), plan y **presupuesto mensual del a
 
 ---
 
-## 7. Preguntas abiertas que afectan los cálculos
+## 7. Estándares y referencias
+
+Una parte de los cálculos sigue normas reconocidas de la industria y otra parte es propia de PV-IoT.
+
+### 7.1 Lo que sigue un estándar
+
+| Cálculo                                                   | Referencia                                                                                           | Nota                                                                                                                                       |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| PR (índice de rendimiento) y rendimiento específico       | Norma internacional **IEC 61724-1** (monitoreo del desempeño de plantas fotovoltaicas)               | Mismas fórmulas que usa la industria                                                                                                       |
+| Temperatura de celda con el NOCT y factor por calor con γ | Modelo clásico de las hojas de datos de los paneles                                                  | NOCT y γ vienen de la hoja del panel de cada planta                                                                                        |
+| PR corregido por temperatura                              | Práctica reconocida; la más conocida es el "PR corregido por clima" de NREL (laboratorio de EE. UU.) | NREL corrige contra la temperatura promedio del año y PV-IoT contra 25 °C, por eso el nuestro sale un poco más alto. No afecta las alertas |
+| Disponibilidad                                            | Misma idea que la IEC 61724-1                                                                        | Horas con sol con datos ÷ horas con sol                                                                                                    |
+
+### 7.2 Lo que es propio de PV-IoT
+
+- **Línea base, desviación y comparación con vecinas:** decisiones de diseño (percentil 80 de 90 días, radio de 5 km). Ninguna norma las dicta.
+- **Suciedad y fecha de lavado:** la IEC define cómo medir la pérdida por suciedad, pero con un sensor en sitio. La recta de tendencia de PV-IoT es un método propio y más simple. Hay métodos publicados más elaborados, como uno de NREL que también usa las lluvias y los lavados.
+- **Reglas de alertas:** umbrales, días seguidos, evento de zona y prioridad. Cada plataforma tiene las suyas; no hay un estándar.
+
+### 7.3 Por qué los números no coinciden con los portales de los fabricantes
+
+1. **La irradiancia.** Las plantas grandes miden el sol con un sensor en sitio. PV-IoT lo estima con datos satelitales y modelos (Open-Meteo), sin instalar equipo. Es lo normal en plantas residenciales y comerciales, pero tiene más error día a día: típicamente algunos puntos porcentuales, y más en días nublados cambiantes.
+2. **Los portales de Victron, GoodWe, Growatt o Enphase** casi siempre muestran solo energía y potencia. Si muestran un PR, suele ser sin corrección por temperatura, y cada uno lo calcula a su manera.
+3. **La energía sí debe coincidir**, porque viene del mismo inversor. Está pendiente la validación diaria contra el total del fabricante (`specs/14`, D4).
+
+### 7.4 Cómo explicarlo a un cliente
+
+- En una frase: "Usamos las fórmulas de la norma IEC 61724-1, con irradiancia estimada por satélite".
+- El PR es una señal para detectar cambios en cada planta, no una medición de laboratorio. Por eso las alertas comparan cada planta contra su propio historial y contra sus vecinas.
+- Si un cliente grande pide precisión de norma, la mejora es instalar un sensor de irradiancia en su planta (todavía no disponible en la plataforma).
+
+---
+
+## 8. Preguntas abiertas que afectan los cálculos
 
 - Factor de CO₂ vigente para México (hoy 0.438 kg/kWh).
 - Umbral de alto impacto de 30 kWp: ¿se ajusta o se hace configurable por empresa? (`specs/PREGUNTAS.md` #219).

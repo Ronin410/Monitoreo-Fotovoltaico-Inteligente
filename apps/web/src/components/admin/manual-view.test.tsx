@@ -7,12 +7,13 @@ describe('manual del superadministrador', () => {
   it('muestra todas las secciones con su índice', () => {
     render(<ManualView />);
     const nav = screen.getByRole('navigation', { name: 'Secciones del manual' });
-    expect(within(nav).getAllByRole('link')).toHaveLength(7);
+    expect(within(nav).getAllByRole('link')).toHaveLength(8);
     for (const title of [
       'De dónde salen los datos',
       'Cálculo diario',
       'Alertas',
       'Qué se puede configurar',
+      'Estándares y referencias',
     ]) {
       expect(screen.getByRole('heading', { name: new RegExp(title) })).toBeTruthy();
     }
