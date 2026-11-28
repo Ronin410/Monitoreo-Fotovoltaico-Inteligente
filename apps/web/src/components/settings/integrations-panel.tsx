@@ -50,7 +50,7 @@ const PROVIDERS: Record<string, ProviderInfo> = {
         <strong> usuario de organización</strong>. Solicítelo a GoodWe con el código de organización
         de su cuenta SEMS+, el correo de esa cuenta y su razón social. Al aprobarlo, GoodWe le
         entrega un <strong>Client ID</strong> y un <strong>Client Secret</strong> y le indica el
-        servidor de su cuenta. Las plantas se ubican por el número de serie del inversor.
+        servidor de su cuenta. En cada planta se captura su ID de planta en SEMS.
       </>
     ),
     fields: [

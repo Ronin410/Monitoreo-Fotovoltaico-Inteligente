@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { GoodweApiError, GoodweClient, goodweCredentialsSchema } from './goodwe.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { goodweAdapter } from '../inverters/goodwe.js';
+import {
+  clearGoodweTokenCache,
+  fetchGoodweProduction,
+  GoodweApiError,
+  GoodweClient,
+  goodweCredentialsSchema,
+} from './goodwe.js';
 
 // Respuestas tomadas de los ejemplos de la documentación oficial (docs/fabricantes/goodwe-openapi.md).
 
@@ -56,6 +63,8 @@ const token =
     token_type: 'Bearer',
     expires_in: 3600,
   });
+
+beforeEach(() => clearGoodweTokenCache());
 
 describe('cliente de GoodWe', () => {
   it('pide el token con client credentials y lista las plantas con Bearer y Request-Id', async () => {
@@ -127,5 +136,155 @@ describe('cliente de GoodWe', () => {
   it('valida las llaves que captura la instaladora', () => {
     expect(goodweCredentialsSchema.safeParse({ ...creds, region: 'mx' }).success).toBe(false);
     expect(goodweCredentialsSchema.safeParse({ ...creds, client_secret: ' ' }).success).toBe(false);
+  });
+});
+
+/** Ejemplo oficial de realtime/plants/history: plantData como objeto y valores como texto. */
+const HISTORY_EXAMPLE = {
+  code: '00000',
+  data: {
+    noPermissionSearchKey: [],
+    plantData: {
+      'e06b4c57-5d95-4467-a053-fc234c2acb47': {
+        plantId: 'e06b4c57-5d95-4467-a053-fc234c2acb47',
+        plantName: '15a Beauty Point Road',
+        nmi: null,
+        historicalData: [
+          { timeStamp: '1782285720', meterPower: '0', batteryPower: '1.21472', pvPower: '0.001' },
+          { timeStamp: '1782285780', meterPower: '0', batteryPower: '1.21488', pvPower: '0' },
+        ],
+      },
+    },
+  },
+  msg: 'Request has been processed successfully',
+};
+const PLANT = 'e06b4c57-5d95-4467-a053-fc234c2acb47';
+
+/** Respuesta con la forma del esquema oficial (plantData como lista y valores numéricos). */
+function historyAsList(points: { timeStamp: number; pvPower: number | null }[], plantId = PLANT) {
+  return {
+    code: '00000',
+    data: {
+      noPermissionSearchKey: [],
+      plantData: [{ plantId, plantName: 'Casa', nmi: null, historicalData: points }],
+    },
+    msg: 'ok',
+  };
+}
+
+describe('serie de potencia de GoodWe', () => {
+  it('acepta el ejemplo oficial: objeto por plantId y valores como texto', async () => {
+    const { fetchImpl, calls } = fakeFetch([token(), () => HISTORY_EXAMPLE]);
+    const start = new Date(1782285720 * 1000);
+    const { points } = await new GoodweClient(creds, { fetchImpl }).plantsPowerHistory(
+      [PLANT],
+      start,
+      new Date(start.getTime() + 3_600_000),
+    );
+    expect(points.get(PLANT)).toEqual([
+      { ts: new Date(1782285720 * 1000), pvPowerKw: 0.001 },
+      { ts: new Date(1782285780 * 1000), pvPowerKw: 0 },
+    ]);
+    expect(JSON.parse(String(calls[1]?.init.body))).toEqual({
+      searchKey: [PLANT],
+      searchType: 1,
+      startTime: 1782285720,
+      endTime: 1782289320,
+      interval: 1,
+      dataPoints: ['pvPower'],
+    });
+  });
+
+  it('acepta la forma del esquema: lista de plantas y valores numéricos', async () => {
+    const { fetchImpl } = fakeFetch([
+      token(),
+      () => historyAsList([{ timeStamp: 1782285720, pvPower: 2.5 }]),
+    ]);
+    const { points } = await new GoodweClient(creds, { fetchImpl }).plantsPowerHistory(
+      [PLANT],
+      new Date(0),
+      new Date(1),
+    );
+    expect(points.get(PLANT)).toEqual([{ ts: new Date(1782285720 * 1000), pvPowerKw: 2.5 }]);
+  });
+
+  it('lee por ventanas de 24 h desde el cuarto de hora y descarta el que no termina', async () => {
+    const day = 86_400;
+    const t0 = 1782259200; // 00:00 UTC, múltiplo de 15 min
+    const { fetchImpl, calls } = fakeFetch([
+      token(),
+      () =>
+        historyAsList([
+          { timeStamp: t0, pvPower: 1 },
+          { timeStamp: t0 + 60, pvPower: null },
+        ]),
+      () =>
+        historyAsList([
+          { timeStamp: t0 + day, pvPower: 2 },
+          { timeStamp: t0 + day + 900, pvPower: 3 }, // cuarto de hora en curso: se descarta
+        ]),
+    ]);
+    const readings = await fetchGoodweProduction(
+      new GoodweClient(creds, { fetchImpl }),
+      PLANT,
+      new Date((t0 + 300) * 1000),
+      new Date((t0 + day + 1000) * 1000),
+    );
+    expect(readings).toEqual([
+      { ts: new Date(t0 * 1000), powerKw: 1 },
+      { ts: new Date((t0 + day) * 1000), powerKw: 2 },
+    ]);
+    const windows = calls.slice(1).map((c) => {
+      const b = JSON.parse(String(c.init.body)) as { startTime: number; endTime: number };
+      return [b.startTime - t0, b.endTime - t0];
+    });
+    expect(windows).toEqual([
+      [0, day],
+      [day, day + 900],
+    ]);
+  });
+
+  it('una planta sin permiso falla sin repetir datos del proveedor', async () => {
+    const { fetchImpl } = fakeFetch([
+      token(),
+      () => ({ code: '00000', data: { noPermissionSearchKey: [PLANT], plantData: [] }, msg: 'ok' }),
+    ]);
+    const t = Date.UTC(2026, 10, 1);
+    const err = await fetchGoodweProduction(
+      new GoodweClient(creds, { fetchImpl }),
+      PLANT,
+      new Date(t),
+      new Date(t + 3_600_000),
+    ).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GoodweApiError);
+    expect((err as GoodweApiError).code).toBe('21201');
+  });
+
+  it('las plantas comparten el token de la instaladora (GoodWe admite uno solo por Client ID)', async () => {
+    const { fetchImpl, calls } = fakeFetch([
+      token(),
+      () => historyAsList([]),
+      () => historyAsList([]),
+    ]);
+    const end = new Date(Date.UTC(2026, 10, 1));
+    const start = new Date(end.getTime() - 3_600_000);
+    await Promise.all([
+      new GoodweClient(creds, { fetchImpl }).plantsPowerHistory([PLANT], start, end),
+      new GoodweClient(creds, { fetchImpl }).plantsPowerHistory(['otra'], start, end),
+    ]);
+    expect(calls.filter((c) => c.url.endsWith('/oauth2/token'))).toHaveLength(1);
+  });
+});
+
+describe('goodweAdapter', () => {
+  it('usa las llaves de la empresa y el ID de planta de SEMS', async () => {
+    expect(goodweAdapter.usesCompanyIntegration).toBe(true);
+    expect(goodweAdapter.credentialsSchema!.parse({ plant_id: ` ${PLANT} ` })).toEqual({
+      plant_id: PLANT,
+    });
+    expect(await goodweAdapter.testConnection({ plant_id: PLANT }, undefined)).toEqual({
+      ok: false,
+      message: 'Falta conectar la cuenta de GoodWe de la empresa',
+    });
   });
 });

@@ -10,7 +10,7 @@ Actualizado al 2026-11-12.
 
 | Dato                    | Fuente                                                                                                                                     | Cada cuánto                                                    |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| Producción del inversor | Portal de cada fabricante (Victron hoy; Enphase listo para probar; GoodWe y Growatt en integración)                                        | Cada 15 min con sol; Enphase cada 2 horas (cobra por consulta) |
+| Producción del inversor | Portal de cada fabricante (Victron hoy; Enphase y GoodWe listos para probar; Growatt en integración)                                       | Cada 15 min con sol; Enphase cada 2 horas (cobra por consulta) |
 | Clima por hora          | Open-Meteo: irradiancia **sobre el plano de los paneles** (usa la inclinación y orientación de la planta), temperatura, nubosidad y lluvia | Cada hora                                                      |
 | Eventos de la planta    | Lavados, reparaciones (al cerrar tickets) y "lavado por lluvia" (automático)                                                               | Cuando ocurren                                                 |
 

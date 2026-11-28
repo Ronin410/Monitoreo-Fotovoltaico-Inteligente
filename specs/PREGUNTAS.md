@@ -507,3 +507,8 @@ Dudas encontradas al implementar. Cada una indica la opción conservadora que se
     - `current_power` (en `/v1/plant/list` y `/v1/plant/data`) está en **kW** y las energías en kWh, aunque ShowDoc diga W. Se toma lo del soporte como válido.
     - **Siguen con el equipo técnico de Growatt:** si una consulta por lotes de hasta 100 números de serie cuenta como una sola llamada (es la que decide si Growatt se puede leer cada 15 minutos), la zona horaria y las unidades de `pac` y `eacToday`, la resolución y antigüedad del histórico, y el servidor de México.
     - El adaptador espera esa respuesta y el token de OSS.
+227. **GoodWe: lectura de la serie de potencia (2026-11-28).** El soporte de GoodWe confirmó que la documentación oficial es el portal openapi.goodwe.com, el mismo que se revisó el 2026-11-03. Se volvió a descargar: sin cambios en funciones ni en las contradicciones. Detalle en `docs/fabricantes/goodwe-openapi.md` §5.1.
+    - Se implementó el adaptador con lo documentado: llaves de la empresa (Integraciones), ID de planta en SEMS por planta y `realtime/plants/history` (`pvPower` en kW, un punto por minuto, ventanas de 24 h).
+    - Opción conservadora ante la contradicción: se aceptan las dos formas documentadas de la respuesta (lista u objeto) y los valores como número o texto.
+    - Token compartido por instaladora en memoria, porque GoodWe admite uno solo por Client ID.
+    - **Pendiente con una cuenta real:** confirmar la forma real de la respuesta, si `pvPower` es AC o DC, el servidor de México y el límite de peticiones. Hoy se hace una consulta por planta; si el límite es bajo, se agrupan hasta 100 plantas por consulta.

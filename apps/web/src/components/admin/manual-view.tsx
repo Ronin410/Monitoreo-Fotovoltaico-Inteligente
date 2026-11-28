@@ -222,7 +222,7 @@ export function ManualView() {
           rows={[
             [
               'Producción del inversor',
-              'Portal de cada fabricante: Victron; Enphase listo para probar; GoodWe y Growatt en integración',
+              'Portal de cada fabricante: Victron; Enphase y GoodWe listos para probar; Growatt en integración',
               'Cada 15 min con sol; Enphase cada 2 h (cobra por consulta)',
             ],
             [

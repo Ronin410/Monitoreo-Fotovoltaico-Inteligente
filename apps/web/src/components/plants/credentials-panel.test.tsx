@@ -27,7 +27,7 @@ vi.mock('@/lib/auth', () => ({ useAuth: () => ({ api }) }));
 
 const plant = {
   id: '00000000-0000-4000-8000-000000000001',
-  inverter_brand: 'goodwe',
+  inverter_brand: 'huawei',
   credentials: {
     has_credentials: false,
     provider: null,
@@ -118,6 +118,26 @@ describe('credenciales de Enphase', () => {
     expect(calls.at(-1)).toEqual({
       path: `/plants/${plant.id}/credentials`,
       body: { credentials: { system_id: '698905955' } },
+    });
+  });
+});
+
+describe('credenciales de GoodWe', () => {
+  it('solo pide el ID de la planta en SEMS; las llaves son de la empresa', async () => {
+    calls.length = 0;
+    render(
+      <CredentialsPanel
+        plant={{ ...plant, inverter_brand: 'goodwe' } as Plant}
+        timezone="America/Mazatlan"
+        onSaved={() => {}}
+      />,
+    );
+    expect(screen.queryByLabelText(/Usuario del portal/)).toBeNull();
+    await userEvent.type(screen.getByLabelText(/ID de la planta en SEMS/), ' planta-abc ');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar credenciales' }));
+    expect(calls.at(-1)).toEqual({
+      path: `/plants/${plant.id}/credentials`,
+      body: { credentials: { plant_id: 'planta-abc' } },
     });
   });
 });

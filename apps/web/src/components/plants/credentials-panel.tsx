@@ -22,6 +22,31 @@ import type { z } from 'zod';
 
 type Extra = { key: string; value: string };
 
+/**
+ * Marcas con las llaves de la empresa (Configuración → Integraciones): en la planta solo se
+ * captura su identificador en el portal del fabricante.
+ */
+const LINKED_PLANT_FIELDS: Partial<
+  Record<
+    Plant['inverter_brand'],
+    { key: string; title: string; label: string; hint: string; numeric?: boolean }
+  >
+> = {
+  enphase: {
+    key: 'system_id',
+    title: 'Sistema de Enphase',
+    label: 'Número de sistema de Enphase (system_id)',
+    hint: 'El número del sistema en Enlighten. La cuenta de Enphase de la empresa se conecta en Configuración → Integraciones.',
+    numeric: true,
+  },
+  goodwe: {
+    key: 'plant_id',
+    title: 'Planta en GoodWe',
+    label: 'ID de la planta en SEMS (plantId)',
+    hint: 'El identificador de la planta en SEMS. La cuenta de GoodWe de la empresa se conecta en Configuración → Integraciones.',
+  },
+};
+
 export function CredentialsPanel({
   plant,
   timezone,
@@ -40,16 +65,16 @@ export function CredentialsPanel({
   const [busy, setBusy] = useState(false);
   // Victron (VRM): token de acceso y número de instalación (docs/fabricantes/victron-vrm.md).
   const victron = plant.inverter_brand === 'victron';
-  // Enphase: las llaves son de la empresa (Configuración → Integraciones); aquí, el sistema.
-  const enphase = plant.inverter_brand === 'enphase';
+  // Enphase y GoodWe: las llaves son de la empresa; aquí, el identificador de la planta.
+  const linked = LINKED_PLANT_FIELDS[plant.inverter_brand];
 
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const f = new FormData(form);
     const credentials: Record<string, string> = {};
-    if (enphase) {
-      credentials.system_id = String(f.get('cred_system_id') ?? '').trim();
+    if (linked) {
+      credentials[linked.key] = String(f.get(`cred_${linked.key}`) ?? '').trim();
     } else if (victron) {
       credentials.access_token = String(f.get('cred_access_token') ?? '').trim();
       credentials.id_site = String(f.get('cred_id_site') ?? '').trim();
@@ -105,9 +130,7 @@ export function CredentialsPanel({
     <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-900">
       <h2 className="flex items-center gap-2 text-base font-semibold">
         <KeyRound aria-hidden="true" className="size-5" />{' '}
-        {enphase
-          ? 'Sistema de Enphase'
-          : `Credenciales del portal ${BRAND_LABELS[plant.inverter_brand]}`}
+        {linked ? linked.title : `Credenciales del portal ${BRAND_LABELS[plant.inverter_brand]}`}
       </h2>
       {status.has_credentials ? (
         <ul className="flex flex-col gap-0.5 text-sm">
@@ -129,16 +152,16 @@ export function CredentialsPanel({
         <form onSubmit={save} noValidate className="flex flex-col gap-4" autoComplete="off">
           <p className="text-xs text-slate-600 dark:text-slate-400">
             Se guardan cifradas y nunca se vuelven a mostrar.
-            {!victron && !enphase && ' Escribe todas las que pida el portal del fabricante.'}
+            {!victron && !linked && ' Escribe todas las que pida el portal del fabricante.'}
           </p>
-          {enphase ? (
+          {linked ? (
             <TextInput
-              id="cred_system_id"
-              label="Número de sistema de Enphase (system_id)"
-              inputMode="numeric"
+              id={`cred_${linked.key}`}
+              label={linked.label}
+              inputMode={linked.numeric ? 'numeric' : undefined}
               required
-              hint="El número del sistema en Enlighten. La cuenta de Enphase de la empresa se conecta en Configuración → Integraciones."
-              error={errors['system_id'] ?? errors['credentials']}
+              hint={linked.hint}
+              error={errors[linked.key] ?? errors['credentials']}
             />
           ) : victron ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

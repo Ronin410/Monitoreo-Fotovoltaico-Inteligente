@@ -2,6 +2,8 @@
 
 **Fuente:** portal oficial https://openapi.goodwe.com. La especificación OpenAPI 3.0 (`developerplatform-en-US.json`) la sirve el portal desde `iot-sgp.oss-ap-southeast-1.aliyuncs.com`. Descargada el 2026-11-03; la entregó el equipo. Las guías tienen fechas de actualización de mayo a septiembre de 2026.
 
+**2026-11-28:** el soporte de GoodWe confirmó que esta es la documentación oficial para la integración (enlace a la guía de uso, `#api/doc-10a71afe72c271`). Se volvió a descargar: mismas funciones y mismas contradicciones del §6. Copia sin cambios en `docs/fabricantes/goodwe-openapi.json`.
+
 Este documento resume solo lo que dice la documentación. Lo que falta o se contradice queda en el §6 (`CLAUDE.md`: no se suple con supuestos).
 
 ## 1. Acceso: hay que solicitarlo a GoodWe
@@ -52,9 +54,18 @@ No es una API abierta: GoodWe revisa una solicitud y entrega un **Client ID** y 
 - Convertir la serie de 1 minuto a intervalos de 15 min. Es una función pura, con pruebas basadas en los ejemplos de la documentación.
 - "Probar conexión": pedir el token y consultar `base-info/plants`.
 
-## 6. Pendientes (ver `specs/PREGUNTAS.md` #213)
+## 5.1 Implementación (2026-11-28)
 
-1. **Decisión del PO:** ¿cada instaladora solicita su acceso como _usuario de organización_ (credenciales por empresa) o PV-IoT se registra como _tercero_ (OAuth de cada cliente final)? De esto depende cómo se capturan las credenciales.
+- **Credenciales:** las de la empresa (Client ID, Client Secret y servidor) en Configuración → Integraciones, cifradas; en cada planta, su **ID de planta en SEMS** (`plant_id`).
+- **Token:** uno por instaladora, en memoria del proceso y compartido entre todas sus plantas, porque GoodWe invalida el anterior al pedir uno nuevo. Con `10002` se pide otro una vez.
+- **Lectura:** `realtime/plants/history` con `pvPower`, en ventanas de 24 h desde el cuarto de hora. Se descarta el cuarto de hora en curso. La ingesta promedia los puntos de cada cuarto de hora (energía = potencia × 0.25 h; no hay contador diario).
+- **Contradicciones de la documentación:** se aceptan las dos formas documentadas de `plantData` (lista u objeto por `plantId`) y los valores como número o texto. Las pruebas usan el ejemplo oficial tal cual.
+- **Probar conexión:** pide una hora de serie de la planta y revisa que no esté en `noPermissionSearchKey`.
+- Hoy se hace **una consulta por planta**. La función admite hasta 100 plantas por consulta; si GoodWe publica un límite bajo (error `00003`), se cambia a una consulta por instaladora.
+
+## 6. Pendientes (ver `specs/PREGUNTAS.md` #213 y #227)
+
+1. ~~**Decisión del PO:**~~ Usuario de organización (2026-11-03). ¿cada instaladora solicita su acceso como _usuario de organización_ (credenciales por empresa) o PV-IoT se registra como _tercero_ (OAuth de cada cliente final)? De esto depende cómo se capturan las credenciales.
 2. **Límite de peticiones:** no está publicado; hay que pedirlo a GoodWe.
 3. **Formato de `Request-Id`:** es obligatorio, pero no se explica (¿un UUID por petición?).
 4. **Contradicciones de la documentación**, a confirmar con una cuenta real:
@@ -65,4 +76,6 @@ No es una API abierta: GoodWe revisa una solicitud y entrega un **Client ID** y 
 5. **Región de México:** confirmar con GoodWe en qué servidor quedan las plantas de México (probablemente `us-gateway` o `hk-gateway`).
 6. **Datos anteriores a 2025:** el historial por equipo solo existe desde el 1 de enero de 2025; para plantas más antiguas solo hay estadística diaria.
 
-Con la aprobación de GoodWe y una cuenta con al menos una planta, los puntos 3 y 4 se resuelven en una prueba, y sus respuestas se graban como ejemplos para las pruebas automáticas.
+7. **`pvPower` de la planta:** la documentación no dice si es del lado AC (lo que entrega el inversor) o DC. Para el PR conviene AC; confirmarlo con una cuenta real.
+
+Con la aprobación de GoodWe y una cuenta con al menos una planta, los puntos 3, 4 y 7 se resuelven en una prueba, y sus respuestas se graban como ejemplos para las pruebas automáticas.
